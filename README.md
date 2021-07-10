@@ -16,7 +16,7 @@ CSLB (CWhy Supervised Learning Benchmark) is my personal benchmark to measure pe
 * utilize Python to its finest
 
 ## Current Goals
-* quick and dirty version for anynet
+* quick and dirty version for testing cwhy/anynet
 * types are a must, no array type yet
 * mnist/fashion mnist
 
