@@ -1,19 +1,9 @@
+from pathlib import Path
+
 from variables import VariableGroup, VariableTensor
 from typing import Callable, NamedTuple, Literal, Generic, TypeVar, Protocol, Tuple, Generic, List, Final
 
-FeatureLayouts = Literal["flatten"]
-Input = TypeVar('Input')
-Output = TypeVar('Output')
-Results = TypeVar('Results')
-
-mnist_in = VariableGroup(name="mnist_in",
-                         variables={
-                             VariableTensor(Bounded(max=1, min=0), (28, 28))
-                         })
-mnist_out = VariableGroup(name="mnist_out",
-                          variables={
-                              VariableTensor(OneHot(n_category=10), (1,))
-                          })
+from supervised_benchmarks.metric_protocols import Metric, MetricResult
 
 FeatureTypeTag = TypeVar('FeatureTypeTag')
 SubsetTypeTag = TypeVar('SubsetTypeTag')
@@ -43,10 +33,12 @@ class ModelConfig(Protocol):
 
 
 class DataConfig(Protocol):
+    base_path: Path
+    shuffle: bool
     type: Literal['DataConfig'] = 'DataConfig'
 
 
-class MetricConfig(Protocol):
+class Metrics(Protocol):
     type: Literal['MetricConfig'] = 'MetricConfig'
 
 
@@ -65,8 +57,8 @@ class ModelUtils(Protocol[Model]):
 
     @staticmethod
     def train(model: Model[ModelConfig],
-              metric_config: MetricConfig,
-              data: DataEnv) -> Tuple[Model[ModelConfig], Results[MetricConfig]]:
+              metric_config: Metrics,
+              data: DataEnv) -> Model[ModelConfig]:
         pass
 
     @staticmethod
@@ -92,19 +84,21 @@ class DataSetUtils(Protocol[DataSet]):
         pass
 
 
+# Output-metric matching concept
+
 class BenchUtils(Protocol):
     @staticmethod
-    def bench(metric_config: MetricConfig,
+    def bench(metric_queries: List[Metric],
               dataset_utils: DataSetUtils,
-              model_utils: ModelUtils) -> Metrics[MetricConfig]:
+              model_utils: ModelUtils) -> List[MetricResult]:
         pass
 
     @staticmethod
-    def test(metric_config: MetricConfig,
+    def test(metric_queries: List[Metric],
              model: Model[ModelConfig],
-             data: DataSet[DataConfig]) -> Metrics[MetricConfig]:
+             data: DataSet[DataConfig]) -> List[MetricResult]:
         pass
 
     @staticmethod
-    def measure(data_pair: DataPair) -> Metrics[MetricConfig]:
+    def measure(metric: Metric, data_pair: DataPair) -> MetricResult:
         pass

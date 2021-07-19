@@ -27,3 +27,6 @@ Risen from ashes of cwhy/MLKit(Rip TF1.0x)
 ## Short Term Goals
 * input output validation
 * cifar, tabular datasets from UCI and stuff
+
+## Acknowledgement
+* Download helper functions are from https://github.com/pytorch/vision
