@@ -16,9 +16,9 @@ class MetricResult(Protocol):
 
 class MeanAcc(NamedTuple):
     result: float
-    type = Literal['mean_acc']
+    type: Literal['mean_acc'] = 'mean_acc'
 
 
 class CategoricalAcc(NamedTuple):
     result: List[float]
-    type = Literal['categorical_acc']
+    type: Literal['categorical_acc'] = 'categorical_acc'

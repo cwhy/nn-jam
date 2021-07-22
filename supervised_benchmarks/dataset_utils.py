@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import Optional, List, Tuple
 from urllib.error import URLError
 
-from supervised_benchmarks.download_utils import download_and_extract_archive
+from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity
+from supervised_benchmarks.protocols import SupportedDatasetNames
 
 
 def get_raw_path(path: Path) -> Path:
@@ -12,7 +13,19 @@ def get_raw_path(path: Path) -> Path:
     return raw_path
 
 
-def download_resources(raw_path: Path, resources: List[Tuple[str, str]], mirrors: List[str]) -> None:
+def download_resources(base_path: Path, name: SupportedDatasetNames, resources: List[Tuple[str, str]], mirrors: List[str]) -> None:
+    base_path = base_path.joinpath(name)
+    base_path.mkdir(exist_ok=True)
+    raw_path = get_raw_path(base_path)
+
+    def _check_exists() -> bool:
+        return all(
+            check_integrity(raw_path.joinpath(file_name))
+            for file_name, _ in resources
+        )
+
+    if _check_exists():
+        return None
     for filename, md5 in resources:
         for mirror in mirrors:
             url = "{}{}".format(mirror, filename)

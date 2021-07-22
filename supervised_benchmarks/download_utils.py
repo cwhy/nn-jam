@@ -120,7 +120,8 @@ def _detect_file_type(path: Path) -> Tuple[str, Optional[str], Optional[str]]:
 
     # check if the suffix is a known alias
     if suffix in _FILE_TYPE_ALIASES:
-        return suffix, *_FILE_TYPE_ALIASES[suffix], None
+        # noinspection PyTypeChecker
+        return suffix, *_FILE_TYPE_ALIASES[suffix]
 
     # check if the suffix is an archive type
     if suffix in _ARCHIVE_EXTRACTORS:
@@ -199,14 +200,14 @@ def extract_archive(from_path: Path, to_path: Optional[Path] = None, remove_fini
     return to_path
 
 
-def get_url_filename(url: str, filename: Optional[str] = None):
+def get_url_filename(url: str, filename: Optional[str] = None) -> str:
     return filename if filename else url.strip().split('/')[-1]
 
 
 def download_and_extract_archive(
         url: str,
         download_root: Path,
-        extract_root: Optional[str] = None,
+        extract_root: Optional[Path] = None,
         filename: Optional[str] = None,
         md5: Optional[str] = None,
         remove_finished: bool = False,
@@ -253,7 +254,7 @@ def _get_redirect_url(url: str, max_hops: int = 3) -> str:
 
 
 def download_url(
-        url: str, root: Path, filename: Optional[str] = None, md5: Optional[str] = None, max_redirect_hops: int = 3
+        url: str, root: Path, filename: str, md5: Optional[str] = None, max_redirect_hops: int = 3
 ) -> None:
     """Download a file from a url and place it in root.
     Args:

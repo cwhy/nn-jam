@@ -1,3 +1,4 @@
+import abc
 from pathlib import Path
 
 from variables import VariableGroup, VariableTensor
@@ -7,6 +8,7 @@ from supervised_benchmarks.metric_protocols import Metric, MetricResult
 
 FeatureTypeTag = TypeVar('FeatureTypeTag')
 SubsetTypeTag = TypeVar('SubsetTypeTag')
+Model = TypeVar('Model')
 
 
 # Feature matching concept
@@ -15,11 +17,19 @@ class Data(Protocol[FeatureTypeTag, SubsetTypeTag]):
     pass
 
 
+# noinspection PyPropertyDefinition
 class DataEnv(Protocol[FeatureTypeTag, SubsetTypeTag]):
-    input_protocol: VariableGroup
-    output_protocol: VariableGroup
-    input: Data[FeatureTypeTag, SubsetTypeTag]
-    output: Data[FeatureTypeTag, SubsetTypeTag]
+    @property
+    def input_protocol(self) -> VariableGroup: ...
+
+    @property
+    def output_protocol(self) -> VariableGroup: ...
+
+    @property
+    def input(self) -> Data[FeatureTypeTag, SubsetTypeTag]: ...
+
+    @property
+    def output(self) -> Data[FeatureTypeTag, SubsetTypeTag]: ...
 
 
 class DataPair(Protocol[FeatureTypeTag, SubsetTypeTag]):
@@ -32,56 +42,63 @@ class ModelConfig(Protocol):
     type: Literal['ModelConfig'] = 'ModelConfig'
 
 
+# noinspection PyPropertyDefinition
 class DataConfig(Protocol):
-    base_path: Path
-    shuffle: bool
-    type: Literal['DataConfig'] = 'DataConfig'
+    @property
+    @abc.abstractmethod
+    def base_path(self) -> Path: ...
+
+    @property
+    @abc.abstractmethod
+    def shuffle(self) -> bool: ...
+
+    @property
+    @abc.abstractmethod
+    def type(self) -> Literal['DataConfig']: return 'DataConfig'
 
 
 class Metrics(Protocol):
     type: Literal['MetricConfig'] = 'MetricConfig'
 
 
-class Model(Protocol[ModelConfig]):
-    pass
-
-
-class DataSet(Protocol[DataConfig]):
-    pass
+SupportedDatasetNames = Literal['MNIST']
 
 
 class ModelUtils(Protocol[Model]):
     @staticmethod
-    def init(model_config: ModelConfig) -> Model[ModelConfig]:
+    def init(model_config: ModelConfig) -> Model:
         pass
 
     @staticmethod
-    def train(model: Model[ModelConfig],
+    def train(model: Model,
               metric_config: Metrics,
-              data: DataEnv) -> Model[ModelConfig]:
+              data: DataEnv) -> Model:
         pass
 
     @staticmethod
-    def supervise(model: Model[ModelConfig], data: DataEnv) -> DataPair:
+    def supervise(model: Model, data: DataEnv) -> DataPair:
         pass
 
     @staticmethod
-    def unsupervise(model: Model[ModelConfig], data: DataEnv) -> DataPair:
+    def unsupervise(model: Model, data: DataEnv) -> DataPair:
         pass
 
 
-class DataSetUtils(Protocol[DataSet]):
-    @staticmethod
-    def init(data_config: DataConfig) -> DataSet[DataConfig]:
-        pass
+class Dataset(Protocol):
+    @abc.abstractmethod
+    def __init__(self, data_config: DataConfig) -> None: ...
 
-    @staticmethod
-    def get_train(dataset: DataSet[DataConfig]) -> DataEnv:
-        pass
+    @property
+    @abc.abstractmethod
+    def train(self) -> DataEnv: ...
 
-    @staticmethod
-    def get_test(dataset: DataSet[DataConfig]) -> DataEnv:
-        pass
+    @property
+    @abc.abstractmethod
+    def test(self) -> DataEnv: ...
+
+    @property
+    @abc.abstractmethod
+    def name(self) -> SupportedDatasetNames: ...
 
 
 # Output-metric matching concept
@@ -89,14 +106,14 @@ class DataSetUtils(Protocol[DataSet]):
 class BenchUtils(Protocol):
     @staticmethod
     def bench(metric_queries: List[Metric],
-              dataset_utils: DataSetUtils,
+              dataset: Dataset,
               model_utils: ModelUtils) -> List[MetricResult]:
         pass
 
     @staticmethod
     def test(metric_queries: List[Metric],
-             model: Model[ModelConfig],
-             data: DataSet[DataConfig]) -> List[MetricResult]:
+             model: Model,
+             data: Dataset) -> List[MetricResult]:
         pass
 
     @staticmethod
