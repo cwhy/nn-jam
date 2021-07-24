@@ -6,7 +6,7 @@ import numpy as np
 from variables import VariableGroup, OneHot, Bounded
 
 from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery
-from supervised_benchmarks.dataset_utils import download_resources, get_raw_path
+from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
 from supervised_benchmarks.mnist_utils import read_sn3_pascalvincent_ndarray
 
 classes = ['0 - zero', '1 - one', '2 - two', '3 - three', '4 - four',
@@ -50,15 +50,15 @@ def get_mnist_(base_path: Path) -> Dict[str, np.ndarray]:
 
     download_resources(base_path, name, resources, mirrors)
 
-    return {
-        ".".join(f_name.split("-")[:1]):
+    data = {
+        ".".join(f_name.split("-")[:2]):
             read_sn3_pascalvincent_ndarray(
-                get_raw_path(base_path).joinpath(f_name)
+                get_data_dir(base_path, name, 'raw').joinpath(f_name.split(".")[0])
             )
         for f_name, _ in resources
     }
-
-
+    np.savez(get_data_dir(base_path, name, 'processed').joinpath('array_dict'), data)
+    return data
 
 
 class MnistData(NamedTuple):
@@ -79,7 +79,7 @@ class MnistDataPool(NamedTuple):
 
 class Mnist:
     def __init__(self, data_config: MnistDataConfig) -> None:
-        self.data = download_mnist_(data_config.base_path)
+        self.data = get_mnist_(data_config.base_path)
 
     @property
     def name(self) -> Literal['MNIST']:

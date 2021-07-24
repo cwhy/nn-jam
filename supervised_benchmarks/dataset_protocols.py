@@ -7,8 +7,8 @@ Port = Literal['Input', 'Output']
 
 
 class Subset(Protocol):
-    @abstractmethod
     @property
+    @abstractmethod
     def tag(self) -> Literal['FixedTrain', 'FixedTest', 'RandomSample', 'RandomSampleSubset']: ...
 
 

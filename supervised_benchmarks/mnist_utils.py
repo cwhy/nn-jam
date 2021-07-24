@@ -65,6 +65,7 @@ def read_sn3_pascalvincent_ndarray(path: Path, strict: bool = True) -> np.ndarra
     magic = get_int(data[0:4])
     nd = magic % 256
     ty = magic // 256
+    print(nd, ty, path)
     assert 1 <= nd <= 3
     assert 8 <= ty <= 14
     m = SN3_PASCALVINCENT_TYPEMAP[ty]

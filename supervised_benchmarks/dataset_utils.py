@@ -1,22 +1,26 @@
 import hashlib
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Literal, Final
 from urllib.error import URLError
 
 from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity
 from supervised_benchmarks.protocols import SupportedDatasetNames
 
-
-def get_raw_path(path: Path) -> Path:
-    raw_path = path.joinpath('raw')
-    raw_path.mkdir(exist_ok=True)
-    return raw_path
+DataPath = Literal['processed', 'cache', 'raw']
+StorageType = Literal['array_dict']
 
 
-def download_resources(base_path: Path, name: SupportedDatasetNames, resources: List[Tuple[str, str]], mirrors: List[str]) -> None:
-    base_path = base_path.joinpath(name)
-    base_path.mkdir(exist_ok=True)
-    raw_path = get_raw_path(base_path)
+def get_data_dir(base_path: Path, data_name: str, sub_path: DataPath) -> Path:
+    data_path = base_path.joinpath(data_name)
+    data_path.mkdir(exist_ok=True)
+    _path = data_path.joinpath(sub_path)
+    _path.mkdir(exist_ok=True)
+    return _path
+
+
+def download_resources(base_path: Path, name: SupportedDatasetNames, resources: List[Tuple[str, str]],
+                       mirrors: List[str]) -> None:
+    raw_path = get_data_dir(base_path, name, 'raw')
 
     def _check_exists() -> bool:
         return all(
