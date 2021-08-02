@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import NamedTuple, Literal, TypeVar, Dict
 
 import numpy as np
-from variables import VariableGroup, OneHot, Bounded
 
 from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
@@ -11,20 +10,7 @@ from supervised_benchmarks.mnist_utils import read_sn3_pascalvincent_ndarray
 
 classes = ['0 - zero', '1 - one', '2 - two', '3 - three', '4 - four',
            '5 - five', '6 - six', '7 - seven', '8 - eight', '9 - nine']
-mnist_in = VariableGroup(name="mnist_in",
-                         variables={
-                             (Bounded(max=1, min=0), (28, 28))
-                         })
 
-mnist_in_flattened = VariableGroup(name="mnist_in_flattened",
-                                   variables={
-                                       (Bounded(min=-0.5, max=0.5), (28 * 28,))
-                                   })
-
-mnist_out = VariableGroup(name="mnist_out",
-                          variables={
-                              (OneHot(n_category=10), (1,))
-                          })
 
 name: Literal["MNIST"] = "MNIST"
 Flat = Literal["Flat"]
@@ -63,15 +49,15 @@ def get_mnist_(base_path: Path) -> Dict[str, np.ndarray]:
 
 class MnistData(NamedTuple):
     port: Port
-    protocol: VariableGroup
+    protocol: VariablePort
     subset: Subset
     content: np.ndarray
 
 
 class MnistDataPool(NamedTuple):
-    mnist: Mnist
+    array_dict: Dict[str, np.ndarray]
     port: Port
-    target_protocol: VariableGroup
+    target_protocol: VariablePort
 
     def subset(self, subset: Subset) -> MnistData:
         return MnistData(self.port, self.target_protocol, subset, np.zeros(0))
@@ -79,7 +65,7 @@ class MnistDataPool(NamedTuple):
 
 class Mnist:
     def __init__(self, data_config: MnistDataConfig) -> None:
-        self.data = get_mnist_(data_config.base_path)
+        self.array_dict: Dict[str, np.ndarray] = get_mnist_(data_config.base_path)
 
     @property
     def name(self) -> Literal['MNIST']:
@@ -87,6 +73,6 @@ class Mnist:
 
     def retrieve(self, query: DataQuery) -> Dict[Port, MnistDataPool]:
         return {
-            port: MnistDataPool(self, port, variable_protocol)
+            port: MnistDataPool(self.array_dict, port, variable_protocol)
             for port, variable_protocol in query.items()
         }

@@ -1,7 +1,7 @@
 import abc
 from pathlib import Path
 
-from variables import VariableGroup, VariableTensor
+from variable_protocols.variables import VariableGroup, OneHot, Bounded
 from typing import Callable, NamedTuple, Literal, Generic, TypeVar, Protocol, Tuple, Generic, List, Final
 
 from supervised_benchmarks.metric_protocols import Metric, MetricResult

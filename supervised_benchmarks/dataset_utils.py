@@ -1,6 +1,6 @@
-import hashlib
 from pathlib import Path
-from typing import Optional, List, Tuple, Literal, Final
+from pathlib import Path
+from typing import List, Tuple, Literal
 from urllib.error import URLError
 
 from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity

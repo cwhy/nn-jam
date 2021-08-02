@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Literal, Protocol, NamedTuple, Dict
 
-from variables import VariableGroup
+from variable_protocols.variables import Variable
 
 Port = Literal['Input', 'Output']
 
@@ -31,4 +31,4 @@ class RandomSampleSubset(NamedTuple):
     tag: Literal['RandomSampleSubset']
 
 
-DataQuery = Dict[Port, VariableGroup]
+DataQuery = Dict[Port, Variable]
