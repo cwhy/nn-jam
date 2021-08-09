@@ -1,3 +1,5 @@
 variable_protocols
 tqdm
-numpy~=1.21.1
+numpy
+einops
+bokeh

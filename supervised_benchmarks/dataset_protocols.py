@@ -4,6 +4,8 @@ from typing import Literal, Protocol, NamedTuple, Dict
 from variable_protocols.variables import Variable
 
 Port = Literal['Input', 'Output']
+Input: Literal['Input'] = 'Input'
+Output: Literal['Output'] = 'Output'
 
 
 class Subset(Protocol):
@@ -12,12 +14,12 @@ class Subset(Protocol):
     def tag(self) -> Literal['FixedTrain', 'FixedTest', 'RandomSample', 'RandomSampleSubset']: ...
 
 
-class FixedTrain(NamedTuple):
-    tag: Literal['FixedTrain']
+class FixedSubset(NamedTuple):
+    tag: Literal['FixedTrain', 'FixedTest']
 
 
-class FixedTest(NamedTuple):
-    tag: Literal['FixedTest']
+FixedTrain = FixedSubset('FixedTrain')
+FixedTest = FixedSubset('FixedTest')
 
 
 class RandomSample(NamedTuple):
