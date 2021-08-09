@@ -1,43 +1,29 @@
 from __future__ import annotations
+
 from pathlib import Path
-from typing import NamedTuple, Literal, TypeVar, Dict, Tuple, Callable
+from typing import NamedTuple, Literal, Dict
 
 import numpy as np
-from einops import rearrange
-
 from variable_protocols.variables import Variable
-from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, FixedTrain, FixedTest
+
+from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, \
+    FixedSubset
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
 from supervised_benchmarks.mnist_utils import read_sn3_pascalvincent_ndarray
-from variable_protocols.variables import dim, bounded_float, var_tensor, var_scalar, one_hot
+from supervised_benchmarks.mnist_variations import get_transformations, MnistConfigIn, MnistConfigOut
 
 classes = ['0 - zero', '1 - one', '2 - two', '3 - three', '4 - four',
            '5 - five', '6 - six', '7 - seven', '8 - eight', '9 - nine']
 
 name: Literal["MNIST"] = "MNIST"
-# noinspection PyTypeChecker
-# because pyCharm sucks
-mnist_in: Variable = var_tensor(bounded_float(0, 1), {dim("h", 28), dim("w", 28)})
-# noinspection PyTypeChecker
-# because pyCharm sucks
-mnist_in_flattened: Variable = var_tensor(bounded_float(0, 1), {dim("hw", 28 * 28)})
-# noinspection PyTypeChecker
-# because pyCharm sucks
-mnist_out = var_scalar(one_hot(10))
 
-transformations: Dict[Tuple[Variable, Variable], Callable[[np.ndarray], np.ndarray]] = {
-    (mnist_in, mnist_in_flattened): lambda x: rearrange(x, 'b h w -> b (h w)'),
-    (mnist_in_flattened, mnist_in): lambda x: rearrange(x, 'b (h w) -> b h w', h=28, w=28)
-}
+n_samples_tr = 60000
+n_samples_tst = 10000
+n_samples = n_samples_tr + n_samples_tst
 
-
-def get_transformations(protocols: Tuple[Variable, Variable]) -> Callable[[np.ndarray], np.ndarray]:
-    s, t = protocols
-    # TODO after support struct-check
-    if s == t:
-        return lambda x: x
-    else:
-        return transformations[(s, t)]
+FixedTrain = FixedSubset('FixedTrain', list(range(n_samples_tr)))
+FixedTest = FixedSubset('FixedTest', list(range(n_samples_tr, n_samples)))
+FixedAll = FixedSubset('All', list(range(n_samples)))
 
 
 class MnistDataConfig(NamedTuple):
@@ -85,25 +71,34 @@ class MnistDataPool(NamedTuple):
     tgt_var: Variable
 
     def subset(self, subset: Subset) -> MnistData:
-        if self.port == Input and subset == FixedTrain:
-            tag = 'train.images'
-        elif self.port == Input and subset == FixedTest:
-            tag = 'test.images'
-        elif self.port == Output and subset == FixedTrain:
-            tag = 'train.labels'
-        else:
-            assert self.port == Output and subset == FixedTest
-            tag = 'test.labels'
-        target = get_transformations((self.src_var, self.tgt_var))(self.array_dict[tag])
+        transform = get_transformations((self.src_var, self.tgt_var))
+        port_tag = 'images' if self.port is Input else 'labels'
+        target = transform(self.array_dict[f"all.{port_tag}"][subset.indices])
         return MnistData(self.port, self.tgt_var, subset, target)
+
+
+mnist_in_raw = MnistConfigIn(is_float=False, is_flat=False).get_var()
+mnist_out_raw = MnistConfigOut(is_1hot=False).get_var()
 
 
 class Mnist:
     def __init__(self, data_config: MnistDataConfig) -> None:
         self.array_dict: Dict[str, np.ndarray] = get_mnist_(data_config.base_path)
+        assert n_samples_tr == self.array_dict['train.images'].shape[0]
+        assert n_samples_tst == self.array_dict['t10k.images'].shape[0]
+        assert n_samples_tr == len(self.array_dict['train.labels'])
+        assert n_samples_tst == len(self.array_dict['t10k.labels'])
+        self.array_dict['all.images'] = np.concatenate((self.array_dict['train.images'],
+                                                        self.array_dict['t10k.images']), axis=0)
+        self.array_dict['all.labels'] = np.concatenate((self.array_dict['train.labels'],
+                                                        self.array_dict['t10k.labels']), axis=0)
+        del self.array_dict['train.images']
+        del self.array_dict['train.labels']
+        del self.array_dict['t10k.images']
+        del self.array_dict['t10k.labels']
         self.protocols: Dict[str, Variable] = {
-            Input: mnist_in,
-            Output: mnist_out
+            Input: mnist_in_raw,
+            Output: mnist_out_raw
         }
 
     @property

@@ -1,9 +1,11 @@
+from typing import Optional
+
 import numpy as np
-from bokeh.plotting import figure, output_file, show, Figure
-from einops import rearrange, repeat
+from bokeh.plotting import figure, Figure
+from einops import repeat
 
 
-def view_img_rgba(img: np.ndarray) -> Figure:
+def view_img_rgba(img: np.ndarray, title: Optional[str]) -> Figure:
     assert len(img.shape) == 3
     assert np.all(img <= 255)
     assert np.all(0 <= img)
@@ -23,24 +25,24 @@ def view_img_rgba(img: np.ndarray) -> Figure:
 
     v_img = np.flipud(v_img)
     p = figure(tooltips=[("x", "$x"), ("y", "$y"), ("value", "@image")],
+               tools="",
+               toolbar_location=None,
                x_range=(0, w), y_range=(h, 0),
                width_policy=width_policy,
                height_policy=height_policy,
-               aspect_ratio=w/h)
+               aspect_ratio=w / h,
+               title=title)
 
-    print(v_img.shape)
     p.image_rgba(image=[v_img], x=0, y=h, dw=w, dh=h)
     return p
 
 
-def view_2d_mono(img: np.ndarray) -> Figure:
+def view_2d_mono(img: np.ndarray, label: Optional[str] = None) -> Figure:
     assert len(img.shape) == 2
     h, w = img.shape
     if not 0.2 < h / w < 5:
         raise ValueError("The ratios are too large for 2d plot, consider other type of plots")
-    print(img.shape)
     mono_opa = repeat(img, 'h w -> h w c', c=4)
     mono_opa[:, :, :3] = 0
-    p = view_img_rgba(mono_opa)
+    p = view_img_rgba(mono_opa, label)
     return p
-
