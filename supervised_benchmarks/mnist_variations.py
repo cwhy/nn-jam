@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import Dict, Tuple, Callable, NamedTuple, Literal, Protocol, Set
 
 import numpy as np
-from einops import rearrange, repeat
+from einops import rearrange
 from variable_protocols.base_variables import BaseVariable
 from variable_protocols.variables import Variable, ordinal, bounded_float, var_scalar, one_hot
 from variable_protocols.variables import dim, var_tensor
