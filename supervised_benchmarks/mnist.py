@@ -1,16 +1,13 @@
 from __future__ import annotations
-
+import numpy as np
 from pathlib import Path
 from typing import NamedTuple, Literal, Dict
-
-import numpy as np
 from variable_protocols.variables import Variable
-
+from supervised_benchmarks.mnist_utils import read_sn3_pascalvincent_ndarray
+from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
+from supervised_benchmarks.mnist_variations import get_transformations, MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, \
     FixedSubset
-from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
-from supervised_benchmarks.mnist_utils import read_sn3_pascalvincent_ndarray
-from supervised_benchmarks.mnist_variations import get_transformations, MnistConfigIn, MnistConfigOut
 
 classes = ['0 - zero', '1 - one', '2 - two', '3 - three', '4 - four',
            '5 - five', '6 - six', '7 - seven', '8 - eight', '9 - nine']

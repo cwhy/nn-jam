@@ -64,8 +64,9 @@ def register_(src: Variable, tgt: Variable, fn: Callable[[np.ndarray], np.ndarra
         for new_tgt in look_up_forward_[tgt]:
             assert new_tgt != tgt
             if new_tgt != src:
-                look_up_forward_[src].add(new_tgt)
-                transformations[(src, new_tgt)] = lambda x: transformations[(tgt, new_tgt)](fn(x))
+                if new_tgt not in look_up_forward_[src]:
+                    look_up_forward_[src].add(new_tgt)
+                    transformations[(src, new_tgt)] = lambda x: transformations[(tgt, new_tgt)](fn(x))
 
 
 len_table_ = len(transformations)
