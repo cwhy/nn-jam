@@ -7,6 +7,7 @@ from typing import Dict, Tuple, Callable, NamedTuple, Literal, Protocol, Set
 import numpy as np
 from einops import rearrange
 from variable_protocols.base_variables import BaseVariable
+from variable_protocols.protocols import fmt
 from variable_protocols.variables import Variable, ordinal, bounded_float, var_scalar, one_hot
 from variable_protocols.variables import dim, var_tensor
 
@@ -66,7 +67,8 @@ def register_(src: Variable, tgt: Variable, fn: Callable[[np.ndarray], np.ndarra
             if new_tgt != src:
                 if new_tgt not in look_up_forward_[src]:
                     look_up_forward_[src].add(new_tgt)
-                    transformations[(src, new_tgt)] = lambda x: transformations[(tgt, new_tgt)](fn(x))
+                    new_fn = transformations[(tgt, new_tgt)]
+                    transformations[(src, new_tgt)] = lambda x: new_fn(fn(x))
 
 
 len_table_ = len(transformations)

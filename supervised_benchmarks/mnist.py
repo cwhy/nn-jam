@@ -1,7 +1,9 @@
 from __future__ import annotations
 import numpy as np
 from pathlib import Path
-from typing import NamedTuple, Literal, Dict
+from typing import NamedTuple, Literal, Dict, Final, FrozenSet
+
+from variable_protocols.protocols import fmt
 from variable_protocols.variables import Variable
 from supervised_benchmarks.mnist_utils import read_sn3_pascalvincent_ndarray
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
@@ -79,6 +81,10 @@ mnist_out_raw = MnistConfigOut(is_1hot=False).get_var()
 
 
 class Mnist:
+    @property
+    def ports(self) -> FrozenSet[Port]:
+        return frozenset({Input, Output})
+
     def __init__(self, data_config: MnistDataConfig) -> None:
         self.array_dict: Dict[str, np.ndarray] = get_mnist_(data_config.base_path)
         assert n_samples_tr == self.array_dict['train.images'].shape[0]
@@ -103,6 +109,7 @@ class Mnist:
         return name
 
     def retrieve(self, query: DataQuery) -> Dict[Port, MnistDataPool]:
+        assert all(port in self.ports for port in query)
         return {
             port: MnistDataPool(
                 self.array_dict,

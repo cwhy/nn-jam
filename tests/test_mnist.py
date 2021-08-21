@@ -38,8 +38,8 @@ print(tri)
 pool_dict = k.retrieve({Input: mnist_in_raw, Output: mnist_out_raw})
 # print(k.data)
 pool_input = pool_dict[Input]
-tr_ft = pool_input.subset(FixedTest)
 pool_output = pool_dict[Output]
+tr_ft = pool_input.subset(FixedTest)
 tr_lb = pool_output.subset(FixedTest)
 
 n_labels = 10

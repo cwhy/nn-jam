@@ -1,10 +1,9 @@
 from pathlib import Path
-from pathlib import Path
 from typing import List, Tuple, Literal
 from urllib.error import URLError
 
 from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity
-from supervised_benchmarks.protocols import SupportedDatasetNames
+from supervised_benchmarks.dataset_protocols import SupportedDatasetNames
 
 DataPath = Literal['processed', 'cache', 'raw']
 StorageType = Literal['array_dict']

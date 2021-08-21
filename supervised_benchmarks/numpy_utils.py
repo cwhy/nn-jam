@@ -13,3 +13,5 @@ def ordinal_to_1hot(x: ndarray) -> ndarray:
 
 def ordinal_from_1hot(x: ndarray) -> ndarray:
     return np.argmax(x, axis=-1)
+
+

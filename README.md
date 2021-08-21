@@ -22,6 +22,7 @@ Risen from ashes of cwhy/MLKit(Rip TF1.0x)
 ## Current Goals
 * quick and dirty version for testing cwhy/anynet
 * types are a must, no array type yet
+* dataconfig type won't deal with transformations, only query
 * mnist/fashion mnist
 
 ## Short Term Goals
