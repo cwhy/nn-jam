@@ -90,11 +90,12 @@ class MlpMnistModel:
             print("Test set accuracy {}".format(test_acc))
 
 
-def init_model(rng=npr.RandomState(0)):
+def init_model_():
+    rng=npr.RandomState(0)
     layer_sizes = [784, 784, 256, 10]
     param_scale = 0.01
     return MlpMnistModel(
-        params=[(param_scale * rng.randn(m, n), param_scale * rng.randn(n))
+        params=[(param_scale * rng.standard_normal((m, n)), param_scale * rng.standard_normal(n))
                 for m, n, in zip(layer_sizes[:-1], layer_sizes[1:])],
         step_size=0.01,
         num_epochs=50,
@@ -108,5 +109,5 @@ def accuracy(output, target):
     return jnp.mean(output_class == target_class)
 
 
-model = init_model()
+model = init_model_()
 model.fit_()
