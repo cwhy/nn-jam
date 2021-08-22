@@ -1,9 +1,7 @@
 from typing import Literal, TypeVar, Protocol, List
-from supervised_benchmarks.dataset_protocols import Data, DataPair
+from supervised_benchmarks.dataset_protocols import Data, DataPair, Sampler
 from supervised_benchmarks.metric_protocols import Metric, MetricResult
 
-FeatureTypeTag = TypeVar('FeatureTypeTag')
-SubsetTypeTag = TypeVar('SubsetTypeTag')
 Model = TypeVar('Model')
 
 
@@ -19,17 +17,13 @@ class Metrics(Protocol):
 
 class ModelUtils(Protocol[Model]):
     @staticmethod
-    def init(model_config: ModelConfig) -> Model:
+    def brew(model_config: ModelConfig,
+             train_sampler: Sampler,
+             validate_sampler: Sampler) -> Model:
         pass
 
     @staticmethod
-    def train(model: Model,
-              metric_config: Metrics,
-              data: Data) -> Model:
-        pass
-
-    @staticmethod
-    def test(model: Model, data: Data) -> DataPair:
+    def predict(model: Model, test_sampler: Sampler) -> DataPair:
         pass
 
 

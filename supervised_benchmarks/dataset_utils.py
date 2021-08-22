@@ -1,12 +1,16 @@
 from pathlib import Path
-from typing import List, Tuple, Literal
+from typing import List, Tuple, Literal, Dict
 from urllib.error import URLError
 
 from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity
-from supervised_benchmarks.dataset_protocols import SupportedDatasetNames
+from supervised_benchmarks.dataset_protocols import SupportedDatasetNames, Port, DataPool, Subset
 
 DataPath = Literal['processed', 'cache', 'raw']
 StorageType = Literal['array_dict']
+
+
+def subset_all(pool_dict: Dict[Port, DataPool], subset: Subset):
+    return {port: pool.subset(subset) for port, pool in pool_dict.items()}
 
 
 def get_data_dir(base_path: Path, data_name: str, sub_path: DataPath) -> Path:
