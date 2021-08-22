@@ -1,10 +1,54 @@
+from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Generic, Literal, Iterator, Dict
+from typing import Generic, Literal, Iterator, Dict, Protocol, runtime_checkable
 
 import numpy.random as npr
 
-from supervised_benchmarks.dataset_protocols import DataContent, Port, FixedEpochSampler, Data, FullBatchSampler
+from supervised_benchmarks.dataset_protocols import DataContent, Port, Data
 from supervised_benchmarks.mnist import FixedTrain
+
+
+class Sampler(Protocol):
+    @property
+    @abstractmethod
+    def tag(self) -> Literal['FixedEpochSampler', 'FullBatchSampler', 'MiniBatchSampler']: ...
+
+
+@runtime_checkable
+class MiniBatchSampler(Protocol[DataContent]):
+    @property
+    @abstractmethod
+    def iter(self) -> Dict[Port, Iterator[DataContent]]: ...
+
+    @property
+    @abstractmethod
+    def tag(self) -> Literal['FixedEpochSampler', 'MiniBatchSampler']: ...
+
+
+@runtime_checkable
+class FullBatchSampler(Protocol[DataContent]):
+    @property
+    @abstractmethod
+    def full_batch(self) -> Dict[Port, DataContent]: ...
+
+    @property
+    @abstractmethod
+    def tag(self) -> Literal['FullBatchSampler']: ...
+
+
+@runtime_checkable
+class FixedEpochSampler(Protocol[DataContent]):
+    @property
+    @abstractmethod
+    def iter(self) -> Dict[Port, Iterator[DataContent]]: ...
+
+    @property
+    @abstractmethod
+    def num_batches(self) -> int: ...
+
+    @property
+    @abstractmethod
+    def tag(self) -> Literal['FixedEpochSampler']: ...
 
 
 @dataclass(frozen=True)

@@ -9,11 +9,11 @@ import numpy.random as npr
 from jax import jit, grad
 from jax.scipy.special import logsumexp
 
-from supervised_benchmarks.dataset_protocols import Input, Output, Port, Sampler, FullBatchSampler, DataContent
+from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataContent
 from supervised_benchmarks.dataset_utils import subset_all
 from supervised_benchmarks.mnist import MnistDataConfig, Mnist, FixedTrain, FixedTest
 from supervised_benchmarks.mnist_variations import MnistConfigIn, MnistConfigOut
-from supervised_benchmarks.sampler import get_fixed_epoch_sampler, get_full_batch_sampler
+from supervised_benchmarks.sampler import get_fixed_epoch_sampler, get_full_batch_sampler, Sampler, FullBatchSampler
 
 
 class Model(Protocol[DataContent]):

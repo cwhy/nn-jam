@@ -2,8 +2,7 @@ from abc import abstractmethod
 from pathlib import Path
 
 from variable_protocols.variables import Variable
-from typing import Literal, Protocol, NamedTuple, Dict, List, Any, Set, FrozenSet, Iterator, TypeVar, Sequence, \
-    runtime_checkable
+from typing import Literal, Protocol, NamedTuple, Dict, List, FrozenSet, TypeVar, Sequence
 
 Port = Literal['Input', 'Output']
 Input: Literal['Input'] = 'Input'
@@ -79,44 +78,3 @@ class Dataset(Protocol):
     def retrieve(self, query: DataQuery) -> Dict[Port, DataPool]: ...
 
 
-class Sampler(Protocol):
-    @property
-    @abstractmethod
-    def tag(self) -> Literal['FixedEpochSampler', 'FullBatchSampler', 'MiniBatchSampler']: ...
-
-
-@runtime_checkable
-class MiniBatchSampler(Protocol[DataContent]):
-    @property
-    @abstractmethod
-    def iter(self) -> Dict[Port, Iterator[DataContent]]: ...
-
-    @property
-    @abstractmethod
-    def tag(self) -> Literal['FixedEpochSampler', 'MiniBatchSampler']: ...
-
-
-@runtime_checkable
-class FixedEpochSampler(Protocol[DataContent]):
-    @property
-    @abstractmethod
-    def iter(self) -> Dict[Port, Iterator[DataContent]]: ...
-
-    @property
-    @abstractmethod
-    def num_batches(self) -> int: ...
-
-    @property
-    @abstractmethod
-    def tag(self) -> Literal['FixedEpochSampler']: ...
-
-
-@runtime_checkable
-class FullBatchSampler(Protocol[DataContent]):
-    @property
-    @abstractmethod
-    def full_batch(self) -> Dict[Port, DataContent]: ...
-
-    @property
-    @abstractmethod
-    def tag(self) -> Literal['FullBatchSampler']: ...

@@ -1,5 +1,6 @@
 from typing import Literal, TypeVar, Protocol, List
-from supervised_benchmarks.dataset_protocols import Data, DataPair, Sampler
+from supervised_benchmarks.dataset_protocols import Data, DataPair
+from supervised_benchmarks.sampler import Sampler
 from supervised_benchmarks.metric_protocols import Metric, MetricResult
 
 Model = TypeVar('Model')
