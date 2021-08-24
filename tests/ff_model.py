@@ -27,14 +27,15 @@ class Model(Protocol[DataContent]):
                 data_src: Dict[Port, DataContent],
                 tgt: Port) -> DataContent: ...
 
-    def perform_all(self,
-                    data_src: Dict[Port, DataContent],
-                    tgt: FrozenSet[Port]) -> Dict[Port, DataContent]: ...
+    def perform_multi(self,
+                      data_src: Dict[Port, DataContent],
+                      tgt: FrozenSet[Port]) -> Dict[Port, DataContent]: ...
 
 
 def measure_model(model: Model, benchmark) -> List[float]:
     sampler: Sampler = benchmark.sampler
-    measurements: Dict[Tuple[FrozenSet[Port], FrozenSet[Port]], Callable[[DataContent, DataContent], DataContent]] = benchmark.measurements
+    measurements: Dict[Tuple[FrozenSet[Port], FrozenSet[Port]], Callable[
+        [DataContent, DataContent], DataContent]] = benchmark.measurements
     assert all((k in model.repertoire) for k in measurements.keys())
 
     if sampler.tag == 'FullBatchSampler':
