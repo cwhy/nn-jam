@@ -25,18 +25,24 @@ class Model(Protocol[DataContent]):
 
     def perform(self,
                 data_src: Dict[Port, DataContent],
-                tgt: FrozenSet[Port]) -> Dict[Port, DataContent]: ...
+                tgt: Port) -> DataContent: ...
+
+    def perform_all(self,
+                    data_src: Dict[Port, DataContent],
+                    tgt: FrozenSet[Port]) -> Dict[Port, DataContent]: ...
 
 
 def measure_model(model: Model, benchmark) -> List[float]:
     sampler: Sampler = benchmark.sampler
-    measurements: Dict[Tuple[FrozenSet[Port], FrozenSet[Port]], Any] = benchmark.measurements
+    measurements: Dict[Tuple[FrozenSet[Port], FrozenSet[Port]], Callable[[DataContent, DataContent], DataContent]] = benchmark.measurements
     assert all((k in model.repertoire) for k in measurements.keys())
 
     if sampler.tag == 'FullBatchSampler':
         assert isinstance(sampler, FullBatchSampler)
-        return [fn(model.perform(sampler.full_batch, srcs), {tgt: sampler.full_batch[tgt] for tgt in tgts})
-                for (srcs, tgts), fn in measurements.items()]
+        return [fn(model.perform(sampler.full_batch, tgt),
+                   sampler.full_batch[tgt])
+                for (srcs, tgts), fn in measurements.items()
+                for tgt in tgts]
     else:
         raise NotImplementedError
 
