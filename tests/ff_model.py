@@ -1,7 +1,8 @@
 import time
+from abc import abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple, List, Protocol, Dict, Callable
+from typing import Tuple, List, Protocol, Dict, Callable, Any, Set, FrozenSet
 
 import jax.numpy as jnp
 import numpy as np
@@ -9,7 +10,7 @@ import numpy.random as npr
 from jax import jit, grad
 from jax.scipy.special import logsumexp
 
-from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataContent
+from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataContent, Data
 from supervised_benchmarks.dataset_utils import subset_all
 from supervised_benchmarks.mnist import MnistDataConfig, Mnist, FixedTrain, FixedTest
 from supervised_benchmarks.mnist_variations import MnistConfigIn, MnistConfigOut
@@ -17,8 +18,27 @@ from supervised_benchmarks.sampler import get_fixed_epoch_sampler, get_full_batc
 
 
 class Model(Protocol[DataContent]):
-    def predict(self) -> Dict[Tuple[List[Port], List[Port]],
-                              Callable[[List[DataContent]], List[DataContent]]]: ...
+    # List when multiple outputs comes out
+    @property
+    @abstractmethod
+    def repertoire(self) -> FrozenSet[Tuple[FrozenSet[Port], FrozenSet[Port]]]: ...
+
+    def perform(self,
+                data_src: Dict[Port, DataContent],
+                tgt: FrozenSet[Port]) -> Dict[Port, DataContent]: ...
+
+
+def measure_model(model: Model, benchmark) -> List[float]:
+    sampler: Sampler = benchmark.sampler
+    measurements: Dict[Tuple[FrozenSet[Port], FrozenSet[Port]], Any] = benchmark.measurements
+    assert all((k in model.repertoire) for k in measurements.keys())
+
+    if sampler.tag == 'FullBatchSampler':
+        assert isinstance(sampler, FullBatchSampler)
+        return [fn(model.perform(sampler.full_batch, srcs), {tgt: sampler.full_batch[tgt] for tgt in tgts})
+                for (srcs, tgts), fn in measurements.items()]
+    else:
+        raise NotImplementedError
 
 
 def measure(measurement_fn, predict_fn, port_pair: Tuple[Port, Port], sampler: Sampler) -> float:
