@@ -1,14 +1,17 @@
 from abc import abstractmethod
+from collections import Sequence
 from dataclasses import dataclass
-from typing import Generic, Literal, Iterator, Dict, Protocol, runtime_checkable
+from typing import Generic, Literal, Iterator, Dict, Protocol, runtime_checkable, TypeVar
 
 import numpy.random as npr
 
 from supervised_benchmarks.dataset_protocols import DataContent, Port, Data
 from supervised_benchmarks.mnist import FixedTrain
 
+DataContentTmp = TypeVar('DataContentTmp', bound=Sequence, covariant=True)
 
-class Sampler(Protocol):
+
+class Sampler(Protocol[DataContentTmp]):
     @property
     @abstractmethod
     def tag(self) -> Literal['FixedEpochSampler', 'FullBatchSampler', 'MiniBatchSampler']: ...

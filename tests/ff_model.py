@@ -1,8 +1,9 @@
+from __future__ import annotations
 import time
 from abc import abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple, List, Protocol, Dict, Callable, Any, Set, FrozenSet
+from typing import Tuple, List, Protocol, Dict, Callable, Any, Set, FrozenSet, TypeVar
 
 import jax.numpy as jnp
 import numpy as np
@@ -12,38 +13,60 @@ from jax.scipy.special import logsumexp
 
 from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataContent, Data
 from supervised_benchmarks.dataset_utils import subset_all
+from supervised_benchmarks.metric_protocols import Metric, MetricResult
 from supervised_benchmarks.mnist import MnistDataConfig, Mnist, FixedTrain, FixedTest
 from supervised_benchmarks.mnist_variations import MnistConfigIn, MnistConfigOut
+from supervised_benchmarks.protocols import ModelConfig
 from supervised_benchmarks.sampler import get_fixed_epoch_sampler, get_full_batch_sampler, Sampler, FullBatchSampler
+
+DataContentVar = TypeVar('DataContentVar', contravariant=True)
+
+
+class Measure(Protocol[DataContentVar]):
+    def __call__(self, output: DataContentVar, target: DataContentVar) -> MetricResult: ...
+
+
+class Benchmark(Protocol[DataContent]):
+    @property
+    @abstractmethod
+    def sampler(self) -> Sampler[DataContent]: ...
+
+    @property
+    @abstractmethod
+    def repertoire(self) -> FrozenSet[Port]: ...
+
+    @property
+    @abstractmethod
+    def measurements(self) -> Dict[Port, Measure[DataContent]]: ...
 
 
 class Model(Protocol[DataContent]):
+    @staticmethod
+    def foster(model_config: ModelConfig, benchmark: Benchmark) -> Model: ...
+
     # List when multiple outputs comes out
     @property
     @abstractmethod
-    def repertoire(self) -> FrozenSet[Tuple[FrozenSet[Port], FrozenSet[Port]]]: ...
+    def repertoire(self) -> FrozenSet[Port]: ...
 
     def perform(self,
                 data_src: Dict[Port, DataContent],
                 tgt: Port) -> DataContent: ...
 
-    def perform_multi(self,
+    def perform_batch(self,
                       data_src: Dict[Port, DataContent],
                       tgt: FrozenSet[Port]) -> Dict[Port, DataContent]: ...
 
 
-def measure_model(model: Model, benchmark) -> List[float]:
+def measure_model(model: Model, benchmark:Benchmark) -> List[MetricResult]:
     sampler: Sampler = benchmark.sampler
-    measurements: Dict[Tuple[FrozenSet[Port], FrozenSet[Port]], Callable[
-        [DataContent, DataContent], DataContent]] = benchmark.measurements
-    assert all((k in model.repertoire) for k in measurements.keys())
+    assert all((k in model.repertoire) for k in benchmark.repertoire)
 
     if sampler.tag == 'FullBatchSampler':
         assert isinstance(sampler, FullBatchSampler)
         return [fn(model.perform(sampler.full_batch, tgt),
                    sampler.full_batch[tgt])
-                for (srcs, tgts), fn in measurements.items()
-                for tgt in tgts]
+                for (srcs, tgt), fn in benchmark.measurements.items()]
     else:
         raise NotImplementedError
 
