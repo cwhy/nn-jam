@@ -1,17 +1,19 @@
 # Metric Graphs
 from typing import Literal, Protocol, NamedTuple, Any, List
 
-Metric = Literal['mean_acc', 'categorical_acc']
+MetricType = Literal['mean_acc', 'categorical_acc']
 
+DataContent = TypeVar('DataContent', bound=Sequence)
+ResultContent = TypeVar('ResultContent')
 
-class ResultType(Protocol):
-    result: Any
-    type: Metric
+class Metric(Protocol[DataContent, ResultContent]):
+    protocol: Variable
+    measure: Measure[DataContent, ResultContent]
+    type: MetricType
 
-
-class MetricResult(Protocol):
-    result: ResultType
-    result_type: Metric
+class MetricResult(Protocol[ResultContent]):
+    content: ResultContent
+    type: MetricType
 
 
 class MeanAcc(NamedTuple):
