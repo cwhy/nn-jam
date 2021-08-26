@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Dict, Tuple, Callable, NamedTuple, Literal, Protocol, Set
+from typing import Mapping, Tuple, Callable, NamedTuple, Literal, Protocol, Set
 
 import numpy as np
 from einops import rearrange
@@ -51,13 +51,13 @@ class MnistConfigOut(NamedTuple):
 
 
 # Can be removed after hole based variable config
-transformations: Dict[Tuple[Variable, Variable],
-                      Callable[[np.ndarray], np.ndarray]] = dict()
+transformations: Mapping[Tuple[Variable, Variable],
+                      Callable[[npt.NDArray], npt.NDArray]] = dict()
 
-look_up_forward_: Dict[Variable, Set[Variable]] = defaultdict(set)
+look_up_forward_: Mapping[Variable, Set[Variable]] = defaultdict(set)
 
 
-def register_(src: Variable, tgt: Variable, fn: Callable[[np.ndarray], np.ndarray]):
+def register_(src: Variable, tgt: Variable, fn: Callable[[npt.NDArray], npt.NDArray]):
     assert src != tgt
     transformations[(src, tgt)] = fn
     look_up_forward_[src].add(tgt)
@@ -100,7 +100,7 @@ while len_table_ != old_len_table_:
     len_table_ = len(transformations)
 
 
-def get_transformations(protocols: Tuple[Variable, Variable]) -> Callable[[np.ndarray], np.ndarray]:
+def get_transformations(protocols: Tuple[Variable, Variable]) -> Callable[[npt.NDArray], npt.NDArray]:
     s, t = protocols
     # TODO after support struct-check
     if s == t:

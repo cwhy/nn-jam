@@ -2,14 +2,28 @@ from abc import abstractmethod
 from pathlib import Path
 
 from variable_protocols.variables import Variable
-from typing import Literal, Protocol, NamedTuple, Dict, List, FrozenSet, TypeVar, Sequence
+from typing import Literal, Protocol, NamedTuple, Mapping, List, FrozenSet, TypeVar
 
 Port = Literal['Input', 'Output']
 Input: Literal['Input'] = 'Input'
 Output: Literal['Output'] = 'Output'
 SupportedDatasetNames = Literal['MNIST']
-DataQuery = Dict[Port, Variable]
-DataContent = TypeVar('DataContent', bound=Sequence)
+DataQuery = Mapping[Port, Variable]
+
+
+class DataContentBound(Protocol):
+    def __getitem__(self, index): ...
+
+    def __len__(self): ...
+
+    def __contains__(self, item): ...
+
+    def __iter__(self): ...
+
+
+DataContentCov = TypeVar('DataContentCov', bound=DataContentBound, covariant=True)
+DataContentContra = TypeVar('DataContentContra', bound=DataContentBound, contravariant=True)
+DataContent = TypeVar('DataContent', bound=DataContentBound)
 
 
 class Subset(Protocol):
@@ -46,19 +60,36 @@ class DataConfig(Protocol):
     def type(self) -> Literal['DataConfig']: ...
 
 
-class Data(Protocol[DataContent]):
-    port: Port
-    protocol: Variable
-    subset: Subset
-    content: DataContent
+class Data(Protocol[DataContentCov]):
+    @property
+    @abstractmethod
+    def port(self) -> Port: ...
+
+    @property
+    @abstractmethod
+    def protocol(self) -> Variable: ...
+
+    @property
+    @abstractmethod
+    def subset(self) -> Subset: ...
+
+    @property
+    @abstractmethod
+    def content(self) -> DataContentCov: ...
 
 
-class DataPool(Protocol):
-    port: Port
-    src_var: Variable
-    tgt_var: Variable
+class DataPool(Protocol[DataContentCov]):
+    @property
+    @abstractmethod
+    def port(self) -> Port: ...
+    @property
+    @abstractmethod
+    def src_var(self) -> Variable: ...
+    @property
+    @abstractmethod
+    def tgt_var(self) -> Variable: ...
 
-    def subset(self, subset: Subset) -> Data: ...
+    def subset(self, subset: Subset) -> Data[DataContentCov]: ...
 
 
 class DataPair(Protocol):
@@ -75,6 +106,4 @@ class Dataset(Protocol):
     @abstractmethod
     def name(self) -> SupportedDatasetNames: ...
 
-    def retrieve(self, query: DataQuery) -> Dict[Port, DataPool]: ...
-
-
+    def retrieve(self, query: DataQuery) -> Mapping[Port, DataPool]: ...

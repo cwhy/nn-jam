@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import NamedTuple, Literal, Dict, FrozenSet
+from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
 
 import numpy as np
+import numpy.typing as npt
 from variable_protocols.variables import Variable
 
 from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, \
-    FixedSubset
+    FixedSubset, Data
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
 from supervised_benchmarks.mnist_utils import read_sn3_pascalvincent_ndarray
 from supervised_benchmarks.mnist_variations import get_transformations, MnistConfigIn, MnistConfigOut
@@ -31,7 +32,7 @@ class MnistDataConfig(NamedTuple):
     type: Literal['DataConfig'] = 'DataConfig'
 
 
-def get_mnist_(base_path: Path) -> Dict[str, np.ndarray]:
+def get_mnist_(base_path: Path) -> Dict[str, npt.NDArray]:
     mirrors = [
         'http://yann.lecun.com/exdb/mnist/',
         'https://ossci-datasets.s3.amazonaws.com/mnist/',
@@ -61,19 +62,21 @@ class MnistData(NamedTuple):
     port: Port
     protocol: Variable
     subset: Subset
-    content: np.ndarray
+    content: npt.NDArray
 
 
 class MnistDataPool(NamedTuple):
-    array_dict: Dict[str, np.ndarray]
+    array_dict: Mapping[str, npt.NDArray]
     port: Port
     src_var: Variable
     tgt_var: Variable
 
-    def subset(self, subset: Subset) -> MnistData:
+    def subset(self, subset: Subset) -> Data[npt.NDArray]:
         transform = get_transformations((self.src_var, self.tgt_var))
         port_tag = 'images' if self.port is Input else 'labels'
         target = transform(self.array_dict[f"all.{port_tag}"][subset.indices])
+        # noinspection PyTypeChecker
+        # Because pycharm sucks
         return MnistData(self.port, self.tgt_var, subset, target)
 
 
@@ -87,7 +90,7 @@ class Mnist:
         return frozenset({Input, Output})
 
     def __init__(self, data_config: MnistDataConfig) -> None:
-        self.array_dict: Dict[str, np.ndarray] = get_mnist_(data_config.base_path)
+        self.array_dict: Dict[str, npt.NDArray] = get_mnist_(data_config.base_path)
         assert n_samples_tr == self.array_dict['train.images'].shape[0]
         assert n_samples_tst == self.array_dict['t10k.images'].shape[0]
         assert n_samples_tr == len(self.array_dict['train.labels'])
@@ -100,7 +103,7 @@ class Mnist:
         del self.array_dict['train.labels']
         del self.array_dict['t10k.images']
         del self.array_dict['t10k.labels']
-        self.protocols: Dict[str, Variable] = {
+        self.protocols: Mapping[str, Variable] = {
             Input: mnist_in_raw,
             Output: mnist_out_raw
         }
@@ -109,7 +112,7 @@ class Mnist:
     def name(self) -> Literal['MNIST']:
         return name
 
-    def retrieve(self, query: DataQuery) -> Dict[Port, MnistDataPool]:
+    def retrieve(self, query: DataQuery) -> Mapping[Port, MnistDataPool]:
         assert all(port in self.ports for port in query)
         return {
             port: MnistDataPool(
@@ -119,4 +122,3 @@ class Mnist:
                 tgt_var=variable_protocol)
             for port, variable_protocol in query.items()
         }
-

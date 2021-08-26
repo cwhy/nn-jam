@@ -1,27 +1,32 @@
 from abc import abstractmethod
-from collections import Sequence
 from dataclasses import dataclass
-from typing import Generic, Literal, Iterator, Dict, Protocol, runtime_checkable, TypeVar
+from typing import Generic, Literal, Iterator, Mapping, Protocol, runtime_checkable, TypeVar, NamedTuple
 
 import numpy.random as npr
 
-from supervised_benchmarks.dataset_protocols import DataContent, Port, Data
+from supervised_benchmarks.dataset_protocols import DataContentCov, Port, Data
 from supervised_benchmarks.mnist import FixedTrain
 
-DataContentTmp = TypeVar('DataContentTmp', bound=Sequence, covariant=True)
+SamplerType = Literal['FixedEpochSampler', 'FullBatchSampler', 'MiniBatchSampler']
 
 
-class Sampler(Protocol[DataContentTmp]):
+class Sampler(Protocol[DataContentCov]):
     @property
     @abstractmethod
-    def tag(self) -> Literal['FixedEpochSampler', 'FullBatchSampler', 'MiniBatchSampler']: ...
+    def tag(self) -> SamplerType: ...
+
+
+class SamplerConfig(Protocol):
+    @property
+    @abstractmethod
+    def sampler_tag(self) -> SamplerType: ...
 
 
 @runtime_checkable
-class MiniBatchSampler(Protocol[DataContent]):
+class MiniBatchSampler(Protocol[DataContentCov]):
     @property
     @abstractmethod
-    def iter(self) -> Dict[Port, Iterator[DataContent]]: ...
+    def iter(self) -> Mapping[Port, Iterator[DataContentCov]]: ...
 
     @property
     @abstractmethod
@@ -29,10 +34,10 @@ class MiniBatchSampler(Protocol[DataContent]):
 
 
 @runtime_checkable
-class FullBatchSampler(Protocol[DataContent]):
+class FullBatchSampler(Protocol[DataContentCov]):
     @property
     @abstractmethod
-    def full_batch(self) -> Dict[Port, DataContent]: ...
+    def full_batch(self) -> Mapping[Port, DataContentCov]: ...
 
     @property
     @abstractmethod
@@ -40,10 +45,10 @@ class FullBatchSampler(Protocol[DataContent]):
 
 
 @runtime_checkable
-class FixedEpochSampler(Protocol[DataContent]):
+class FixedEpochSampler(Protocol[DataContentCov]):
     @property
     @abstractmethod
-    def iter(self) -> Dict[Port, Iterator[DataContent]]: ...
+    def iter(self) -> Mapping[Port, Iterator[DataContentCov]]: ...
 
     @property
     @abstractmethod
@@ -54,13 +59,24 @@ class FixedEpochSampler(Protocol[DataContent]):
     def tag(self) -> Literal['FixedEpochSampler']: ...
 
 
-@dataclass(frozen=True)
-class FixedEpochSamplerImp(Generic[DataContent]):
-    num_batches: int
-    _iter: Dict[Port, Iterator[DataContent]]
+@runtime_checkable
+class FixedEpochSamplerConfig(Protocol):
+    @property
+    @abstractmethod
+    def batch_size(self) -> int: ...
 
     @property
-    def iter(self) -> Dict[Port, Iterator[DataContent]]:
+    @abstractmethod
+    def sampler_tag(self) -> Literal['FixedEpochSampler']: ...
+
+
+@dataclass(frozen=True)
+class FixedEpochSamplerImp(Generic[DataContentCov]):
+    num_batches: int
+    _iter: Mapping[Port, Iterator[DataContentCov]]
+
+    @property
+    def iter(self) -> Mapping[Port, Iterator[DataContentCov]]:
         return self._iter
 
     @property
@@ -68,13 +84,37 @@ class FixedEpochSamplerImp(Generic[DataContent]):
         return 'FixedEpochSampler'
 
 
+@runtime_checkable
+class FullBatchSamplerConfig(Protocol):
+    @property
+    @abstractmethod
+    def sampler_tag(self) -> Literal['FullBatchSampler']: ...
+
+
+@dataclass(frozen=True)
+class FullBatchSamplerImp(Generic[DataContentCov]):
+    _batch: Mapping[Port, DataContentCov]
+
+    @property
+    def full_batch(self) -> Mapping[Port, DataContentCov]:
+        return self._batch
+
+    @property
+    def tag(self) -> Literal['FullBatchSampler']:
+        return 'FullBatchSampler'
+
+
+def get_full_batch_sampler(data_dict: Mapping[Port, Data[DataContentCov]]) -> FullBatchSampler[DataContentCov]:
+    return FullBatchSamplerImp({k: v.content for k, v in data_dict.items()})
+
+
 def get_fixed_epoch_sampler(batch_size: int,
-                            data_dict: Dict[Port, Data[DataContent]]) -> FixedEpochSampler[DataContent]:
+                            data_dict: Mapping[Port, Data[DataContentCov]]) -> FixedEpochSampler[DataContentCov]:
     num_train = len(FixedTrain.indices)
     num_complete_batches, leftover = divmod(num_train, batch_size)
     num_batches = num_complete_batches + int(bool(leftover))
 
-    def data_stream(data: Data[DataContent]) -> Iterator[DataContent]:
+    def data_stream(data: Data[DataContentCov]) -> Iterator[DataContentCov]:
         content = data.content
         rng = npr.RandomState(0)
         while True:
@@ -86,20 +126,3 @@ def get_fixed_epoch_sampler(batch_size: int,
     # noinspection PyTypeChecker
     # because pyCharm sucks
     return FixedEpochSamplerImp(num_batches, {k: data_stream(v) for k, v in data_dict.items()})
-
-
-@dataclass(frozen=True)
-class FullBatchSamplerImp(Generic[DataContent]):
-    _batch: Dict[Port, DataContent]
-
-    @property
-    def full_batch(self) -> Dict[Port, DataContent]:
-        return self._batch
-
-    @property
-    def tag(self) -> Literal['FullBatchSampler']:
-        return 'FullBatchSampler'
-
-
-def get_full_batch_sampler(data_dict: Dict[Port, Data[DataContent]]) -> FullBatchSampler[DataContent]:
-    return FullBatchSamplerImp({k: v.content for k, v in data_dict.items()})

@@ -1,15 +1,16 @@
 from pathlib import Path
-from typing import List, Tuple, Literal, Dict
+from typing import List, Tuple, Literal, Mapping, Mapping
 from urllib.error import URLError
 
 from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity
-from supervised_benchmarks.dataset_protocols import SupportedDatasetNames, Port, DataPool, Subset
+from supervised_benchmarks.dataset_protocols import SupportedDatasetNames, Port, DataPool, Subset, DataContentCov, Data
 
 DataPath = Literal['processed', 'cache', 'raw']
 StorageType = Literal['array_dict']
 
 
-def subset_all(pool_dict: Dict[Port, DataPool], subset: Subset):
+def subset_all(pool_dict: Mapping[Port, DataPool[DataContentCov]],
+               subset: Subset) -> Mapping[Port, Data[DataContentCov]]:
     return {port: pool.subset(subset) for port, pool in pool_dict.items()}
 
 

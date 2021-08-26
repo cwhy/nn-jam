@@ -44,7 +44,7 @@ import urllib.request
 from urllib.error import URLError
 import zipfile
 from pathlib import Path
-from typing import Optional, Dict, Callable, IO, Tuple
+from typing import Optional, Mapping, Callable, IO, Tuple
 
 from tqdm import tqdm
 
@@ -73,7 +73,7 @@ def _extract_tar(from_path: Path, to_path: Path, compression: Optional[str]) -> 
         tar.extractall(to_path)
 
 
-_ZIP_COMPRESSION_MAP: Dict[str, int] = {
+_ZIP_COMPRESSION_MAP: Mapping[str, int] = {
     ".bz2": zipfile.ZIP_BZIP2,
     ".xz": zipfile.ZIP_LZMA,
 }
@@ -86,16 +86,16 @@ def _extract_zip(from_path: Path, to_path: Path, compression: Optional[str]) -> 
         zip.extractall(to_path)
 
 
-_ARCHIVE_EXTRACTORS: Dict[str, Callable[[Path, Path, Optional[str]], None]] = {
+_ARCHIVE_EXTRACTORS: Mapping[str, Callable[[Path, Path, Optional[str]], None]] = {
     ".tar": _extract_tar,
     ".zip": _extract_zip,
 }
-_COMPRESSED_FILE_OPENERS: Dict[str, Callable[..., IO]] = {
+_COMPRESSED_FILE_OPENERS: Mapping[str, Callable[..., IO]] = {
     ".bz2": bz2.open,
     ".gz": gzip.open,
     ".xz": lzma.open,
 }
-_FILE_TYPE_ALIASES: Dict[str, Tuple[Optional[str], Optional[str]]] = {
+_FILE_TYPE_ALIASES: Mapping[str, Tuple[Optional[str], Optional[str]]] = {
     ".tbz": (".tar", ".bz2"),
     ".tbz2": (".tar", ".bz2"),
     ".tgz": (".tar", ".gz"),

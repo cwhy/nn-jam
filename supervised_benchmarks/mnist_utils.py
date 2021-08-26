@@ -54,7 +54,7 @@ def get_int(b: bytes) -> int:
     return int(codecs.encode(b, 'hex'), 16)
 
 
-def read_sn3_pascalvincent_ndarray(path: Path, strict: bool = True) -> np.ndarray:
+def read_sn3_pascalvincent_ndarray(path: Path, strict: bool = True) -> npt.NDArray:
     """Read a SN3 file in "Pascal Vincent" format (Lush file 'libidx/idx-io.lsh').
        Argument may be a filename, compressed filename, or file object.
     """
@@ -75,14 +75,14 @@ def read_sn3_pascalvincent_ndarray(path: Path, strict: bool = True) -> np.ndarra
     return parsed.astype(m[1], copy=False).reshape(*s)
 
 
-def read_label_file(path: Path) -> np.ndarray:
+def read_label_file(path: Path) -> npt.NDArray:
     x = read_sn3_pascalvincent_ndarray(path, strict=False)
     assert (x.dtype == np.uint8)
     assert (len(x.shape) == 1)
     return x.astype(dtype=np.int64)
 
 
-def read_image_file(path: Path) -> np.ndarray:
+def read_image_file(path: Path) -> npt.NDArray:
     x = read_sn3_pascalvincent_ndarray(path, strict=False)
     assert (x.dtype == np.uint8)
     assert (len(x.shape) == 3)

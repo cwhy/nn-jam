@@ -1,12 +1,13 @@
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Mapping, Dict
 
 import numpy as np
 from bokeh.io import show
 from bokeh.layouts import row, column
+from numpy.typing import NDArray
 from variable_protocols.protocols import fmt
 
-from supervised_benchmarks.dataset_protocols import Input, Output
+from supervised_benchmarks.dataset_protocols import Input, Output, DataPool
 from supervised_benchmarks.mnist import MnistDataConfig, Mnist, \
     FixedTrain, FixedTest, mnist_in_raw, mnist_out_raw
 from supervised_benchmarks.mnist_variations import transformations, MnistConfigIn
@@ -37,8 +38,12 @@ print(tri)
 
 pool_dict = k.retrieve({Input: mnist_in_raw, Output: mnist_out_raw})
 # print(k.data)
-pool_input = pool_dict[Input]
-pool_output = pool_dict[Output]
+# noinspection PyTypeChecker
+# because pycharm sucks
+pool_input: DataPool[NDArray] = pool_dict[Input]
+# noinspection PyTypeChecker
+# because pycharm sucks
+pool_output: DataPool[NDArray] = pool_dict[Output]
 tr_ft = pool_input.subset(FixedTest)
 tr_lb = pool_output.subset(FixedTest)
 
@@ -46,11 +51,12 @@ n_labels = 10
 all_labels: Dict[int, int] = dict()
 samples: List[int] = []
 while len(all_labels) < n_labels:
-    s = np.random.randint(tr_ft.content.shape[0])
+    s: int = np.random.randint(tr_ft.content.shape[0])
+    c = tr_lb.content[s]
     if tr_lb.content[s] not in all_labels:
-        all_labels[tr_lb.content[s]] = s
+        all_labels[c] = s
         samples.append(s)
-        print(s, tr_lb.content[s])
+        print(s, c)
 
 figs = []
 for lb in sorted(all_labels.keys()):
