@@ -38,7 +38,7 @@ import codecs
 from pathlib import Path
 
 import numpy as np
-
+from numpy.typing import NDArray
 
 SN3_PASCALVINCENT_TYPEMAP = {
     8: (np.uint8, np.uint8),
@@ -54,7 +54,7 @@ def get_int(b: bytes) -> int:
     return int(codecs.encode(b, 'hex'), 16)
 
 
-def read_sn3_pascalvincent_ndarray(path: Path, strict: bool = True) -> npt.NDArray:
+def read_sn3_pascalvincent_ndarray(path: Path, strict: bool = True) -> NDArray:
     """Read a SN3 file in "Pascal Vincent" format (Lush file 'libidx/idx-io.lsh').
        Argument may be a filename, compressed filename, or file object.
     """
@@ -75,14 +75,14 @@ def read_sn3_pascalvincent_ndarray(path: Path, strict: bool = True) -> npt.NDArr
     return parsed.astype(m[1], copy=False).reshape(*s)
 
 
-def read_label_file(path: Path) -> npt.NDArray:
+def read_label_file(path: Path) -> NDArray:
     x = read_sn3_pascalvincent_ndarray(path, strict=False)
     assert (x.dtype == np.uint8)
     assert (len(x.shape) == 1)
     return x.astype(dtype=np.int64)
 
 
-def read_image_file(path: Path) -> npt.NDArray:
+def read_image_file(path: Path) -> NDArray:
     x = read_sn3_pascalvincent_ndarray(path, strict=False)
     assert (x.dtype == np.uint8)
     assert (len(x.shape) == 3)

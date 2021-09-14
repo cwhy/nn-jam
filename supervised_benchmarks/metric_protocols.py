@@ -1,31 +1,56 @@
-# Metric Graphs
-from typing import Literal, Protocol, NamedTuple, List, TypeVar, FrozenSet
+from __future__ import annotations
 
-from variable_protocols.variables import Variable
+from abc import abstractmethod
+from dataclasses import dataclass
+from typing import Literal, Protocol, NamedTuple, List, TypeVar, Tuple, Generic, Any
 
-from supervised_benchmarks.dataset_protocols import DataContentCov
+from variable_protocols.variables import Variable, var_scalar, ordinal
 
-MetricType = Literal['mean_acc', 'categorical_acc']
+from supervised_benchmarks.dataset_protocols import DataContentContra
 
-ResultContent = TypeVar('ResultContent', covariant=True)
+PairMetricType = Literal['mean_acc', 'categorical_acc']
 
-
-class Metric(Protocol[DataContentCov, ResultContent]):
-    protocols: FrozenSet[Variable]
-    measure: Measure[DataContentCov, ResultContent]
-    type: MetricType
-
-
-class MetricResult(Protocol[ResultContent]):
-    content: ResultContent
-    result_type: MetricType
+ResultContentCov = TypeVar('ResultContentCov', covariant=True)
+ResultContent = TypeVar('ResultContent')
+VarParam = TypeVar('VarParam', bound=Tuple)
 
 
-class MeanAcc(NamedTuple):
-    result: float
-    type: Literal['mean_acc'] = 'mean_acc'
+class Measure(Protocol[DataContentContra]):
+    def __call__(self, output: DataContentContra, target: DataContentContra) -> MetricResult: ...
 
 
-class CategoricalAcc(NamedTuple):
-    result: List[float]
-    type: Literal['categorical_acc'] = 'categorical_acc'
+class PairMetric(Protocol[DataContentContra]):
+    @property
+    @abstractmethod
+    def protocol(self) -> Variable: ...
+
+    @property
+    @abstractmethod
+    def type(self) -> PairMetricType: ...
+
+    @property
+    @abstractmethod
+    def measure(self) -> Measure[DataContentContra]: ...
+
+
+class MeanAccResult(NamedTuple):
+    content: float
+    result_type: Literal['mean_acc'] = 'mean_acc'
+
+
+class CategoricalAccResult(NamedTuple):
+    content: List[float]
+    result_type: Literal['categorical_acc'] = 'categorical_acc'
+
+
+@dataclass(frozen=True)
+class PairMetricImp(Generic[DataContentContra]):
+    protocol: Variable
+    type: PairMetricType
+    measure: Measure[DataContentContra]
+
+
+class MetricResult(NamedTuple):
+    content: Any
+    result_type: PairMetricType
+

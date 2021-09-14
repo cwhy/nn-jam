@@ -1,7 +1,7 @@
-from typing import Literal, TypeVar, Protocol, List
-from supervised_benchmarks.dataset_protocols import Data, DataPair
+from typing import Literal, TypeVar, Protocol
+
+from supervised_benchmarks.dataset_protocols import DataPair
 from supervised_benchmarks.sampler import Sampler
-from supervised_benchmarks.metric_protocols import Metric, MetricResult
 
 Model = TypeVar('Model')
 
@@ -30,20 +30,21 @@ class ModelUtils(Protocol[Model]):
 
 # Output-metric matching concept
 
-class BenchUtils(Protocol):
-    @staticmethod
-    def init(model_config: ModelConfig) -> Model:
-        pass
-
-    @staticmethod
-    def bench(metric_queries: List[Metric],
-              data: Dataset,
-              model_utils: ModelUtils) -> List[MetricResult]: ...
-
-    @staticmethod
-    def test(metric_queries: List[Metric],
-             model: Model,
-             data: Dataset) -> List[MetricResult]: ...
-
-    @staticmethod
-    def measure(metric: Metric, data: DataPair) -> MetricResult: ...
+# class BenchUtils(Protocol):
+#     @staticmethod
+#     def init(model_config: ModelConfig) -> Model:
+#         pass
+#
+#     @staticmethod
+#     def bench(metric_queries: List[Metric],
+#               data: Dataset,
+#               model_utils: ModelUtils) -> List[MetricResult]: ...
+#
+#     @staticmethod
+#     def test(metric_queries: List[Metric],
+#              model: Model,
+#              data: Dataset) -> List[MetricResult]: ...
+#
+#     @staticmethod
+#     def measure(metric: Metric, data: DataPair) -> MetricResult: ...
+#

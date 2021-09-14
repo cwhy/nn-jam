@@ -1,31 +1,32 @@
 from __future__ import annotations
+
 import time
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Tuple, List, Protocol, Mapping, Callable, Any, Set, FrozenSet, TypeVar, NamedTuple, Literal
+from typing import Tuple, List, Protocol, Mapping, FrozenSet, NamedTuple, Literal, Generic
 
 import jax.numpy as jnp
 import numpy.random as npr
 from jax import jit, grad
 from jax.scipy.special import logsumexp
 from numpy.typing import NDArray
+from variable_protocols.protocols import Variable
+from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
 
-from supervised_benchmarks.dataset_protocols import Input, Output, Port, Data, DataContentContra, DataContent, \
-    DataContentCov
+from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataContent, \
+    DataPool, DataContentCov, DataContentContra
 from supervised_benchmarks.dataset_utils import subset_all
-from supervised_benchmarks.metric_protocols import Metric, MetricResult
+from supervised_benchmarks.metric_protocols import MetricResult, PairMetric, ResultContentCov
+from supervised_benchmarks.metrics import get_mean_acc
 from supervised_benchmarks.mnist import MnistDataConfig, Mnist, FixedTrain, FixedTest
 from supervised_benchmarks.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.protocols import ModelConfig
-from supervised_benchmarks.sampler import get_fixed_epoch_sampler, get_full_batch_sampler, Sampler, FullBatchSampler
+from supervised_benchmarks.sampler import Sampler, FullBatchSampler, FullBatchSamplerConfig, \
+    FixedEpochSamplerConfig
 
 
-class Measure(Protocol[DataContentContra]):
-    def __call__(self, output: DataContentContra, target: DataContentContra) -> MetricResult: ...
-
-
-class Foster(Protocol[DataContent]):
+class Prepare(Protocol[DataContent]):
     def __call__(self, model_config: ModelConfig, train_sampler: Sampler[DataContent]) -> Model[DataContent]: ...
 
 
@@ -36,19 +37,36 @@ class Benchmark(Protocol[DataContent]):
 
     @property
     @abstractmethod
-    def repertoire(self) -> FrozenSet[Port]: ...
+    def metrics(self) -> Mapping[Port, PairMetric[DataContent]]: ...
+
+
+@dataclass(frozen=True)
+class BenchmarkImp(Generic[DataContent]):
+    sampler: Sampler[DataContent]
+    _metrics: Mapping[Port, PairMetric[DataContent]]
 
     @property
-    @abstractmethod
-    def measurements(self) -> Mapping[Port, Measure[DataContent]]: ...
+    def metrics(self) -> Mapping[Port, PairMetric[DataContent]]:
+        return self._metrics
 
 
 class Model(Protocol[DataContent]):
 
-    # List when multiple outputs comes out
     @property
     @abstractmethod
-    def repertoire(self) -> FrozenSet[Port]: ...
+    def repertoire(self) -> FrozenSet[Port]:
+        """
+        Output ports
+        """
+        ...
+
+    @property
+    @abstractmethod
+    def ports(self) -> Mapping[Port, Variable]:
+        """
+        Variable Protocol of different ports
+        """
+        ...
 
     def perform(self, data_src: Mapping[Port, DataContent], tgt: Port) -> DataContent: ...
 
@@ -59,13 +77,15 @@ class Model(Protocol[DataContent]):
 
 def measure_model(model: Model, benchmark: Benchmark) -> List[MetricResult]:
     sampler: Sampler = benchmark.sampler
-    assert all((k in model.repertoire) for k in benchmark.repertoire)
+    assert all((k in model.repertoire) for k in benchmark.metrics)
 
     if sampler.tag == 'FullBatchSampler':
         assert isinstance(sampler, FullBatchSampler)
-        return [fn(model.perform(sampler.full_batch, tgt),
-                   sampler.full_batch[tgt])
-                for (srcs, tgt), fn in benchmark.measurements.items()]
+        return [
+            metric.measure(
+                model.perform(sampler.full_batch, tgt),
+                sampler.full_batch[tgt])
+            for tgt, metric in benchmark.metrics.items()]
     else:
         raise NotImplementedError
 
@@ -107,33 +127,39 @@ class MlpModelUtils:
     # noinspection PyTypeChecker
     # because pycharm sucks
     @staticmethod
-    def foster(config: MlpModelConfig) -> Model[NDArray]:
+    def prepare(config: MlpModelConfig,
+                pool_dict: Mapping[Port, DataPool[NDArray]]) -> Model[NDArray]:
         rng = npr.RandomState(0)
         param_scale = 0.01
         params = [(param_scale * rng.standard_normal((m, n)), param_scale * rng.standard_normal(n))
                   for m, n, in zip(config.layer_sizes[:-1], config.layer_sizes[1:])]
         model = MlpModel(config, params)
-        k = Mnist(MnistDataConfig(base_path=Path('/Data/torchvision/')))
-        mnist_in_flattened = MnistConfigIn(is_float=True, is_flat=True).get_var()
-        mnist_out_1hot = MnistConfigOut(is_1hot=True).get_var()
-        pool_dict = k.retrieve({Input: mnist_in_flattened, Output: mnist_out_1hot})
         train_pool = subset_all(pool_dict, FixedTrain)
         test_pool = subset_all(pool_dict, FixedTest)
-        train_sampler = get_fixed_epoch_sampler(config.train_batch_size, train_pool)
-        train_all = get_full_batch_sampler(train_pool)
-        test_all = get_full_batch_sampler(test_pool)
-        flow = (Input, Output)
+        train_sampler = FixedEpochSamplerConfig(config.train_batch_size).get_sampler(train_pool)
+        benchmark_tr = BenchmarkImp(
+            sampler=FullBatchSamplerConfig().get_sampler(train_pool),
+            _metrics={
+                Output: get_mean_acc(10)
+            }
+        )
+        benchmark_tst = BenchmarkImp(
+            sampler=FullBatchSamplerConfig().get_sampler(test_pool),
+            _metrics={
+                Output: get_mean_acc(10)
+            }
+        )
         for epoch in range(config.num_epochs):
             start_time = time.time()
             for _ in range(train_sampler.num_batches):
                 model.update_(next(train_sampler.iter[Input]), next(train_sampler.iter[Output]))
             epoch_time = time.time() - start_time
 
-            train_acc = measure(accuracy, model.predict, flow, train_all)
-            test_acc = measure(accuracy, model.predict, flow, test_all)
             print("Epoch {} in {:0.2f} sec".format(epoch, epoch_time))
-            print("Training set accuracy {}".format(train_acc))
-            print("Test set accuracy {}".format(test_acc))
+            trrs = measure_model(model, benchmark_tr)
+            tstrs = measure_model(model, benchmark_tst)
+            print(f"Training result {trrs}")
+            print(f"Test set result {tstrs}")
         return model
 
 
@@ -149,7 +175,16 @@ class MlpModelConfig(NamedTuple):
 class MlpModel:
     config: MlpModelConfig
     params: List[Tuple[NDArray, NDArray]]
-    repertoire: FrozenSet[Port] = frozenset({Output})
+
+    repertoire: FrozenSet[Port] = frozenset([Output])
+    # noinspection PyTypeChecker
+    # because pycharm sucks
+    ports: Mapping[Port, Variable] = field(default_factory=lambda: {
+        Output: var_scalar(one_hot(10)),
+        Input: var_tensor(
+            gaussian(0, 1),
+            dims={dim('features', 28 * 28, positioned=True)})
+    })
 
     def update_(self, x: NDArray, y: NDArray):
         self.params = MlpModelUtils.update(self.params, self.config.step_size, (x, y))
@@ -169,8 +204,8 @@ class MlpModel:
 
 
 config_ = MlpModelConfig(
-    step_size=0.01,
-    num_epochs=50,
+    step_size=0.03,
+    num_epochs=20,
     train_batch_size=32,
     layer_sizes=[784, 784, 256, 10]
 )
@@ -182,4 +217,25 @@ def accuracy(output: NDArray, target: NDArray) -> float:
     return jnp.mean(output_class == target_class)
 
 
-model_ = MlpModelUtils.foster(config_)
+k = Mnist(MnistDataConfig(base_path=Path('/Data/torchvision/')))
+mnist_in_flattened = MnistConfigIn(is_float=True, is_flat=True).get_var()
+mnist_out_1hot = MnistConfigOut(is_1hot=True).get_var()
+pool_dict_ = k.retrieve({Input: mnist_in_flattened, Output: mnist_out_1hot})
+# noinspection PyTypeChecker
+# because pycharm sucks
+model_ = MlpModelUtils.prepare(config_, pool_dict_)
+
+# noinspection PyTypeChecker
+# because pycharm sucks
+test_pool = subset_all(pool_dict_, FixedTest)
+test_sampler = FullBatchSamplerConfig().get_sampler(test_pool)
+benchmark = BenchmarkImp(
+    sampler=test_sampler,
+    _metrics={
+        Output: get_mean_acc(10)
+    }
+)
+# noinspection PyTypeChecker
+# because pycharm sucks
+z = measure_model(model_, benchmark)
+print(z)
