@@ -1,50 +1,52 @@
-from typing import Literal, TypeVar, Protocol
+from __future__ import annotations
+from abc import abstractmethod
+from typing import Protocol, Mapping, List, Literal, FrozenSet
 
-from supervised_benchmarks.dataset_protocols import DataPair
+from variable_protocols.protocols import Variable
+
+from supervised_benchmarks.dataset_protocols import DataContent, Port, DataPool, DataContentContra, Data
+from supervised_benchmarks.metric_protocols import PairMetric, MetricResult
 from supervised_benchmarks.sampler import Sampler
 
-Model = TypeVar('Model')
 
+class Benchmark(Protocol[DataContent]):
+    @property
+    @abstractmethod
+    def sampler(self) -> Sampler[DataContent]: ...
 
-# Feature matching concept
+    def measure(self, model: Model) -> List[MetricResult]: ...
+
 
 class ModelConfig(Protocol):
     type: Literal['ModelConfig'] = 'ModelConfig'
 
 
-class Metrics(Protocol):
-    type: Literal['MetricConfig'] = 'MetricConfig'
+class Model(Protocol[DataContent]):
+
+    @property
+    @abstractmethod
+    def repertoire(self) -> FrozenSet[Port]:
+        """
+        Output ports
+        """
+        ...
+
+    @property
+    @abstractmethod
+    def ports(self) -> Mapping[Port, Variable]:
+        """
+        Variable Protocol of different ports
+        """
+        ...
+
+    def perform(self, data_src: Mapping[Port, DataContent], tgt: Port) -> DataContent: ...
+
+    def perform_batch(self,
+                      data_src: Mapping[Port, DataContent],
+                      tgt: FrozenSet[Port]) -> Mapping[Port, DataContent]: ...
 
 
-class ModelUtils(Protocol[Model]):
+class ModelUtils(Protocol[DataContent]):
     @staticmethod
-    def brew(model_config: ModelConfig,
-             train_sampler: Sampler,
-             validate_sampler: Sampler) -> Model:
-        pass
-
-    @staticmethod
-    def predict(model: Model, test_sampler: Sampler) -> DataPair:
-        pass
-
-
-# Output-metric matching concept
-
-# class BenchUtils(Protocol):
-#     @staticmethod
-#     def init(model_config: ModelConfig) -> Model:
-#         pass
-#
-#     @staticmethod
-#     def bench(metric_queries: List[Metric],
-#               data: Dataset,
-#               model_utils: ModelUtils) -> List[MetricResult]: ...
-#
-#     @staticmethod
-#     def test(metric_queries: List[Metric],
-#              model: Model,
-#              data: Dataset) -> List[MetricResult]: ...
-#
-#     @staticmethod
-#     def measure(metric: Metric, data: DataPair) -> MetricResult: ...
-#
+    def prepare(config: ModelConfig,
+                pool_dict: Mapping[Port, DataPool[DataContent]]) -> Model[DataContent]: ...

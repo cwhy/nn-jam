@@ -22,3 +22,7 @@ def get_mean_acc(n_category: int):
         type='mean_acc',
         measure=mean_acc_numpy
     )
+# def accuracy(output: NDArray, target: NDArray) -> float:
+#     target_class = jnp.argmax(target, axis=1)
+#     output_class = jnp.argmax(output, axis=1)
+#     return jnp.mean(output_class == target_class)
