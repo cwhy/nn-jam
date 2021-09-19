@@ -8,7 +8,7 @@ import numpy.typing as npt
 from variable_protocols.variables import Variable
 
 from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, \
-    FixedSubset, Data
+    FixedSubset, Data, DataPortMap
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
 from supervised_benchmarks.mnist_utils import read_sn3_pascalvincent_ndarray
 from supervised_benchmarks.mnist_variations import get_transformations, MnistConfigIn, MnistConfigOut
@@ -25,11 +25,6 @@ n_samples = n_samples_tr + n_samples_tst
 FixedTrain = FixedSubset('FixedTrain', list(range(n_samples_tr)))
 FixedTest = FixedSubset('FixedTest', list(range(n_samples_tr, n_samples)))
 FixedAll = FixedSubset('All', list(range(n_samples)))
-
-
-class MnistDataConfig(NamedTuple):
-    base_path: Path
-    type: Literal['DataConfig'] = 'DataConfig'
 
 
 def get_mnist_(base_path: Path) -> Dict[str, npt.NDArray]:
@@ -89,8 +84,8 @@ class Mnist:
     def ports(self) -> FrozenSet[Port]:
         return frozenset({Input, Output})
 
-    def __init__(self, data_config: MnistDataConfig) -> None:
-        self.array_dict: Dict[str, npt.NDArray] = get_mnist_(data_config.base_path)
+    def __init__(self, base_path: Path) -> None:
+        self.array_dict: Dict[str, npt.NDArray] = get_mnist_(base_path)
         assert n_samples_tr == self.array_dict['train.images'].shape[0]
         assert n_samples_tst == self.array_dict['t10k.images'].shape[0]
         assert n_samples_tr == len(self.array_dict['train.labels'])
@@ -122,3 +117,14 @@ class Mnist:
                 tgt_var=variable_protocol)
             for port, variable_protocol in query.items()
         }
+
+
+# noinspection PyTypeChecker
+# Because pycharm sucks
+class MnistDataConfig(NamedTuple):
+    base_path: Path
+    port_vars: DataQuery
+    type: Literal['DataConfig'] = 'DataConfig'
+
+    def get_data(self) -> DataPortMap:
+        return Mnist(self.base_path).retrieve(self.port_vars)

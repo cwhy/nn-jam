@@ -1,29 +1,22 @@
 from __future__ import annotations
 
-from abc import abstractmethod
 from collections import defaultdict
-from typing import Mapping, Tuple, Callable, NamedTuple, Literal, Protocol, Set
+from typing import Mapping, Tuple, Callable, NamedTuple, Literal, Set, Dict
 
 import numpy as np
+import numpy.typing as npt
 from einops import rearrange
 from variable_protocols.base_variables import BaseVariable
-from variable_protocols.protocols import fmt
 from variable_protocols.variables import Variable, ordinal, bounded_float, var_scalar, one_hot
 from variable_protocols.variables import dim, var_tensor
 
 from supervised_benchmarks.numpy_utils import ordinal_from_1hot, ordinal_to_1hot
 
 
-class MnistConfig(Protocol):
-    @property
-    @abstractmethod
-    def type(self) -> Literal['MnistConfig']: ...
-
-
 class MnistConfigIn(NamedTuple):
     is_float: bool
     is_flat: bool
-    type: Literal['MnistConfig'] = 'MnistConfig'
+    type: Literal['PortConfig'] = 'PortConfig'
 
     # noinspection PyTypeChecker
     # because pyCharm sucks
@@ -39,7 +32,7 @@ class MnistConfigIn(NamedTuple):
 class MnistConfigOut(NamedTuple):
     is_1hot: bool
 
-    type: Literal['MnistConfig'] = 'MnistConfig'
+    type: Literal['PortConfig'] = 'PortConfig'
 
     # noinspection PyTypeChecker
     # because pyCharm sucks
@@ -51,7 +44,7 @@ class MnistConfigOut(NamedTuple):
 
 
 # Can be removed after hole based variable config
-transformations: Mapping[Tuple[Variable, Variable],
+transformations: Dict[Tuple[Variable, Variable],
                       Callable[[npt.NDArray], npt.NDArray]] = dict()
 
 look_up_forward_: Mapping[Variable, Set[Variable]] = defaultdict(set)

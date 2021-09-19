@@ -1,27 +1,17 @@
 from __future__ import annotations
+
 from abc import abstractmethod
-from typing import Protocol, Mapping, List, Literal, FrozenSet
+from typing import Protocol, Mapping, Literal, FrozenSet
 
 from variable_protocols.protocols import Variable
 
-from supervised_benchmarks.dataset_protocols import DataContent, Port, DataPool, DataContentContra, Data
-from supervised_benchmarks.metric_protocols import PairMetric, MetricResult
-from supervised_benchmarks.sampler import Sampler
+from supervised_benchmarks.dataset_protocols import DataContent, Port, DataPool, Dataset, DataConfig
 
 
-class Benchmark(Protocol[DataContent]):
-    @property
-    @abstractmethod
-    def sampler(self) -> Sampler[DataContent]: ...
-
-    def measure(self, model: Model) -> List[MetricResult]: ...
-
-
-class ModelConfig(Protocol):
-    type: Literal['ModelConfig'] = 'ModelConfig'
-
-
-class Model(Protocol[DataContent]):
+class ModelConfig(Protocol[DataContent]):
+    """
+    All benchmark related configs are here
+    """
 
     @property
     @abstractmethod
@@ -39,6 +29,24 @@ class Model(Protocol[DataContent]):
         """
         ...
 
+    @property
+    @abstractmethod
+    def type(self) -> Literal['ModelConfig']: ...
+
+    def prepare(self) -> Performer[DataContent]: ...
+
+# Mapping[Port, DataPool[DataContent]]
+
+
+class Performer(Protocol[DataContent]):
+    @property
+    @abstractmethod
+    def model(self) -> ModelConfig:
+        """
+        The model that the performer based on
+        """
+        ...
+
     def perform(self, data_src: Mapping[Port, DataContent], tgt: Port) -> DataContent: ...
 
     def perform_batch(self,
@@ -46,7 +54,3 @@ class Model(Protocol[DataContent]):
                       tgt: FrozenSet[Port]) -> Mapping[Port, DataContent]: ...
 
 
-class ModelUtils(Protocol[DataContent]):
-    @staticmethod
-    def prepare(config: ModelConfig,
-                pool_dict: Mapping[Port, DataPool[DataContent]]) -> Model[DataContent]: ...

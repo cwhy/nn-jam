@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import time
-from pathlib import Path
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Tuple, List, Mapping, FrozenSet, Literal
 
 import jax.numpy as jnp
 import numpy.random as npr
@@ -11,19 +11,35 @@ from jax.scipy.special import logsumexp
 from numpy.typing import NDArray
 from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
-from typing import Tuple, List, Mapping, FrozenSet, NamedTuple, Literal
 
-from supervised_benchmarks.benchmark import BenchmarkImp, measure_model, BenchmarkConfig
-from supervised_benchmarks.protocols import Model
+from supervised_benchmarks.benchmark import BenchmarkConfig
+from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataPool, DataQuery, Dataset, DataConfig
 from supervised_benchmarks.metrics import get_mean_acc
-from supervised_benchmarks.dataset_utils import subset_all
+from supervised_benchmarks.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist_variations import MnistConfigIn, MnistConfigOut
-from supervised_benchmarks.mnist import MnistDataConfig, Mnist, FixedTrain, FixedTest
-from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataPool
-from supervised_benchmarks.sampler import FullBatchSamplerConfig, FixedEpochSamplerConfig
+from supervised_benchmarks.model_utils import Train
+from supervised_benchmarks.protocols import Performer
+from supervised_benchmarks.sampler import MiniBatchSampler
 
 
-class MlpModelUtils:
+@dataclass(frozen=True)
+class MlpModelConfig:
+    step_size: float
+    num_epochs: int
+    train_batch_size: int
+    layer_sizes: List[int]
+    train_data_config: DataConfig
+    repertoire: FrozenSet[Port] = frozenset([Output])
+    # noinspection PyTypeChecker
+    # because pycharm sucks
+    ports: Mapping[Port, Variable] = field(default_factory=lambda: {
+        Output: var_scalar(one_hot(10)),
+        Input: var_tensor(
+            gaussian(0, 1),
+            dims={dim('features', 28 * 28, positioned=True)})
+    })
+    type: Literal['ModelConfig'] = 'ModelConfig'
+
     @staticmethod
     def forward(params, inputs):
         activations = inputs
@@ -38,73 +54,49 @@ class MlpModelUtils:
     @staticmethod
     def _loss(params, batch):
         inputs, targets = batch
-        preds = MlpModelUtils.forward(params, inputs)
+        preds = MlpModelConfig.forward(params, inputs)
         return -jnp.mean(jnp.sum(preds * targets, axis=1))
 
     @staticmethod
     @jit
     def update(params, step_size, batch):
-        grads = grad(MlpModelUtils._loss)(params, batch)
+        grads = grad(MlpModelConfig._loss)(params, batch)
         return [(w - step_size * dw, b - step_size * db)
                 for (w, b), (dw, db) in zip(params, grads)]
 
     # noinspection PyTypeChecker
     # because pycharm sucks
-    @staticmethod
-    def prepare(config: MlpModelConfig,
-                pool_dict: Mapping[Port, DataPool[NDArray]]) -> Model[NDArray]:
+    def prepare(self, dataset: Dataset) -> Performer[NDArray]:
         rng = npr.RandomState(0)
         param_scale = 0.01
         params = [(param_scale * rng.standard_normal((m, n)), param_scale * rng.standard_normal(n))
-                  for m, n, in zip(config.layer_sizes[:-1], config.layer_sizes[1:])]
-        model = MlpModel(config, params)
-        train_data = subset_all(pool_dict, FixedTrain)
-        test_data = subset_all(pool_dict, FixedTest)
-        benchmark_tr = BenchmarkConfig(metrics={Output: get_mean_acc(10)}).prepare(train_data)
-        benchmark_tst = BenchmarkConfig(metrics={Output: get_mean_acc(10)}).prepare(test_data)
-        train_sampler = FixedEpochSamplerConfig(config.train_batch_size).get_sampler(train_data)
-        for epoch in range(config.num_epochs):
-            start_time = time.time()
-            for _ in range(train_sampler.num_batches):
-                model.update_(next(train_sampler.iter[Input]), next(train_sampler.iter[Output]))
-            epoch_time = time.time() - start_time
-
-            print("Epoch {} in {:0.2f} sec".format(epoch, epoch_time))
-            trrs = benchmark_tr.measure(model)
-            tstrs = benchmark_tst.measure(model)
-            print(f"Training result {trrs}")
-            print(f"Test set result {tstrs}")
+                  for m, n, in zip(self.layer_sizes[:-1], self.layer_sizes[1:])]
+        model = MlpModel(self, params)
+        Train(
+            num_epochs=self.num_epochs,
+            batch_size=self.train_batch_size,
+            bench_configs=[BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTrain),
+                           BenchmarkConfig(metrics={Output: get_mean_acc(10)})],
+            model=model,
+            dataset=dataset,
+            data_subset=FixedTrain,
+            data_query=self.train_data_config
+        ).run_()
         return model
-
-
-class MlpModelConfig(NamedTuple):
-    step_size: float
-    num_epochs: int
-    train_batch_size: int
-    layer_sizes: List[int]
-    type: Literal['ModelConfig'] = 'ModelConfig'
 
 
 @dataclass
 class MlpModel:
-    config: MlpModelConfig
+    model: MlpModelConfig
     params: List[Tuple[NDArray, NDArray]]
 
-    repertoire: FrozenSet[Port] = frozenset([Output])
-    # noinspection PyTypeChecker
-    # because pycharm sucks
-    ports: Mapping[Port, Variable] = field(default_factory=lambda: {
-        Output: var_scalar(one_hot(10)),
-        Input: var_tensor(
-            gaussian(0, 1),
-            dims={dim('features', 28 * 28, positioned=True)})
-    })
-
-    def update_(self, x: NDArray, y: NDArray):
-        self.params = MlpModelUtils.update(self.params, self.config.step_size, (x, y))
+    def update_(self, sampler: MiniBatchSampler):
+        self.params = MlpModelConfig.update(self.params,
+                                            self.model.step_size,
+                                            (next(sampler.iter[Input]), next(sampler.iter[Output])))
 
     def predict(self, inputs: NDArray):
-        return MlpModelUtils.forward(self.params, inputs)
+        return MlpModelConfig.forward(self.params, inputs)
 
     def perform(self, data_src: Mapping[Port, NDArray], tgt: Port) -> NDArray:
         assert Input in data_src and tgt == Output
@@ -117,26 +109,21 @@ class MlpModel:
         return {Output: self.predict(data_src[Input])}
 
 
-config_ = MlpModelConfig(
+# noinspection PyTypeChecker
+# Because Pycharm sucks
+mnist_in_flattened = MnistConfigIn(is_float=True, is_flat=True).get_var()
+mnist_out_1hot = MnistConfigOut(is_1hot=True).get_var()
+port_query: DataQuery = {Input: mnist_in_flattened, Output: mnist_out_1hot}
+data_config_ = MnistDataConfig(base_path=Path('/Data/torchvision/'), port_vars=port_query)
+benchmark_config_ = BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTest)
+model_config_ = MlpModelConfig(
     step_size=0.03,
     num_epochs=20,
     train_batch_size=32,
-    layer_sizes=[784, 784, 256, 10]
+    layer_sizes=[784, 784, 256, 10],
+    train_data_config=data_config_
 )
-
-k = Mnist(MnistDataConfig(base_path=Path('/Data/torchvision/')))
-mnist_in_flattened = MnistConfigIn(is_float=True, is_flat=True).get_var()
-mnist_out_1hot = MnistConfigOut(is_1hot=True).get_var()
-pool_dict_ = k.retrieve({Input: mnist_in_flattened, Output: mnist_out_1hot})
 # noinspection PyTypeChecker
-# because pycharm sucks
-model_ = MlpModelUtils.prepare(config_, pool_dict_)
-
-# noinspection PyTypeChecker
-# because pycharm sucks
-test_pool = subset_all(pool_dict_, FixedTest)
-benchmark = BenchmarkConfig(metrics={Output: get_mean_acc(10)}).prepare(test_pool)
-# noinspection PyTypeChecker
-# because pycharm sucks
-z = measure_model(model_, benchmark)
+# Because Pycharm sucks
+z = benchmark_config_.bench(data_config_, model_config_)
 print(z)

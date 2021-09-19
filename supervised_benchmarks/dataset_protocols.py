@@ -1,8 +1,7 @@
 from abc import abstractmethod
-from pathlib import Path
+from typing import Literal, Protocol, NamedTuple, Mapping, List, FrozenSet, TypeVar
 
 from variable_protocols.variables import Variable
-from typing import Literal, Protocol, NamedTuple, Mapping, List, FrozenSet, TypeVar
 
 Port = Literal['Input', 'Output']
 Input: Literal['Input'] = 'Input'
@@ -50,16 +49,6 @@ class FixedSample(NamedTuple):
     tag: Literal['RandomSample']
 
 
-class DataConfig(Protocol):
-    @property
-    @abstractmethod
-    def base_path(self) -> Path: ...
-
-    @property
-    @abstractmethod
-    def type(self) -> Literal['DataConfig']: ...
-
-
 class Data(Protocol[DataContentCov]):
     @property
     @abstractmethod
@@ -82,14 +71,31 @@ class DataPool(Protocol[DataContentCov]):
     @property
     @abstractmethod
     def port(self) -> Port: ...
+
     @property
     @abstractmethod
     def src_var(self) -> Variable: ...
+
     @property
     @abstractmethod
     def tgt_var(self) -> Variable: ...
 
     def subset(self, subset: Subset) -> Data[DataContentCov]: ...
+
+
+DataPortMap = Mapping[Port, DataPool]
+
+
+class DataConfig(Protocol):
+    @property
+    @abstractmethod
+    def port_vars(self) -> DataQuery: ...
+
+    @property
+    @abstractmethod
+    def type(self) -> Literal['DataConfig']: ...
+
+    def get_data(self) -> DataPortMap: ...
 
 
 class DataPair(Protocol):
@@ -107,3 +113,4 @@ class Dataset(Protocol):
     def name(self) -> SupportedDatasetNames: ...
 
     def retrieve(self, query: DataQuery) -> Mapping[Port, DataPool]: ...
+

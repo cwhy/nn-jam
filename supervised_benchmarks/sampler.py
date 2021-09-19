@@ -12,12 +12,6 @@ MiniBatchSamplerType = Literal['FixedEpochSampler', 'MiniBatchSampler']
 SamplerTypeVar = TypeVar('SamplerTypeVar', bound=SamplerType, covariant=True)
 
 
-class Sampler(Protocol[DataContentCov]):
-    @property
-    @abstractmethod
-    def tag(self) -> SamplerType: ...
-
-
 @runtime_checkable
 class MiniBatchSampler(Protocol[DataContentCov]):
     @property
@@ -119,3 +113,11 @@ class FullBatchSamplerConfig(NamedTuple):
     @staticmethod
     def get_sampler(data_dict: Mapping[Port, Data[DataContentCov]]) -> FullBatchSampler[DataContentCov]:
         return FullBatchSamplerImp({k: v.content for k, v in data_dict.items()})
+
+
+class Sampler(Protocol[DataContentCov]):
+    @property
+    @abstractmethod
+    def tag(self) -> SamplerType: ...
+
+
