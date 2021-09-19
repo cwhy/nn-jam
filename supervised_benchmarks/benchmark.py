@@ -28,8 +28,7 @@ class BenchmarkConfig(Generic[DataContent]):
             config=self
         )
 
-    def bench(self, data_config: DataConfig, model_config: ModelConfig) -> List[MetricResult]:
-        model = model_config.prepare()
+    def bench(self, data_config: DataConfig, model: Performer) -> List[MetricResult]:
         data_pool = data_config.get_data()
         benchmark = self.prepare(data_pool)
         return benchmark.measure(model)

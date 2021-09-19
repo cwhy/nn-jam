@@ -66,7 +66,7 @@ class MlpModelConfig:
 
     # noinspection PyTypeChecker
     # because pycharm sucks
-    def prepare(self, dataset: Dataset) -> Performer[NDArray]:
+    def prepare(self) -> Performer[NDArray]:
         rng = npr.RandomState(0)
         param_scale = 0.01
         params = [(param_scale * rng.standard_normal((m, n)), param_scale * rng.standard_normal(n))
@@ -78,9 +78,8 @@ class MlpModelConfig:
             bench_configs=[BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTrain),
                            BenchmarkConfig(metrics={Output: get_mean_acc(10)})],
             model=model,
-            dataset=dataset,
             data_subset=FixedTrain,
-            data_query=self.train_data_config
+            data_config=self.train_data_config
         ).run_()
         return model
 
@@ -116,14 +115,16 @@ mnist_out_1hot = MnistConfigOut(is_1hot=True).get_var()
 port_query: DataQuery = {Input: mnist_in_flattened, Output: mnist_out_1hot}
 data_config_ = MnistDataConfig(base_path=Path('/Data/torchvision/'), port_vars=port_query)
 benchmark_config_ = BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTest)
-model_config_ = MlpModelConfig(
+# noinspection PyTypeChecker
+# Because Pycharm sucks
+model_ = MlpModelConfig(
     step_size=0.03,
     num_epochs=20,
     train_batch_size=32,
     layer_sizes=[784, 784, 256, 10],
     train_data_config=data_config_
-)
+).prepare()
 # noinspection PyTypeChecker
 # Because Pycharm sucks
-z = benchmark_config_.bench(data_config_, model_config_)
+z = benchmark_config_.bench(data_config_, model_)
 print(z)

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import List, Mapping, Generic, Protocol, FrozenSet
 
 from supervised_benchmarks.benchmark import Benchmark, BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import Subset, Port, DataPool, DataContent, Dataset, DataConfig
+from supervised_benchmarks.dataset_protocols import Subset, Port, DataPool, DataContent, Dataset, DataConfig, DataQuery
 from supervised_benchmarks.dataset_utils import subset_all
 from supervised_benchmarks.protocols import ModelConfig, Performer
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, MiniBatchSampler
@@ -16,13 +16,13 @@ from supervised_benchmarks.sampler import FixedEpochSamplerConfig, MiniBatchSamp
 class Train(Generic[DataContent]):
     num_epochs: int
     batch_size: int
-    data_subset: Subset
     bench_configs: List[BenchmarkConfig]
     model: TrainablePerformer[DataContent]
-    dataset: Dataset
+    data_subset: Subset
+    data_config: DataConfig
 
     def run_(self):
-        pool_dict: Mapping[Port, DataPool[DataContent]] = self.dataset.retrive()
+        pool_dict: Mapping[Port, DataPool[DataContent]] = self.data_config.get_data()
         train_data = subset_all(pool_dict, self.data_subset)
         benchmarks: List[Benchmark] = [b.prepare(pool_dict) for b in self.bench_configs]
         train_sampler = FixedEpochSamplerConfig(self.batch_size).get_sampler(train_data)
