@@ -1,21 +1,14 @@
 from pathlib import Path
-from typing import List, Dict
 
-import numpy as np
-from bokeh.io import show
-from bokeh.layouts import row, column
-from numpy.typing import NDArray
-from variable_protocols.protocols import fmt
-
-from supervised_benchmarks.dataset_protocols import Input, Output, DataPool
-from supervised_benchmarks.iraven.iraven import get_iraven_
-from supervised_benchmarks.mnist.mnist import MnistDataConfig, Mnist, \
-    FixedTrain, FixedTest, mnist_in_raw, mnist_out_raw
-from supervised_benchmarks.mnist.mnist_variations import transformations, MnistConfigIn
-from supervised_benchmarks.visualize_utils import view_2d_mono
-from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy.typing as npt
+from matplotlib import pyplot as plt
+
+from supervised_benchmarks.benchmark import BenchmarkConfig
+from supervised_benchmarks.dataset_protocols import Input, Output
+from supervised_benchmarks.iraven.iraven import get_iraven_, IravenDataConfig, iraven_in_raw, iraven_out_raw, FixedTest
+from supervised_benchmarks.metrics import get_mean_acc
+from supervised_benchmarks.sampler import FullBatchSampler
 
 
 def show_sample_(img: npt.NDArray, name: str) -> None:
@@ -42,4 +35,27 @@ def show_sample_(img: npt.NDArray, name: str) -> None:
                 fig.add_subplot(ax)
     fig.savefig(f"{name}view.pdf")
 
+
 data_dict = get_iraven_(Path("/media/owner/data/raven"), "1.0.0", 10000, "center_single")
+
+data_config_ = IravenDataConfig(
+    task="center_single",
+    version="1.0.0",
+    size=10000,
+    base_path=Path('/media/owner/data/raven'),
+    port_vars={
+        Input: iraven_in_raw,
+        Output: iraven_out_raw,
+    })
+
+benchmark_config_ = BenchmarkConfig(
+    metrics={Output: get_mean_acc(10)},
+    on=FixedTest)
+benchmark = benchmark_config_.prepare(data_config_.get_data())
+sampler = benchmark.sampler
+if sampler.tag == 'FullBatchSampler':
+    assert isinstance(sampler, FullBatchSampler)
+    # noinspection PyTypeChecker
+    # Because Pycharm sucks
+    sample_input = sampler.full_batch[Input][0, :, :, :]
+    show_sample_(sample_input, "tst")
