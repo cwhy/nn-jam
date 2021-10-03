@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Tuple, Literal, Mapping, Mapping
+from typing import List, Tuple, Literal, Mapping, Mapping, Optional, Sequence
 from urllib.error import URLError
 
 from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity
@@ -22,13 +22,21 @@ def get_data_dir(base_path: Path, data_name: str, sub_path: DataPath) -> Path:
     return _path
 
 
-def download_resources(base_path: Path, name: SupportedDatasetNames, resources: List[Tuple[str, str]],
-                       mirrors: List[str]) -> None:
+def download_resources(base_path: Path,
+                       name: SupportedDatasetNames,
+                       resources: Sequence[Tuple[str, Optional[str]]],
+                       mirrors: List[str],
+                       version_name: Optional[str]=None) -> None:
     raw_path = get_data_dir(base_path, name, 'raw')
+    if version_name is not None:
+        download_path = raw_path.joinpath(version_name)
+        download_path.mkdir(exist_ok=True)
+    else:
+        download_path = raw_path
 
     def _check_exists() -> bool:
         return all(
-            check_integrity(raw_path.joinpath(file_name))
+            check_integrity(download_path.joinpath(file_name))
             for file_name, _ in resources
         )
 
@@ -36,11 +44,13 @@ def download_resources(base_path: Path, name: SupportedDatasetNames, resources: 
         return None
     for filename, md5 in resources:
         for mirror in mirrors:
+            if not mirror.endswith("/"):
+                mirror = mirror + "/"
             url = "{}{}".format(mirror, filename)
             try:
                 print("Downloading {}".format(url))
                 download_and_extract_archive(
-                    url, download_root=raw_path,
+                    url, download_root=download_path,
                     filename=filename,
                     md5=md5
                 )

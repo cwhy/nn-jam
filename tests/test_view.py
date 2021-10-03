@@ -4,7 +4,7 @@ import numpy as np
 from bokeh.io import show
 
 from supervised_benchmarks.dataset_protocols import Input
-from supervised_benchmarks.mnist import MnistDataConfig, Mnist, mnist_in_raw, FixedTrain
+from supervised_benchmarks.mnist.mnist import MnistDataConfig, Mnist, mnist_in_raw, FixedTrain
 from supervised_benchmarks.visualize_utils import view_2d_mono
 
 i = MnistDataConfig(base_path=Path('/Data/torchvision/'))

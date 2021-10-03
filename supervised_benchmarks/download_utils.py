@@ -59,7 +59,6 @@ def check_md5(f_path: Path, md5: str) -> bool:
 
 
 def check_integrity(f_path: Path, md5: Optional[str] = None) -> bool:
-    print(f_path)
     if not f_path.is_file():
         return False
     elif md5 is None:

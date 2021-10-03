@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Mapping, Generic, List, Literal, Protocol
-from supervised_benchmarks.dataset_protocols import DataContent, Port, DataPool, Data, Subset, DataConfig, \
-    DataContentCov
+from typing import Mapping, Generic, List, Literal
+from supervised_benchmarks.dataset_protocols import DataContent, Port, DataPool, Subset, DataConfig
 from supervised_benchmarks.dataset_utils import subset_all
 from supervised_benchmarks.metric_protocols import PairMetric, MetricResult
-from supervised_benchmarks.mnist import FixedTest
-from supervised_benchmarks.protocols import Performer, ModelConfig
+from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import FullBatchSampler, FullBatchSamplerConfig, Sampler
 
 
@@ -16,7 +13,7 @@ from supervised_benchmarks.sampler import FullBatchSampler, FullBatchSamplerConf
 @dataclass(frozen=True)
 class BenchmarkConfig(Generic[DataContent]):
     metrics: Mapping[Port, PairMetric[DataContent]]
-    on: Subset = FixedTest
+    on: Subset
     type: Literal['BenchmarkConfig'] = 'BenchmarkConfig'
 
     # noinspection PyTypeChecker

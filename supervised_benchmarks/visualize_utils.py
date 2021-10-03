@@ -3,6 +3,7 @@ from typing import Optional
 import numpy as np
 from bokeh.plotting import figure, Figure
 from einops import repeat
+import numpy.typing as npt
 
 
 def view_img_rgba(img: npt.NDArray, title: Optional[str]) -> Figure:

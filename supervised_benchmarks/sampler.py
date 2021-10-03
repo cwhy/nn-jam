@@ -5,7 +5,7 @@ from typing import Generic, Literal, Iterator, Mapping, Protocol, runtime_checka
 import numpy.random as npr
 
 from supervised_benchmarks.dataset_protocols import DataContentCov, Port, Data
-from supervised_benchmarks.mnist import FixedTrain
+from supervised_benchmarks.mnist.mnist import FixedTrain
 
 SamplerType = Literal['FixedEpochSampler', 'FullBatchSampler', 'MiniBatchSampler']
 MiniBatchSamplerType = Literal['FixedEpochSampler', 'MiniBatchSampler']

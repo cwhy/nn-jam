@@ -9,7 +9,6 @@ from einops import rearrange
 from variable_protocols.base_variables import BaseVariable
 from variable_protocols.variables import Variable, ordinal, bounded_float, var_scalar, one_hot
 from variable_protocols.variables import dim, var_tensor
-
 from supervised_benchmarks.numpy_utils import ordinal_from_1hot, ordinal_to_1hot
 
 

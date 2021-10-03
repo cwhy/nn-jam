@@ -19,8 +19,8 @@ from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var
 from supervised_benchmarks.benchmark import BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataQuery, DataConfig
 from supervised_benchmarks.metrics import get_mean_acc
-from supervised_benchmarks.mnist import MnistDataConfig, FixedTrain, FixedTest
-from supervised_benchmarks.mnist_variations import MnistConfigIn, MnistConfigOut
+from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
+from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.model_utils import Train
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler
@@ -140,7 +140,7 @@ class MlpModelConfig:
             num_epochs=self.num_epochs,
             batch_size=self.train_batch_size,
             bench_configs=[BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTrain),
-                           BenchmarkConfig(metrics={Output: get_mean_acc(10)})],
+                           BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTest)],
             model=model,
             data_subset=FixedTrain,
             data_config=self.train_data_config

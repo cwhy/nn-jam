@@ -10,8 +10,8 @@ from variable_protocols.variables import Variable
 from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, \
     FixedSubset, Data, DataPortMap
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
-from supervised_benchmarks.mnist_utils import read_sn3_pascalvincent_ndarray
-from supervised_benchmarks.mnist_variations import get_transformations, MnistConfigIn, MnistConfigOut
+from supervised_benchmarks.mnist.mnist_utils import read_sn3_pascalvincent_ndarray
+from supervised_benchmarks.mnist.mnist_variations import get_transformations, MnistConfigIn, MnistConfigOut
 
 classes = ['0 - zero', '1 - one', '2 - two', '3 - three', '4 - four',
            '5 - five', '6 - six', '7 - seven', '8 - eight', '9 - nine']
@@ -49,6 +49,7 @@ def get_mnist_(base_path: Path) -> Dict[str, npt.NDArray]:
             )
         for f_name, _ in resources
     }
+    # TODO: check if there
     np.savez(get_data_dir(base_path, name, 'processed').joinpath('array_dict'), data)
     return data
 

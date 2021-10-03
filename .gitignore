@@ -4,3 +4,4 @@ __pycache__/*
 .swp
 .mypy_cache/*
 test/*.html
+*/*/__pycache__/*

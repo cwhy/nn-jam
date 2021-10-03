@@ -13,10 +13,10 @@ from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataPool, DataQuery, Dataset, DataConfig
+from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataQuery, DataConfig
 from supervised_benchmarks.metrics import get_mean_acc
-from supervised_benchmarks.mnist import MnistDataConfig, FixedTrain, FixedTest
-from supervised_benchmarks.mnist_variations import MnistConfigIn, MnistConfigOut
+from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
+from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.model_utils import Train
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler
@@ -76,7 +76,7 @@ class MlpModelConfig:
             num_epochs=self.num_epochs,
             batch_size=self.train_batch_size,
             bench_configs=[BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTrain),
-                           BenchmarkConfig(metrics={Output: get_mean_acc(10)})],
+                           BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTest)],
             model=model,
             data_subset=FixedTrain,
             data_config=self.train_data_config
@@ -108,13 +108,17 @@ class MlpModel:
         return {Output: self.predict(data_src[Input])}
 
 
-# noinspection PyTypeChecker
-# Because Pycharm sucks
-mnist_in_flattened = MnistConfigIn(is_float=True, is_flat=True).get_var()
-mnist_out_1hot = MnistConfigOut(is_1hot=True).get_var()
-port_query: DataQuery = {Input: mnist_in_flattened, Output: mnist_out_1hot}
-data_config_ = MnistDataConfig(base_path=Path('/Data/torchvision/'), port_vars=port_query)
-benchmark_config_ = BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTest)
+data_config_ = MnistDataConfig(
+    base_path=Path('/Data/torchvision/'),
+    port_vars={
+        Input: MnistConfigIn(is_float=True, is_flat=True).get_var(),
+        Output: MnistConfigOut(is_1hot=True).get_var()
+    })
+
+benchmark_config_ = BenchmarkConfig(
+    metrics={Output: get_mean_acc(10)},
+    on=FixedTest)
+
 # noinspection PyTypeChecker
 # Because Pycharm sucks
 model_ = MlpModelConfig(

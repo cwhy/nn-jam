@@ -3,10 +3,14 @@ from typing import Literal, Protocol, NamedTuple, Mapping, List, FrozenSet, Type
 
 from variable_protocols.variables import Variable
 
-Port = Literal['Input', 'Output']
+Port = Literal['Input', 'Output', 'Context', 'OutputOptions']
 Input: Literal['Input'] = 'Input'
 Output: Literal['Output'] = 'Output'
-SupportedDatasetNames = Literal['MNIST']
+
+Context: Literal['Context'] = 'Context'
+OutputOptions: Literal['OutputOptions'] = 'OutputOptions'
+
+SupportedDatasetNames = Literal['MNIST', 'IRaven']
 DataQuery = Mapping[Port, Variable]
 
 
@@ -24,11 +28,13 @@ DataContentCov = TypeVar('DataContentCov', bound=DataContentBound, covariant=Tru
 DataContentContra = TypeVar('DataContentContra', bound=DataContentBound, contravariant=True)
 DataContent = TypeVar('DataContent', bound=DataContentBound)
 
+FixedSubsetType = Literal['All', 'FixedTrain', 'FixedTest', 'FixedValidation']
+
 
 class Subset(Protocol):
     @property
     @abstractmethod
-    def tag(self) -> Literal['All', 'FixedTrain', 'FixedTest', 'RandomSample']: ...
+    def tag(self) -> Literal[FixedSubsetType, 'RandomSample']: ...
 
     @property
     @abstractmethod
@@ -36,11 +42,11 @@ class Subset(Protocol):
 
 
 class FixedSubset(NamedTuple):
-    tag: Literal['FixedTrain', 'FixedTest', 'All']
+    tag: FixedSubsetType
     indices: List[int]
 
     @property
-    def uid(self) -> Literal['All', 'FixedTrain', 'FixedTest']:
+    def uid(self) -> FixedSubsetType:
         return self.tag
 
 
@@ -113,4 +119,3 @@ class Dataset(Protocol):
     def name(self) -> SupportedDatasetNames: ...
 
     def retrieve(self, query: DataQuery) -> Mapping[Port, DataPool]: ...
-

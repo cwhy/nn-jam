@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Mapping, Dict
+from typing import List, Dict
 
 import numpy as np
 from bokeh.io import show
@@ -8,9 +8,9 @@ from numpy.typing import NDArray
 from variable_protocols.protocols import fmt
 
 from supervised_benchmarks.dataset_protocols import Input, Output, DataPool
-from supervised_benchmarks.mnist import MnistDataConfig, Mnist, \
+from supervised_benchmarks.mnist.mnist import MnistDataConfig, Mnist, \
     FixedTrain, FixedTest, mnist_in_raw, mnist_out_raw
-from supervised_benchmarks.mnist_variations import transformations, MnistConfigIn
+from supervised_benchmarks.mnist.mnist_variations import transformations, MnistConfigIn
 from supervised_benchmarks.visualize_utils import view_2d_mono
 
 i = MnistDataConfig(base_path=Path('/Data/torchvision/'))
