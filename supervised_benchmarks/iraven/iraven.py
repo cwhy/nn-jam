@@ -89,7 +89,7 @@ def get_iraven_(base_path: Path, version: str, size: int, task: str) -> Dict[str
     assert size % 5 == 0
     resources = [(f"iraven{size}v{version}.zip", None)]
     version_tag = f"{size}v{version}"
-    processed_cache = get_data_dir(base_path, name, 'processed').joinpath(version_tag, 'array_dict.npz')
+    processed_cache = get_data_dir(base_path, name, 'processed').joinpath(version_tag, f'{task}.npz')
     if not check_integrity(processed_cache):
         mirrors = [f"https://github.com/cwhy/i-raven/releases/download/{version}"]
         download_resources(base_path, name, resources, mirrors, f"{size}v{version}")
