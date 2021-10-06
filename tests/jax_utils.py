@@ -1,0 +1,64 @@
+import numpy.typing as npt
+import jax.numpy as xp
+from jax.scipy.special import logsumexp
+import numpy as np
+
+
+def relu(x: npt.NDArray) -> npt.NDArray:
+    """ stax relu"""
+    return xp.maximum(x, 0.)
+
+
+def layer_norm(inputs: npt.NDArray) -> npt.NDArray:
+    """
+    Layer normalization across features, which are assumed to be the first dim.
+    Behaves as an activation function, no learned parameters.
+
+    Arguments:
+        inputs: Activations of shape [C, NT]
+    """
+    mean = xp.mean(inputs, axis=1, keepdims=True)
+    meaned = inputs - mean
+    variance = xp.mean(meaned ** 2, axis=1, keepdims=True)
+    outputs = meaned / xp.sqrt(variance + 0.00001)
+    return outputs
+
+
+def softmax(inputs: npt.NDArray) -> npt.NDArray:
+    # wait for good jax typing
+    # noinspection PyArgumentList
+    un_normalized = xp.exp(inputs - inputs.max(axis=1, keepdims=True))
+    return un_normalized / xp.sum(un_normalized, axis=1, keepdims=True)
+
+
+def softmax_cross_entropy(logits: npt.NDArray, target: npt.NDArray) -> npt.NDArray:
+    """
+    softmax_cross_entropy.
+
+    Arguments:
+        logits: network prediction. Dimensions are [C, NT]
+        target: one-hot targets across 81 characters
+
+    Returns:
+        cross_entropy: Loss vector over NT
+
+    TODO: Register custom gradient to avoid numerical instability
+    """
+    log_softmax = logits - logsumexp(logits, axis=0, keepdims=True)
+    cross_entropy = - xp.sum(target * log_softmax, axis=0)
+    return cross_entropy
+
+
+def kaiming_init(n_out: int, n_in: int) -> npt.NDArray:
+    """
+    Generate randomly initialized weight matrix with Kaiming initalization:
+    Normally distributed scaled by sqrt(2/fan_in)
+
+    Arguments:
+        n_in: number of inputs to the layer
+        n_out: number of outputs from the layer
+
+    Returns:
+        weight matrix of shape [n_out, n_in]
+    """
+    return xp.array(np.sqrt(2 / n_in) * np.random.randn(n_out, n_in))
