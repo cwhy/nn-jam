@@ -1,15 +1,15 @@
 from __future__ import annotations
 import string
 import warnings
-from functools import cached_property, lru_cache
-from typing import Optional, List, NamedTuple, Tuple, Callable, TypedDict, Dict, Union, Literal, Any
+from typing import Optional, List, NamedTuple, Tuple, TypedDict, Union, Any, Mapping
 
 import jax.numpy as xp
 import numpy.typing as npt
 from einops import EinopsError, rearrange
 from einops.parsing import ParsedExpression
-from jax import jit
 
+from tests.jax_modules.dropout import dropout_gen
+from tests.jax_protocols import WeightParams, Component, WeightsParams, Weights
 from tests.jax_utils import kaiming_init
 
 
@@ -126,24 +126,7 @@ def mix(pattern: str, weight_shape: str, bias_shape: Optional[str] = None, **axe
 
 class MixWeights(TypedDict):
     w: npt.NDArray
-    b: Optional[npt.NDArray]
-
-
-class WeightParams(NamedTuple):
-    # from in to out
-    shape: Tuple[int, ...]
-    init: Union[Literal['kaiming'], int, float] = "kaiming"
-    scale: float = 0.01
-
-
-# Wait for mypy to support recursive types
-WeightsParams = Union[Dict[str, Any], WeightParams]
-Weights = Union[Dict[str, Any], npt.NDArray]
-
-
-class Component(NamedTuple):
-    weight_params: WeightsParams
-    process: Callable[[Weights, npt.NDArray], npt.NDArray]
+    b: npt.NDArray
 
 
 class Mix(NamedTuple):
@@ -161,12 +144,12 @@ class Mix(NamedTuple):
         if self.bias_shape is not None:
             components['b'] = WeightParams(shape=self.bias_shape, init=0)
 
-        def _fn(weights: MixWeights, x: npt.NDArray) -> npt.NDArray:
+        def _fn(weights: Weights, x: npt.NDArray) -> npt.NDArray:
             if self.pre_reshape_pattern is not None:
                 params = {k: v for k, v in self.pre_reshape_lengths}
                 x = rearrange(x, self.pre_reshape_pattern, **params)
             x = xp.einsum(self.einsum_pattern, x, weights['w'])
-            if weights['b'] is not None:
+            if 'b' in weights:
                 x += weights['b']
             if self.post_reshape_pattern is not None:
                 x = rearrange(x, self.post_reshape_pattern)
@@ -177,9 +160,11 @@ class Mix(NamedTuple):
 
 def init_weight(params: WeightParams) -> npt.NDArray:
     if isinstance(params.init, int) or isinstance(params.init, float):
-        return xp.full(params.shape, params.init)
+        return xp.full(params.shape, float(params.init))
     elif params.init == 'kaiming':
         return kaiming_init(params.scale, params.shape)
+    elif params.init == 'dropout':
+        return dropout_gen(params.scale, params.shape)
     else:
         raise NotImplementedError("unsupported init type")
 

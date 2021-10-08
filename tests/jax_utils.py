@@ -11,21 +11,6 @@ def relu(x: npt.NDArray) -> npt.NDArray:
     return xp.maximum(x, 0.)
 
 
-def layer_norm(inputs: npt.NDArray) -> npt.NDArray:
-    """
-    Layer normalization across features, which are assumed to be the first dim.
-    Behaves as an activation function, no learned parameters.
-
-    Arguments:
-        inputs: Activations of shape [C, NT]
-    """
-    mean = xp.mean(inputs, axis=1, keepdims=True)
-    meaned = inputs - mean
-    variance = xp.mean(meaned ** 2, axis=1, keepdims=True)
-    outputs = meaned / xp.sqrt(variance + 0.00001)
-    return outputs
-
-
 def softmax(inputs: npt.NDArray) -> npt.NDArray:
     # wait for good jax typing
     # noinspection PyArgumentList
