@@ -1,12 +1,12 @@
 from functools import cached_property, lru_cache
-from typing import NamedTuple, Callable
+from typing import NamedTuple, Callable, List, Dict, TypedDict, Tuple, get_args, Literal, Any
 
 import jax.numpy as xp
 import numpy.typing as npt
 from einops import reduce, rearrange
 from jax import jit
 
-from tests.einops_utils import MixWeights, mix
+from tests.einops_utils import MixWeights, mix, WeightParams, Component
 from tests.jax_utils import softmax
 
 
@@ -42,11 +42,11 @@ class MultiHeadAttnBK(NamedTuple):
         return attention
 
 
-class MultiHeadAttnWeights(NamedTuple):
+class MultiHeadAttnWeights(TypedDict):
     k: MixWeights  # K, C
     q: MixWeights  # K, C
     v: MixWeights  # K, C
-    out_linear: MixWeights  # K, K
+    out: MixWeights  # K, K
 
 
 class MultiHeadAttn(NamedTuple):
@@ -56,33 +56,32 @@ class MultiHeadAttn(NamedTuple):
     dim_model: int  # k
     dim_input: int  # x
 
-    @property
-    @lru_cache()
-    def process_self(self) -> Callable[[MultiHeadAttnWeights, npt.NDArray], npt.NDArray]:
-        def _get_attn_head(_weights: MixWeights, _x: npt.NDArray) -> npt.NDArray:
-            # TODO check if need bias
-            return rearrange(
-                mix("x N T -> k N T",
-                    weight_shape='x k', bias_shape='k', x=self.dim_input, k=self.dim_model).process(_weights, _x),
-                "k N T -> h m N T", h=self.n_heads, m=self.dim_model // self.n_heads)
+    def make(self) -> Component:
+        # TODO check if need bias
+        attn_in: List[Literal["k", "q", "v"]] = ["k", "q", "v"]
+        components: Dict[Literal["k", "q", "v", "out"], Component] = {
+            name: mix("x N T -> k N T", weight_shape='x k', bias_shape='k',
+                      x=self.dim_input, k=self.dim_model).make()
+            for name in attn_in}
+        # add affine output layer on top [kk][kNT] -> [kNT]
+        components["out"] = mix("k N T -> k2 N T", weight_shape="k k2", bias_shape="k2",
+                                k=self.dim_model, k2=self.dim_model).make()
 
         def _fn(weights: MultiHeadAttnWeights, x: npt.NDArray) -> npt.NDArray:
             # [CNT] -> [KNT]
-            act_Q = _get_attn_head(weights.q, x)
-            act_K = _get_attn_head(weights.k, x)
-            act_V = _get_attn_head(weights.v, x)
+
+            act = {
+                k: rearrange(components[k].process(weights[k], x),
+                             "(h m) N T -> h m N T", h=self.n_heads, m=self.dim_model // self.n_heads)
+                for k in attn_in
+            }
 
             # reduce K, outer product T, for each N, H. Result is [HTTN]
-            attention = softmax(xp.einsum('hmnt,hmns->htsn', act_Q, act_K))
+            attention = softmax(xp.einsum('hmnt,hmns->htsn', act['q'], act['k']))
             # then compute the weighted values [HTTN][HMNT]=[HMNT]
-            values = xp.einsum('htsn,hmnt->hmns', attention, act_V)
+            values = xp.einsum('htsn,hmnt->hmns', attention, act['v'])
             # [HMNT] -> [KNT]
             values = rearrange(values, "h m N T -> (h m) N T")
-            # add affine output layer on top [kk][kNT] -> [kNT]
-            # TODO check if need bias
-            return mix("k N T -> k2 N T",
-                       weight_shape="k k2",
-                       bias_shape="k2",
-                       x=self.dim_model,
-                       x2=self.dim_model).process(weights.out_linear, values)
-        return jit(_fn)
+            return components["out"].process(weights['out'], values)
+
+        return Component({k: v.weight_params for k, v in components.items()}, _fn)

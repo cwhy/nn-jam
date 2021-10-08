@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy.typing as npt
 import jax.numpy as xp
 from jax.scipy.special import logsumexp
@@ -49,16 +51,20 @@ def softmax_cross_entropy(logits: npt.NDArray, target: npt.NDArray) -> npt.NDArr
     return cross_entropy
 
 
-def kaiming_init(n_out: int, n_in: int) -> npt.NDArray:
+def kaiming_init(sd: float, shape: Tuple[int, ...]) -> npt.NDArray:
     """
     Generate randomly initialized weight matrix with Kaiming initalization:
     Normally distributed scaled by sqrt(2/fan_in)
 
     Arguments:
-        n_in: number of inputs to the layer
-        n_out: number of outputs from the layer
+        :param sd:  standard deviation for initialization
+        :param shape:  = (n_in, ..., n_out)
+            where
+            n_in is number of inputs to the layer
+            n_out is number of outputs from the layer
 
     Returns:
-        weight matrix of shape [n_out, n_in]
+        weight matrix of shape [n_in, n_out]
     """
-    return xp.array(np.sqrt(2 / n_in) * np.random.randn(n_out, n_in))
+    n_in = shape[0]
+    return xp.array(np.sqrt(2 / n_in) * np.random.normal(0, sd, shape))

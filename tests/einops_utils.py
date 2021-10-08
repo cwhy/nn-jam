@@ -1,13 +1,16 @@
+from __future__ import annotations
 import string
 import warnings
 from functools import cached_property, lru_cache
-from typing import Optional, List, NamedTuple, Tuple, Callable
+from typing import Optional, List, NamedTuple, Tuple, Callable, TypedDict, Dict, Union, Literal, Any
 
 import jax.numpy as xp
 import numpy.typing as npt
 from einops import EinopsError, rearrange
 from einops.parsing import ParsedExpression
 from jax import jit
+
+from tests.jax_utils import kaiming_init
 
 
 def _report_axes(axes: set, report_message: str):
@@ -121,9 +124,26 @@ def mix(pattern: str, weight_shape: str, bias_shape: Optional[str] = None, **axe
                post_reshape_pattern)
 
 
-class MixWeights(NamedTuple):
+class MixWeights(TypedDict):
     w: npt.NDArray
     b: Optional[npt.NDArray]
+
+
+class WeightParams(NamedTuple):
+    # from in to out
+    shape: Tuple[int, ...]
+    init: Union[Literal['kaiming'], int, float] = "kaiming"
+    scale: float = 0.01
+
+
+# Wait for mypy to support recursive types
+WeightsParams = Union[Dict[str, Any], WeightParams]
+Weights = Union[Dict[str, Any], npt.NDArray]
+
+
+class Component(NamedTuple):
+    weight_params: WeightsParams
+    process: Callable[[Weights, npt.NDArray], npt.NDArray]
 
 
 class Mix(NamedTuple):
@@ -134,18 +154,38 @@ class Mix(NamedTuple):
     pre_reshape_lengths: Tuple[Tuple[str, int], ...]
     post_reshape_pattern: Optional[str]
 
-    @property
-    @lru_cache()
-    def process(self) -> Callable[[MixWeights, npt.NDArray], npt.NDArray]:
+    def make(self) -> Component:
+        components = {
+            'w': WeightParams(shape=self.weight_shape),
+        }
+        if self.bias_shape is not None:
+            components['b'] = WeightParams(shape=self.bias_shape, init=0)
+
         def _fn(weights: MixWeights, x: npt.NDArray) -> npt.NDArray:
             if self.pre_reshape_pattern is not None:
                 params = {k: v for k, v in self.pre_reshape_lengths}
                 x = rearrange(x, self.pre_reshape_pattern, **params)
-            x = xp.einsum(self.einsum_pattern, x, weights.w)
-            if weights.b is not None:
-                x += weights.b
+            x = xp.einsum(self.einsum_pattern, x, weights['w'])
+            if weights['b'] is not None:
+                x += weights['b']
             if self.post_reshape_pattern is not None:
                 x = rearrange(x, self.post_reshape_pattern)
             return x
 
-        return jit(_fn)
+        return Component(components, _fn)
+
+
+def init_weight(params: WeightParams) -> npt.NDArray:
+    if isinstance(params.init, int) or isinstance(params.init, float):
+        return xp.full(params.shape, params.init)
+    elif params.init == 'kaiming':
+        return kaiming_init(params.scale, params.shape)
+    else:
+        raise NotImplementedError("unsupported init type")
+
+
+def init_weights(params: WeightsParams) -> Weights:
+    return init_weight(params) if isinstance(params, WeightParams) else {
+        k: init_weights(v)
+        for k, v in params.items()
+    }
