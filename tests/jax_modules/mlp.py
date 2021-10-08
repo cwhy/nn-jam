@@ -5,7 +5,8 @@ import numpy.typing as npt
 
 from tests.jax_activations import Activation, get_activation
 from tests.jax_modules.dropout import Dropout
-from tests.jax_protocols import Component, Weights, WeightParams
+from tests.jax_components import Component
+from tests.jax_random_utils import WeightParams, ArrayTree
 
 
 class MlpConfigs(Protocol):
@@ -43,10 +44,10 @@ class Mlp(NamedTuple):
                                   for n in enumerate(config.input_shape))
                 components[f'dropout_{i}'] = Dropout.make(Dropout(
                     dropout_keep_rate=config.dropout_keep_rate,
-                    input_shape=new_shape
+                    single_input_shape=new_shape
                 ))
 
-        def _fn(weights: Weights, x: npt.NDArray) -> npt.NDArray:
+        def _fn(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
             flow_ = xp.moveaxis(x, config.on_axis, -1)
             activation = get_activation(config.activation)
             for layer_i in range(len(config.n_hidden)):
@@ -54,10 +55,10 @@ class Mlp(NamedTuple):
                 flow_ = components[layer_name].process(weights[layer_name], flow_)
                 flow_ = activation(flow_)
                 if config.dropout_keep_rate != 1:
-                    flow_ = components[f"dropout_{layer_i}"]
+                    flow_ = components[f"dropout_{layer_i}"].process(weights[layer_name], flow_)
             output_layer = f"layer_{len(config.n_hidden)}"
             flow_ = components[output_layer].process(weights[output_layer], flow_)
             flow_ = xp.moveaxis(flow_, -1, config.on_axis)
             return flow_
 
-        return Component({k: v.weight_params for k, v in components.items()}, _fn)
+        return Component({k: v.weights for k, v in components.items()}, _fn)

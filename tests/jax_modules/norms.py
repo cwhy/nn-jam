@@ -3,7 +3,8 @@ from typing import NamedTuple, TypedDict, Protocol, Tuple, Union
 import jax.numpy as xp
 import numpy.typing as npt
 
-from tests.jax_protocols import WeightParams, Component, Weights
+from tests.jax_components import Component
+from tests.jax_random_utils import WeightParams, ArrayTree
 
 
 class LayerNormWeights(TypedDict):
@@ -27,7 +28,7 @@ class LayerNorm(NamedTuple):
             'b': WeightParams(shape=(1,))
         }
 
-        def _fn(params: Weights, x: npt.NDArray) -> npt.NDArray:
+        def _fn(params: ArrayTree, x: npt.NDArray) -> npt.NDArray:
             mean = xp.mean(x, axis=config.norm_axis, keepdims=True)
             centered = x - mean
             variance = xp.mean(centered ** 2, axis=config.norm_axis, keepdims=True)

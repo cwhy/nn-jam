@@ -5,7 +5,8 @@ import numpy.typing as npt
 from einops import rearrange
 
 from tests.einops_utils import MixWeights, mix
-from tests.jax_protocols import Component, Weights
+from tests.jax_components import Component
+from tests.jax_random_utils import ArrayTree
 from tests.jax_utils import softmax
 
 
@@ -43,7 +44,7 @@ class MultiHeadAttn(NamedTuple):
         components["out"] = mix("k N T -> k2 N T", weight_shape="k k2", bias_shape="k2",
                                 k=config.dim_model, k2=config.dim_model).make()
 
-        def _fn(weights: Weights, x: npt.NDArray) -> npt.NDArray:
+        def _fn(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
             # [CNT] -> [KNT]
 
             act = {
@@ -60,4 +61,4 @@ class MultiHeadAttn(NamedTuple):
             values = rearrange(values, "h m N T -> (h m) N T")
             return components["out"].process(weights['out'], values)
 
-        return Component({k: v.weight_params for k, v in components.items()}, _fn)
+        return Component({k: v.params for k, v in components.items()}, _fn)

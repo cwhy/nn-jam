@@ -4,7 +4,8 @@ import numpy.typing as npt
 from tests.jax_activations import Activation
 from tests.jax_modules.dropout import Dropout, DropoutWeights
 from tests.jax_modules.mlp import Mlp
-from tests.jax_protocols import Component, Weights, sequential
+from tests.jax_components import Component, sequential
+from tests.jax_random_utils import ArrayTree
 from tests.jax_modules.multi_head_attn import MultiHeadAttnWeights, MultiHeadAttn
 from tests.jax_modules.norms import LayerNorm, LayerNormWeights
 
@@ -52,7 +53,7 @@ class TransformerLayer(NamedTuple):
             ).make()
         }
 
-        def _fn(weights: Weights, x: npt.NDArray) -> npt.NDArray:
+        def _fn(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
             x = sequential(components, weights,
                            ['norm', 'mha', 'dropout'], x) + x
             x = sequential(components, weights,

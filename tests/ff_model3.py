@@ -7,7 +7,7 @@ from typing import Tuple, List, Mapping, FrozenSet, Literal, Callable, Any, Opti
 
 import jax.numpy as jnp
 import numpy.random as npr
-from jax import jit, grad, tree_map, vmap
+from jax import jit, grad, tree_map, vmap, tree_flatten
 from jax.scipy.special import logsumexp
 from numpy.typing import NDArray
 from variable_protocols.protocols import Variable
@@ -21,10 +21,9 @@ from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistCon
 from supervised_benchmarks.model_utils import Train, Probes
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler
-from tests.einops_utils import init_weights
+from tests.jax_random_utils import init_weights, ArrayTree, ArrayParamTree, init_random, init_array
 from tests.jax_activations import Activation
 from tests.jax_modules.mlp2 import Mlp
-from tests.jax_protocols import Weights
 
 
 @dataclass(frozen=True)
@@ -51,24 +50,35 @@ class MlpModelConfig:
     def prepare(self) -> Performer[NDArray]:
         rng = npr.RandomState(0)
         param_scale = 0.01
-        mlp_config = Mlp(
+        mlp_config_train = Mlp(
             n_in=28 * 28,
             n_hidden=self.layer_sizes[1:-1],
             n_out=self.layer_sizes[-1],
             activation=self.activation,
+            dropout_keep_rate=0.8,
         )
-        mlp = Mlp.make(mlp_config)
+        mlp_config_test = mlp_config_train._replace(
+            dropout_keep_rate=1
+        )
+        mlp_train = Mlp.make(mlp_config_train)
+        mlp_test = Mlp.make(mlp_config_test)
 
-        weights = init_weights(mlp.weight_params)
+        weights = init_array(mlp_train.params)
+        leaves, tree_def = tree_flatten(weights)
+        print(tree_def)
 
         @jit
-        def forward(params, inputs):
-            logits = mlp.process(params, inputs)
+        def forward_test(params, inputs):
+            logits = mlp_test.process(params, inputs)
+            return logits - logsumexp(logits, keepdims=True)
+
+        def forward_train(params, inputs):
+            logits = mlp_train.process(params, inputs)
             return logits - logsumexp(logits, keepdims=True)
 
         def _loss(params, batch):
             inputs, targets = batch
-            preds = vmap(forward, (None, 0))(params, inputs)
+            preds = vmap(forward_train, (None, 0))(params, inputs)
             return -jnp.mean(jnp.sum(preds * targets, axis=1))
 
         @jit
@@ -76,7 +86,7 @@ class MlpModelConfig:
             grads = grad(_loss)(params, batch)
             return tree_map(lambda x, dx: x - step_size * dx, params, grads)
 
-        model = MlpModel(self, weights, forward, update)
+        model = MlpModel(self, weights, forward_test, update)
         Train(
             num_epochs=self.num_epochs,
             batch_size=self.train_batch_size,
@@ -92,17 +102,18 @@ class MlpModelConfig:
 @dataclass
 class MlpModel:
     model: MlpModelConfig
-    params: Weights
-    forward: Callable[[Weights, npt.NDArray], npt.NDArray]
-    update: Callable[[Weights, float, Any], Weights]
+    weights: ArrayTree
+    # random_params: ArrayParamTree
+    forward_test: Callable[[ArrayTree, npt.NDArray], npt.NDArray]
+    update: Callable[[ArrayTree, float, Any], ArrayTree]
 
     def update_(self, sampler: MiniBatchSampler):
-        self.params = self.update(self.params,
-                                  self.model.step_size,
-                                  (next(sampler.iter[Input]), next(sampler.iter[Output])))
+        self.weights = self.update(self.weights,
+                                   self.model.step_size,
+                                   (next(sampler.iter[Input]), next(sampler.iter[Output])))
 
     def predict(self, inputs: NDArray):
-        return self.forward(self.params, inputs)
+        return self.forward_test(self.weights, inputs)
 
     def perform(self, data_src: Mapping[Port, NDArray], tgt: Port) -> NDArray:
         assert Input in data_src and tgt == Output
@@ -116,7 +127,7 @@ class MlpModel:
 
     def probe(self, option: Probes) -> Optional[Callable[[], None]]:
         if option == "after_epoch_":
-            return lambda: print(self.params['layer_0']['b'].mean(), self.params['layer_0']['w'].mean())
+            return lambda: print(self.weights['layer_0']['b'].mean(), self.weights['layer_0']['w'].mean())
         else:
             return None
 
@@ -136,7 +147,7 @@ benchmark_config_ = BenchmarkConfig(
 # Because Pycharm sucks
 model_ = MlpModelConfig(
     step_size=0.03,
-    num_epochs=10,
+    num_epochs=30,
     train_batch_size=32,
     layer_sizes=[784, 512, 256, 10],
     train_data_config=data_config_,

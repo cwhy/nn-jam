@@ -1,16 +1,15 @@
 from __future__ import annotations
 import string
 import warnings
-from typing import Optional, List, NamedTuple, Tuple, TypedDict, Union, Any, Mapping
+from typing import Optional, List, NamedTuple, Tuple, TypedDict
 
 import jax.numpy as xp
 import numpy.typing as npt
 from einops import EinopsError, rearrange
 from einops.parsing import ParsedExpression
 
-from tests.jax_modules.dropout import dropout_gen
-from tests.jax_protocols import WeightParams, Component, WeightsParams, Weights
-from tests.jax_utils import kaiming_init
+from tests.jax_components import Component
+from tests.jax_random_utils import WeightParams, ArrayTree
 
 
 def _report_axes(axes: set, report_message: str):
@@ -144,7 +143,7 @@ class Mix(NamedTuple):
         if self.bias_shape is not None:
             components['b'] = WeightParams(shape=self.bias_shape, init=0)
 
-        def _fn(weights: Weights, x: npt.NDArray) -> npt.NDArray:
+        def _fn(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
             if self.pre_reshape_pattern is not None:
                 params = {k: v for k, v in self.pre_reshape_lengths}
                 x = rearrange(x, self.pre_reshape_pattern, **params)
@@ -158,19 +157,3 @@ class Mix(NamedTuple):
         return Component(components, _fn)
 
 
-def init_weight(params: WeightParams) -> npt.NDArray:
-    if isinstance(params.init, int) or isinstance(params.init, float):
-        return xp.full(params.shape, float(params.init))
-    elif params.init == 'kaiming':
-        return kaiming_init(params.scale, params.shape)
-    elif params.init == 'dropout':
-        return dropout_gen(params.scale, params.shape)
-    else:
-        raise NotImplementedError("unsupported init type")
-
-
-def init_weights(params: WeightsParams) -> Weights:
-    return init_weight(params) if isinstance(params, WeightParams) else {
-        k: init_weights(v)
-        for k, v in params.items()
-    }
