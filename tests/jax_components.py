@@ -42,13 +42,13 @@ class Component(Generic[CompVar, WeightVar]):
         return cls(params, _fn, type="Fixed")
 
 
-def sequential(components: Dict[CompVar, Component[CompVar, WeightVar]],
-               weights: Mapping[CompVar, Any],
-               sequence: List[CompVar],
-               flow_: npt.NDArray,
-               rng: RNGKey) -> npt.NDArray:
-    for comp_name in sequence:
-        key, rng = random.split(rng)
-        process = components[comp_name].process
-        flow_ = process(weights[comp_name], flow_, key)
-    return flow_
+def sequential(components: Dict[CompVar,Component[CompVar, WeightVar]],
+               sequence: List[CompVar]) -> Callable[[Mapping[CompVar, Any], npt.NDArray],
+                                                    npt.NDArray]:
+    def _fn(weights: Mapping[CompVar, Any],flow_: npt.NDArray, rng: RNGKey) -> npt.NDArray:
+        for comp_name in sequence:
+            key, rng = random.split(rng)
+            process = components[comp_name].process
+            flow_ = process(weights[comp_name], flow_, key)
+        return flow_
+    return _fn
