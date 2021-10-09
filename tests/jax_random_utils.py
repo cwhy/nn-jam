@@ -6,6 +6,7 @@ from jax import numpy as xp
 from numpy import typing as npt
 
 ArrayGen = Literal['kaiming', 'dropout']
+RNGKey = Any
 
 
 class ArrayParams(Protocol):
@@ -30,16 +31,9 @@ class WeightParams(NamedTuple):
     scale: float = 1
 
 
-class RandomParams(NamedTuple):
-    # from in to out
-    shape: Tuple[int, ...]
-    init: Union[ArrayGen, int, float]
-    scale: float
-
-
+ArrayParamMapping = Mapping[str, Any]
 ArrayParamTree = Union[Mapping[str, Any], ArrayParams]
-
-ArrayTree = Union[Mapping[str, Any], npt.NDArray]
+ArrayTree = Mapping[str, Any]
 
 
 def dropout_gen(keep_rate: float, shape: Tuple[int, ...]):
@@ -76,45 +70,21 @@ def array_gen(params: ArrayParams) -> npt.NDArray:
         raise NotImplementedError("unsupported init type")
 
 
-# TODO proper jax way to do this
-def init_random(params: ArrayParamTree) -> Optional[ArrayTree]:
-    if isinstance(params, RandomParams):
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
-        return array_gen(params)
-    elif isinstance(params, WeightParams):
-        return None
-    else:
-        assert isinstance(params, dict)
-        return {
-            k: init_random(v)
-            for k, v in params.items() if not isinstance(v, WeightParams)
-        }
-
-
-def init_weights(params: ArrayParamTree) -> Optional[ArrayTree]:
+def init_weights_helper(params: ArrayParamTree) -> Union[ArrayTree, npt.NDArray]:
     if isinstance(params, WeightParams):
         # noinspection PyTypeChecker
         # Because pycharm sucks
         return array_gen(params)
-    elif isinstance(params, RandomParams):
-        return None
     else:
         assert isinstance(params, dict)
         return {
-            k: init_weights(v)
-            for k, v in params.items() if not isinstance(v, RandomParams)
+            k: init_weights_helper(v)
+            for k, v in params.items() if v is not None
         }
 
 
-def init_array(params: ArrayParamTree) -> ArrayTree:
-    if isinstance(params, WeightParams) or isinstance(params, RandomParams):
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
-        return array_gen(params)
-    else:
-        assert isinstance(params, dict)
-        return {
-            k: init_array(v)
-            for k, v in params.items()
-        }
+def init_weights(params: ArrayParamMapping) -> ArrayTree:
+    return {
+        k: init_weights_helper(v)
+        for k, v in params.items() if v is not None
+    }

@@ -2,31 +2,24 @@ from typing import NamedTuple, Protocol, Tuple
 
 import jax.numpy as xp
 import numpy.typing as npt
+from jax import random
 
 from tests.jax_components import Component
-from tests.jax_random_utils import RandomParams, ArrayTree
+from tests.jax_random_utils import ArrayTree, RNGKey
 
 
 class DropoutConfigs(Protocol):
     dropout_keep_rate: float
-    single_input_shape: Tuple[int, ...]
 
 
 class Dropout(NamedTuple):
     dropout_keep_rate: float
-    single_input_shape: Tuple[int, ...]
 
     @staticmethod
     def make(config: DropoutConfigs) -> Component:
-        components = {
-            'dropout_keep': RandomParams(shape=config.single_input_shape,
-                                         init="dropout",
-                                         scale=config.dropout_keep_rate),
-        }
+        def _fn(_: ArrayTree, x: npt.NDArray, rng_key: RNGKey) -> npt.NDArray:
+            rd = random.bernoulli(rng_key, config.dropout_keep_rate, x.shape)
+            return xp.where(rd, x / config.dropout_keep_rate, 0)
 
-        def _fn(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
-            print(weights['dropout_keep'][0, :10])
-            return xp.where(weights['dropout_keep'], x / config.dropout_keep_rate, 0)
-
-        return Component(components, _fn)
+        return Component({}, _fn)
 

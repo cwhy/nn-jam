@@ -1,17 +1,17 @@
-from typing import NamedTuple, List, Protocol, Tuple
+from typing import NamedTuple, List, Protocol
 
-import jax.numpy as xp
 import numpy.typing as npt
+from jax import random
 
 from tests.jax_activations import Activation, get_activation
 from tests.jax_modules.dropout import Dropout
 from tests.jax_components import Component
-from tests.jax_random_utils import WeightParams, ArrayTree
+from tests.jax_paramed_functions import linear
+from tests.jax_random_utils import WeightParams, ArrayTree, RNGKey
 
 
 class MlpConfigs(Protocol):
-    input_shape: Tuple[int, ...]
-    on_axis: int
+    n_in: int
     n_hidden: List[int]
     n_out: int
     activation: Activation
@@ -19,8 +19,7 @@ class MlpConfigs(Protocol):
 
 
 class Mlp(NamedTuple):
-    input_shape: Tuple[int, ...]
-    on_axis: int
+    n_in: int
     n_hidden: List[int]
     n_out: int
     activation: Activation
@@ -28,37 +27,32 @@ class Mlp(NamedTuple):
 
     @staticmethod
     def make(config: MlpConfigs) -> Component:
-        n_in = config.input_shape[config.on_axis]
-        u_ins = [n_in] + config.n_hidden
+        u_ins = [config.n_in] + config.n_hidden
         u_outs = config.n_hidden + [config.n_out]
         components = {
-            f"layer_{i}": Component({"w": WeightParams(shape=(_in, _out)),
-                                     "b": WeightParams(shape=(_out,), init=0)},
-                                    lambda params, x: x @ params['w'] + params['b']
-                                    )
+            f"layer_{i}": Component.from_fixed_process(
+                {"w": WeightParams(shape=(_in, _out)),
+                 "b": WeightParams(shape=(_out,), init=0)},
+                linear
+            )
             for i, (_in, _out) in enumerate(zip(u_ins, u_outs))
         }
         if config.dropout_keep_rate != 1:
             for i, _out in enumerate(u_outs):
-                new_shape = tuple(n if n != config.on_axis else _out
-                                  for n in enumerate(config.input_shape))
-                components[f'dropout_{i}'] = Dropout.make(Dropout(
-                    dropout_keep_rate=config.dropout_keep_rate,
-                    single_input_shape=new_shape
-                ))
+                components[f'dropout_{i}'] = Dropout.make(config)
 
-        def _fn(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
-            flow_ = xp.moveaxis(x, config.on_axis, -1)
+        def _fn(weights: ArrayTree, flow_: npt.NDArray, rng: RNGKey) -> npt.NDArray:
             activation = get_activation(config.activation)
-            for layer_i in range(len(config.n_hidden)):
+            n_layers = len(config.n_hidden)
+            keys = random.split(rng, n_layers)
+            for layer_i in range(n_layers):
                 layer_name = f"layer_{layer_i}"
-                flow_ = components[layer_name].process(weights[layer_name], flow_)
+                flow_ = components[layer_name].fixed_process(weights[layer_name], flow_)
                 flow_ = activation(flow_)
                 if config.dropout_keep_rate != 1:
-                    flow_ = components[f"dropout_{layer_i}"].process(weights[layer_name], flow_)
+                    flow_ = components[f"dropout_{layer_i}"].process(weights[layer_name], flow_, keys[layer_i])
             output_layer = f"layer_{len(config.n_hidden)}"
-            flow_ = components[output_layer].process(weights[output_layer], flow_)
-            flow_ = xp.moveaxis(flow_, -1, config.on_axis)
+            flow_ = components[output_layer].fixed_process(weights[output_layer], flow_)
             return flow_
 
-        return Component({k: v.weights for k, v in components.items()}, _fn)
+        return Component({k: v.params for k, v in components.items()}, _fn)

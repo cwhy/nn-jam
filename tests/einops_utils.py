@@ -143,7 +143,7 @@ class Mix(NamedTuple):
         if self.bias_shape is not None:
             components['b'] = WeightParams(shape=self.bias_shape, init=0)
 
-        def _fn(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
+        def _fn(weights: ArrayTree, x: npt.NDArray, _) -> npt.NDArray:
             if self.pre_reshape_pattern is not None:
                 params = {k: v for k, v in self.pre_reshape_lengths}
                 x = rearrange(x, self.pre_reshape_pattern, **params)

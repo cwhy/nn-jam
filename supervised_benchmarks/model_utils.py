@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import List, Mapping, Generic, Protocol, FrozenSet, Callable, Optional, Literal
+from typing import List, Mapping, Generic, Protocol, FrozenSet, Callable, Optional, Literal, Dict
 
 from supervised_benchmarks.benchmark import Benchmark, BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Subset, Port, DataPool, DataContent, Dataset, DataConfig, DataQuery
@@ -29,8 +29,8 @@ class Train(Generic[DataContent]):
         benchmarks: List[Benchmark] = [b.prepare(pool_dict) for b in self.bench_configs]
         train_sampler = FixedEpochSamplerConfig(self.batch_size).get_sampler(train_data)
         for epoch in range(self.num_epochs):
-            if self.model.probe('before_epoch_') is not None:
-                self.model.probe('before_epoch_')()
+            if 'before_epoch_' in self.model.probe:
+                self.model.probe['before_epoch_']()
             start_time = time.time()
             for _ in range(train_sampler.num_batches):
                 self.model.update_(train_sampler)
@@ -39,8 +39,8 @@ class Train(Generic[DataContent]):
             print("Epoch {} in {:0.2f} sec".format(epoch, epoch_time))
             for b in benchmarks:
                 b.log_measure_(self.model)
-            if self.model.probe('after_epoch_') is not None:
-                self.model.probe('after_epoch_')()
+            if 'after_epoch_' in self.model.probe:
+                self.model.probe['after_epoch_']()
 
 
 class TrainablePerformer(Protocol[DataContent]):
@@ -52,6 +52,10 @@ class TrainablePerformer(Protocol[DataContent]):
         """
         ...
 
+    @property
+    @abstractmethod
+    def probe(self) -> Dict[Probes, Callable[[], None]]: ...
+
     def perform(self, data_src: Mapping[Port, DataContent], tgt: Port) -> DataContent: ...
 
     def perform_batch(self,
@@ -59,8 +63,6 @@ class TrainablePerformer(Protocol[DataContent]):
                       tgt: FrozenSet[Port]) -> Mapping[Port, DataContent]: ...
 
     def update_(self, sampler: MiniBatchSampler): ...
-
-    def probe(self, option: Probes) -> Optional[Callable[[], None]]: ...
 
 
 class TrainableModelConfig(ModelConfig, Protocol):

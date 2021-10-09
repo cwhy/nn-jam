@@ -28,7 +28,7 @@ class LayerNorm(NamedTuple):
             'b': WeightParams(shape=(1,))
         }
 
-        def _fn(params: ArrayTree, x: npt.NDArray) -> npt.NDArray:
+        def _fn(params: ArrayTree, x: npt.NDArray, _) -> npt.NDArray:
             mean = xp.mean(x, axis=config.norm_axis, keepdims=True)
             centered = x - mean
             variance = xp.mean(centered ** 2, axis=config.norm_axis, keepdims=True)

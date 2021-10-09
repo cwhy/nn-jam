@@ -1,29 +1,29 @@
 from __future__ import annotations
-from numpy import typing as npt
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Tuple, List, Mapping, FrozenSet, Literal, Callable, Any, Optional
+from typing import Tuple, List, Mapping, FrozenSet, Literal, Callable, Any, Optional, Dict, NamedTuple
 
 import jax.numpy as jnp
-import numpy.random as npr
-from jax import jit, grad, tree_map, vmap, tree_flatten
+from jax import jit, grad, tree_map, vmap, tree_flatten, random
+from jax._src.random import PRNGKey
 from jax.scipy.special import logsumexp
+from numpy import typing as npt
 from numpy.typing import NDArray
 from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataQuery, DataConfig
+from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataConfig
 from supervised_benchmarks.metrics import get_mean_acc
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.model_utils import Train, Probes
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler
-from tests.jax_random_utils import init_weights, ArrayTree, ArrayParamTree, init_random, init_array
 from tests.jax_activations import Activation
-from tests.jax_modules.mlp2 import Mlp
+from tests.jax_modules.mlp import Mlp
+from tests.jax_random_utils import ArrayTree, RNGKey, init_weights
 
 
 @dataclass(frozen=True)
@@ -48,8 +48,6 @@ class MlpModelConfig:
     # noinspection PyTypeChecker
     # because pycharm sucks
     def prepare(self) -> Performer[NDArray]:
-        rng = npr.RandomState(0)
-        param_scale = 0.01
         mlp_config_train = Mlp(
             n_in=28 * 28,
             n_hidden=self.layer_sizes[1:-1],
@@ -63,30 +61,32 @@ class MlpModelConfig:
         mlp_train = Mlp.make(mlp_config_train)
         mlp_test = Mlp.make(mlp_config_test)
 
-        weights = init_array(mlp_train.params)
+        weights = init_weights(mlp_train.params)
         leaves, tree_def = tree_flatten(weights)
         print(tree_def)
 
         @jit
         def forward_test(params, inputs):
-            logits = mlp_test.process(params, inputs)
+            logits = mlp_test.process(params, inputs, random.PRNGKey(0))
             return logits - logsumexp(logits, keepdims=True)
 
-        def forward_train(params, inputs):
-            logits = mlp_train.process(params, inputs)
+        def forward_train(params, inputs, rng):
+            logits = mlp_train.process(params, inputs, rng)
             return logits - logsumexp(logits, keepdims=True)
 
-        def _loss(params, batch):
+        def _loss(params, batch, rng):
             inputs, targets = batch
-            preds = vmap(forward_train, (None, 0))(params, inputs)
+            rngs = random.split(rng, len(inputs))
+            preds = vmap(forward_train, (None, 0, 0))(params, inputs, rngs)
             return -jnp.mean(jnp.sum(preds * targets, axis=1))
 
         @jit
-        def update(params, step_size: float, batch):
-            grads = grad(_loss)(params, batch)
-            return tree_map(lambda x, dx: x - step_size * dx, params, grads)
+        def update(params, step_size: float, batch, rng: RNGKey):
+            key, rng = random.split(rng)
+            grads = grad(_loss)(params, batch, key)
+            return tree_map(lambda x, dx: x - step_size * dx, params, grads), rng
 
-        model = MlpModel(self, weights, forward_test, update)
+        model = MlpModel(self, weights, PRNGKey(0), forward_test, update)
         Train(
             num_epochs=self.num_epochs,
             batch_size=self.train_batch_size,
@@ -103,14 +103,21 @@ class MlpModelConfig:
 class MlpModel:
     model: MlpModelConfig
     weights: ArrayTree
-    # random_params: ArrayParamTree
+    state: RNGKey
     forward_test: Callable[[ArrayTree, npt.NDArray], npt.NDArray]
-    update: Callable[[ArrayTree, float, Any], ArrayTree]
+    update: Callable[[ArrayTree, float, Any, RNGKey], Tuple[ArrayTree, RNGKey]]
+
+    @property
+    def probe(self) -> Dict[Probes, Callable[[], None]]:
+        return {
+            # "after_epoch_": lambda: print(self.weights['layer_0']['b'].mean(), self.weights['layer_0']['w'].mean())
+        }
 
     def update_(self, sampler: MiniBatchSampler):
-        self.weights = self.update(self.weights,
-                                   self.model.step_size,
-                                   (next(sampler.iter[Input]), next(sampler.iter[Output])))
+        self.weights, self.state = self.update(self.weights,
+                                               self.model.step_size,
+                                               (next(sampler.iter[Input]), next(sampler.iter[Output])),
+                                               self.state)
 
     def predict(self, inputs: NDArray):
         return self.forward_test(self.weights, inputs)
@@ -124,12 +131,6 @@ class MlpModel:
                       tgt: FrozenSet[Port]) -> Mapping[Port, NDArray]:
         assert Input in data_src and len(tgt) == 1 and next(iter(tgt)) == Output
         return {Output: self.predict(data_src[Input])}
-
-    def probe(self, option: Probes) -> Optional[Callable[[], None]]:
-        if option == "after_epoch_":
-            return lambda: print(self.weights['layer_0']['b'].mean(), self.weights['layer_0']['w'].mean())
-        else:
-            return None
 
 
 data_config_ = MnistDataConfig(
