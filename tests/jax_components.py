@@ -51,4 +51,5 @@ def sequential(components: Dict[CompVar,Component[CompVar, WeightVar]],
             process = components[comp_name].process
             flow_ = process(weights[comp_name], flow_, key)
         return flow_
+
     return _fn
