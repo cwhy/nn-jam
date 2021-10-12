@@ -43,9 +43,9 @@ class Component(Generic[CompVar, WeightVar]):
 
 
 def sequential(components: Dict[CompVar,Component[CompVar, WeightVar]],
-               sequence: List[CompVar]) -> Callable[[Mapping[CompVar, Any], npt.NDArray],
+               sequence: List[CompVar]) -> Callable[[Mapping[CompVar, Any], npt.NDArray, RNGKey],
                                                     npt.NDArray]:
-    def _fn(weights: Mapping[CompVar, Any],flow_: npt.NDArray, rng: RNGKey) -> npt.NDArray:
+    def _fn(weights: Mapping[CompVar, Any], flow_: npt.NDArray, rng: RNGKey) -> npt.NDArray:
         for comp_name in sequence:
             key, rng = random.split(rng)
             process = components[comp_name].process

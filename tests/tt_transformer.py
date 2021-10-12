@@ -13,7 +13,7 @@ config = TransformerConfigs(
     n_heads=4,
     dim_model=12,
     dim_input=12,
-    dropout_keep_rate=1,
+    dropout_keep_rate=1.,
     eps=0.00001,
     mlp_n_hidden=[17],
     mlp_activation="relu"
@@ -26,5 +26,5 @@ weights = init_weights(tfe.params)
 _, struct = tree_flatten(weights)
 pprint(tree_map(lambda x: x.shape, weights))
 rng = PRNGKey(0)
-result = vmap(jit(tfe.process), (None, 0, None))(weights, x, rng)
+result = vmap(jit(tfe.process), (None, 1, None), 1)(weights, x, rng)
 print(result.shape)

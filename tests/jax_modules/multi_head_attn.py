@@ -116,7 +116,6 @@ class SelfMultiHeadAttn(NamedTuple):
             values = vmap(dot_attention, (0, 0, 0))(q, k, v)
 
             # Merge back the heads and output ([HW] -> [K] -> [K])*T
-            print(values.shape)
-            return vmap(_combine, (None, -1))(weights['out'], values)
+            return vmap(_combine, (None, -1), -1)(weights['out'], values)
 
         return Component.from_fixed_process({k: v.params for k, v in components.items()}, _fn)

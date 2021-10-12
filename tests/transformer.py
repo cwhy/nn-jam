@@ -1,7 +1,7 @@
 from typing import NamedTuple, List
 
 import numpy.typing as npt
-from jax import random
+from jax import random, vmap
 
 from tests.jax_activations import Activation
 from tests.jax_components import Component, sequential
@@ -33,7 +33,7 @@ class TransformerLayer(NamedTuple):
             'mha': SelfMultiHeadAttn.make(config),
             'norm': LayerNorm.make(LayerNorm(
                 eps=config.eps,
-                norm_axis=1)),
+                norm_axis=0)),
             'dropout': Dropout.make(config),
             'mlp': Mlp.make(Mlp(n_in=config.dim_model,
                                 n_hidden=config.mlp_n_hidden,
@@ -45,11 +45,8 @@ class TransformerLayer(NamedTuple):
 
         def _fn(weights: ArrayTree, x: npt.NDArray, rng: RNGKey) -> npt.NDArray:
             rng, key1, key2 = random.split(rng, 3)
-            x = sequential(components, weights,
-                           ['norm', 'mha', 'dropout'], x, key1) + x
-
-            x = sequential(components, weights,
-                           ['norm', 'mlp', 'dropout'], x, key2) + x
+            x = sequential(components, ['norm', 'mha', 'dropout'])(weights, x, key1) + x
+            x = vmap(sequential(components, ['norm', 'mlp', 'dropout']), (None, -1, None), -1)(weights, x, key2) + x
             return x
 
         return Component({k: v.params for k, v in components.items()}, _fn)
@@ -67,7 +64,6 @@ class TransformerEncoder(NamedTuple):
 
         def _fn(weights: ArrayTree, x: npt.NDArray, rng) -> npt.NDArray:
             rng, key = random.split(rng)
-            x = sequential(components, weights,
-                           [f"tfe_layer_{i}" for i in range(configs.n_tfe_layers)], x, key)
+            x = sequential(components, [f"tfe_layer_{i}" for i in range(configs.n_tfe_layers)])(weights, x, key)
             return x
         return Component({k: v.params for k, v in components.items()}, _fn)
