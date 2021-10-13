@@ -86,6 +86,7 @@ class SelfMultiHeadAttn(NamedTuple):
     @staticmethod
     def make(config: SelfMultiHeadAttnConfigs) -> Component:
         # TODO check if need bias
+        # TODO add sqrt(d)
         components = {
             "kqv": Component.from_fixed_process(
                 {"w": WeightParams(shape=(config.dim_input, config.dim_model * 3)),
