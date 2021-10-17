@@ -9,7 +9,7 @@ from tests.transformer import TransformerConfigs, TransformerEncoder, Transforme
 
 config = TransformerConfigs(
     n_tfe_layers=3,
-    n_seq=8,
+    n_seq=7,
     n_heads=4,
     dim_model=12,
     dim_input=12,

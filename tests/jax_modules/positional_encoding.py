@@ -1,9 +1,8 @@
 from functools import reduce
-from typing import NamedTuple, TypedDict, Protocol, Tuple, Literal
-import jax.numpy as xp
+from typing import NamedTuple, Protocol, Tuple, Literal
 
 import numpy.typing as npt
-from jax import vmap, lax
+from jax import vmap
 
 from tests.jax_components import Component
 from tests.jax_random_utils import WeightParams, ArrayTree

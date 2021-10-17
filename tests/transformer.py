@@ -100,6 +100,7 @@ class Transformer(NamedTuple):
         # (int)[T] -> [dim_model, T]
         def _fn(weights: ArrayTree, x: npt.NDArray, rng) -> npt.NDArray:
             x = vmap(components['embedding'].fixed_process, (None, configs.pos_t), configs.pos_t)(weights['embedding'], x)
+            print(x.shape)
             x = components['positional_encoding'].fixed_process(weights['positional_encoding'], x)
             rng, key = random.split(rng)
             x = components['encoder'].process(weights['encoder'], x, key)

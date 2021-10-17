@@ -3,11 +3,6 @@ import jax.numpy as xp
 from jax.scipy.special import logsumexp
 
 
-def relu(x: npt.NDArray) -> npt.NDArray:
-    """ stax relu"""
-    return xp.maximum(x, 0.)
-
-
 def softmax(inputs: npt.NDArray) -> npt.NDArray:
     # wait for good jax typing
     # noinspection PyArgumentList
