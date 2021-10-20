@@ -6,7 +6,7 @@ from einops import repeat
 import numpy.typing as npt
 
 
-def view_img_rgba(img: npt.NDArray, title: Optional[str]) -> Figure:
+def view_img_rgba(img: npt.NDArray, title: Optional[str] = None) -> Figure:
     assert len(img.shape) == 3
     assert np.all(img <= 255)
     assert np.all(0 <= img)

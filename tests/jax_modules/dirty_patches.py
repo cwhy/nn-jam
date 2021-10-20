@@ -1,8 +1,10 @@
 from functools import reduce
+import jax.numpy as xp
 from typing import NamedTuple, Protocol, Tuple, Literal, List
 
 import jax
 import numpy.typing as npt
+from einops import rearrange
 from jax import vmap
 
 from tests.jax_activations import Activation
@@ -50,28 +52,23 @@ class DirtyPatches(NamedTuple):
             ))
         }
 
-        # [w, h, ch] -> [dim_out, n_sections_w*n_sections_h]
+        # [w, h, ch] -> [dim_out, n_sections_h, n_sections_w, ch]
         def _fn(params: ArrayTree, x: npt.NDArray, rng: RNGKey) -> npt.NDArray:
-
-            # n c h w
-            channels = images.shape[1]
+            x = xp.expand_dims(x, axis=0)
+            # n h w c
             patches = jax.lax.conv_general_dilated_patches(
-                lhs=images,
-                filter_shape=sizes[1:-1],
-                window_strides=strides[1:-1],
-                padding=padding,
-                rhs_dilation=rates[1:-1],
-            )
-            patches = jnp.transpose(patches, [0, 2, 3, 1])
+                lhs=x,
+                filter_shape=(dim_h, dim_w),
+                window_strides=(dim_h, dim_w),
+                padding='VALID',
+                rhs_dilation=(1, 1),
+                dimension_numbers=("NHWC", "OIHW", "NHWC")
+            ).squeeze(0)
+            # n_patches_h, n_patches_w, ch*dim_h*dim_w
+            patches = rearrange(patches, 'h w chw -> (h w) chw')
 
-            # `conv_general_dilated_patches returns patches` is channel-major order,
-            # rearrange to match interface of `tf.image.extract_patches`.
-            patches = jnp.reshape(patches,
-                                  patches.shape[:3] + (channels, sizes[1], sizes[2]))
-            patches = jnp.transpose(patches, [0, 1, 2, 4, 5, 3])
-            patches = jnp.reshape(patches, patches.shape[:3] + (-1,))
-            
-            components['mlp'].process(, rng)
-            return x
+            features = vmap(components['mlp'].process, (None, 0, None), 0)(params['mlp'], patches, rng)
+            return rearrange(features, '(h w) out -> out h w',
+                             out=config.dim_out, h=config.n_sections_h, w=config.n_sections_w)
 
-        return Component(components, _fn)
+        return Component({k: v.params for k, v in components.items()}, _fn)
