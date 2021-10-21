@@ -3,6 +3,8 @@
 CSLB (CWhy Supervised Learning Benchmark) is my personal benchmark to measure perfomance of supervised learning.
 Risen from ashes of cwhy/MLKit(Rip TF1.0x)
 
+Support Python3.8+
+
 ## Non Goals
 * make a unbiased benchmark for everyone
 * measure computational resources of algorithms

@@ -1,3 +1,4 @@
+from math import sqrt
 from typing import NamedTuple, List, Dict, TypedDict, Literal, Protocol
 
 import jax.numpy as xp
@@ -65,20 +66,13 @@ class MultiHeadAttn(NamedTuple):
         return Component({k: v.params for k, v in components.items()}, _fn)
 
 
-def dot_attention(q: npt.NDArray, k: npt.NDArray, v: npt.NDArray) -> npt.NDArray:
-    x = softmax(xp.einsum('mt,ms->ts', q, k))
-    return xp.einsum('ts,mt->ms', x, v)
-
-
 class SelfMultiHeadAttnConfigs(Protocol):
-    n_seq: int  # T
     n_heads: int  # H
     dim_model: int  # k
     dim_input: int  # x
 
 
 class SelfMultiHeadAttn(NamedTuple):
-    n_seq: int  # T
     n_heads: int  # H
     dim_model: int  # k
     dim_input: int  # x
@@ -99,6 +93,10 @@ class SelfMultiHeadAttn(NamedTuple):
 
         }
 
+        def _dot_attention(q: npt.NDArray, k: npt.NDArray, v: npt.NDArray) -> npt.NDArray:
+            x = softmax(xp.einsum('mt,ms->ts', q, k)/sqrt(config.dim_model))
+            return xp.einsum('ts,mt->ms', x, v)
+
         # [C] -> [3*K] -> [3,H,W]
         def _separate(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
             W = config.dim_model // config.n_heads
@@ -114,9 +112,10 @@ class SelfMultiHeadAttn(NamedTuple):
             q, k, v = vmap(_separate, (None, 1), -1)(weights['kqv'], x)
 
             # attention H * (3*[W,T] -> [W,T])
-            values = vmap(dot_attention, (0, 0, 0))(q, k, v)
+            values = vmap(_dot_attention, (0, 0, 0))(q, k, v)
 
             # Merge back the heads and output ([HW] -> [K] -> [K])*T
-            return vmap(_combine, (None, -1), -1)(weights['out'], values)
+            x = vmap(_combine, (None, -1), -1)(weights['out'], values)
+            return x
 
         return Component.from_fixed_process({k: v.params for k, v in components.items()}, _fn)

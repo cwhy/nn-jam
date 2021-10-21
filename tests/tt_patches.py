@@ -58,7 +58,7 @@ for i in range(7):
 show(row(*rows))
 
 patches = DirtyPatches.make(DirtyPatches(
-    dim_out=10,
+    dim_out=12,
     n_sections_w=7,
     n_sections_h=7,
     w=28,

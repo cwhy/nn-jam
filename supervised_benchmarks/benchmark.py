@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Mapping, Generic, List, Literal
 from supervised_benchmarks.dataset_protocols import DataContent, Port, DataPool, Subset, DataConfig
-from supervised_benchmarks.dataset_utils import subset_all
+from supervised_benchmarks.dataset_utils import subset_all, merge_vec
 from supervised_benchmarks.metric_protocols import PairMetric, MetricResult
 from supervised_benchmarks.protocols import Performer
-from supervised_benchmarks.sampler import FullBatchSampler, FullBatchSamplerConfig, Sampler
+from supervised_benchmarks.sampler import FullBatchSampler, FullBatchSamplerConfig, Sampler, SamplerConfig, \
+    FixedEpochSampler
 
 
 # Using dataclass because NamedTuple does not support generics
@@ -14,6 +16,7 @@ from supervised_benchmarks.sampler import FullBatchSampler, FullBatchSamplerConf
 class BenchmarkConfig(Generic[DataContent]):
     metrics: Mapping[Port, PairMetric[DataContent]]
     on: Subset
+    sampler_config: SamplerConfig = FullBatchSamplerConfig()
     type: Literal['BenchmarkConfig'] = 'BenchmarkConfig'
 
     # noinspection PyTypeChecker
@@ -21,7 +24,7 @@ class BenchmarkConfig(Generic[DataContent]):
     def prepare(self, data_pool: Mapping[Port, DataPool[DataContent]]) -> Benchmark[DataContent]:
         bench_data = subset_all(data_pool, self.on)
         return Benchmark(
-            sampler=FullBatchSamplerConfig().get_sampler(bench_data),
+            sampler=self.sampler_config.get_sampler(bench_data),
             config=self
         )
 
@@ -49,6 +52,23 @@ class Benchmark(Generic[DataContent]):
                     performer.perform(sampler.full_batch, tgt),
                     sampler.full_batch[tgt])
                 for tgt, metric in metrics.items()]
+        elif sampler.tag == 'FixedEpochSampler':
+            assert isinstance(sampler, FixedEpochSampler)
+            results = defaultdict(list)
+            targets = defaultdict(list)
+            for _ in range(sampler.num_batches):
+                data_map = {port: next(_iter) for port, _iter in sampler.iter.items()}
+                for tgt in metrics:
+                    result = performer.perform(data_map, tgt)
+                    results[tgt].append(result)
+                    targets[tgt].append(data_map[tgt])
+
+            measures = []
+            for tgt, metric in metrics.items():
+                measure = metric.measure(merge_vec(results[tgt]), merge_vec(targets[tgt]))
+                measures.append(measure)
+            return measures
+
         else:
             raise NotImplementedError
 

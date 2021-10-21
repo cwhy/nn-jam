@@ -12,6 +12,12 @@ MiniBatchSamplerType = Literal['FixedEpochSampler', 'MiniBatchSampler']
 SamplerTypeVar = TypeVar('SamplerTypeVar', bound=SamplerType, covariant=True)
 
 
+class Sampler(Protocol[DataContentCov]):
+    @property
+    @abstractmethod
+    def tag(self) -> SamplerType: ...
+
+
 @runtime_checkable
 class MiniBatchSampler(Protocol[DataContentCov]):
     @property
@@ -81,6 +87,11 @@ class SamplerConfig(Protocol[SamplerTypeVar]):
     @abstractmethod
     def sampler_tag(self) -> SamplerTypeVar: ...
 
+    def get_sampler(self,
+                    data_dict: Mapping[Port, Data[DataContentCov]]
+                    ) -> Sampler[DataContentCov]:
+        ...
+
 
 class FixedEpochSamplerConfig(NamedTuple):
     batch_size: int
@@ -89,15 +100,16 @@ class FixedEpochSamplerConfig(NamedTuple):
     def get_sampler(self,
                     data_dict: Mapping[Port, Data[DataContentCov]]) -> FixedEpochSampler[DataContentCov]:
         batch_size = self.batch_size
-        num_train = len(FixedTrain.indices)
-        num_complete_batches, leftover = divmod(num_train, batch_size)
+        # TODO refactor Data to contain Map[Port, Content]
+        num_data = len(next(iter(data_dict.values())).subset.indices)
+        num_complete_batches, leftover = divmod(num_data, batch_size)
         num_batches = num_complete_batches + int(bool(leftover))
 
         def data_stream(data: Data[DataContentCov]) -> Iterator[DataContentCov]:
             content = data.content
             rng = npr.RandomState(0)
             while True:
-                perm = rng.permutation(num_train)
+                perm = rng.permutation(num_data)
                 for i in range(num_batches):
                     batch_idx = perm[i * batch_size:(i + 1) * batch_size]
                     yield content[batch_idx]
@@ -113,11 +125,3 @@ class FullBatchSamplerConfig(NamedTuple):
     @staticmethod
     def get_sampler(data_dict: Mapping[Port, Data[DataContentCov]]) -> FullBatchSampler[DataContentCov]:
         return FullBatchSamplerImp({k: v.content for k, v in data_dict.items()})
-
-
-class Sampler(Protocol[DataContentCov]):
-    @property
-    @abstractmethod
-    def tag(self) -> SamplerType: ...
-
-

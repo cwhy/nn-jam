@@ -2,8 +2,12 @@ from pathlib import Path
 from typing import List, Tuple, Literal, Mapping, Mapping, Optional, Sequence
 from urllib.error import URLError
 
+import numpy as np
+from numpy.typing import NDArray
+
 from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity
-from supervised_benchmarks.dataset_protocols import SupportedDatasetNames, Port, DataPool, Subset, DataContentCov, Data
+from supervised_benchmarks.dataset_protocols import SupportedDatasetNames, Port, DataPool, Subset, DataContentCov, Data, \
+    DataContent
 
 DataPath = Literal['processed', 'cache', 'raw']
 StorageType = Literal['array_dict']
@@ -64,3 +68,7 @@ def download_resources(base_path: Path,
             break
         else:
             raise RuntimeError("Error downloading {}".format(filename))
+
+
+def merge_vec(xs: List[DataContent]) -> DataContent:
+    return np.concatenate(xs)

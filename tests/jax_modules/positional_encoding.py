@@ -1,4 +1,5 @@
 from functools import reduce
+from math import prod
 from typing import NamedTuple, Protocol, Tuple, Literal
 
 import numpy.typing as npt
@@ -39,6 +40,9 @@ class PositionalEncoding(NamedTuple):
 
             pos_encode = reduce(vmap(_t_outer, (0, 0), 0),
                                 [params[f'encoding_dim_{i}'] for i in range(len(config.input_shape))])
-            return x * pos_encode
+            x *= pos_encode
+            # [output_channels, *input_shape]
+
+            return x.reshape(config.output_channels, prod(config.input_shape))
 
         return Component.from_fixed_process(components, _fn)

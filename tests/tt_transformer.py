@@ -5,9 +5,9 @@ from jax import tree_flatten, tree_map, jit, vmap, random
 from jax._src.random import PRNGKey
 
 from tests.jax_random_utils import init_weights
-from tests.transformer import TransformerConfigs, TransformerEncoder, Transformer
+from tests.transformer import Transformer, TransformerEncoder
 
-config = TransformerConfigs(
+config = Transformer(
     n_tfe_layers=3,
     n_seq=7,
     n_heads=4,

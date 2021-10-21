@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Literal, Protocol, NamedTuple, List, TypeVar, Tuple, Generic, Any
+from typing import Literal, Protocol, NamedTuple, List, TypeVar, Tuple, Generic, Any, Callable
 
 from variable_protocols.variables import Variable, var_scalar, ordinal
 
-from supervised_benchmarks.dataset_protocols import DataContentContra
+from supervised_benchmarks.dataset_protocols import DataContentContra, DataContent
 
 PairMetricType = Literal['mean_acc', 'categorical_acc']
 

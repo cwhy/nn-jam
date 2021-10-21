@@ -47,12 +47,12 @@ class DirtyPatches(NamedTuple):
                 n_hidden=config.mlp_n_hidden,
                 activation=config.mlp_activation,
                 dropout_keep_rate=config.dropout_keep_rate,
-                n_in=dim_w * dim_h * config.ch,
+                n_in=dim_w * dim_h,
                 n_out=config.dim_out
             ))
         }
 
-        # [w, h, ch] -> [dim_out, n_sections_h, n_sections_w, ch]
+        # [h, w, ch] -> [dim_out, n_sections_h, n_sections_w, ch]
         def _fn(params: ArrayTree, x: npt.NDArray, rng: RNGKey) -> npt.NDArray:
             x = xp.expand_dims(x, axis=0)
             # n h w c
@@ -65,10 +65,11 @@ class DirtyPatches(NamedTuple):
                 dimension_numbers=("NHWC", "OIHW", "NHWC")
             ).squeeze(0)
             # n_patches_h, n_patches_w, ch*dim_h*dim_w
-            patches = rearrange(patches, 'h w chw -> (h w) chw')
+            patches = rearrange(patches, 'h w (c ph pw) -> (h w c) (ph pw)',
+                                c=config.ch, ph=dim_h, pw=dim_w)
 
             features = vmap(components['mlp'].process, (None, 0, None), 0)(params['mlp'], patches, rng)
-            return rearrange(features, '(h w) out -> out h w',
-                             out=config.dim_out, h=config.n_sections_h, w=config.n_sections_w)
+            return rearrange(features, '(h w c) out -> out h w c',
+                             out=config.dim_out, h=config.n_sections_h, w=config.n_sections_w, c=config.ch)
 
         return Component({k: v.params for k, v in components.items()}, _fn)
