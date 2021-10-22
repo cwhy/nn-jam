@@ -131,6 +131,7 @@ class VitConfigs(TransformerEncoderConfigs):
     mlp_n_hidden_patches: List[int]
 
     dim_output: int
+    dict_size_output: int
 
 
 class Vit(NamedTuple):
@@ -148,11 +149,12 @@ class Vit(NamedTuple):
     mlp_n_hidden_patches: List[int]
 
     dim_output: int
+    dict_size_output: int
 
     @staticmethod
     def make(configs: VitConfigs) -> Component:
         components = {
-            'out_embedding': Embeddings.make(Embeddings(dict_size=configs.dim_output,
+            'out_embedding': Embeddings.make(Embeddings(dict_size=configs.dict_size_output,
                                                         dim_model=configs.dim_model)),
             'patching': DirtyPatches.make(DirtyPatches(
                 dim_out=configs.dim_model,
@@ -187,7 +189,7 @@ class Vit(NamedTuple):
 
             out_embed = weights['out_embedding']['dict']
             # [dim_model, dim_out + (h, w, C)]
-            x = xp.c_[x, xp.zeros_like(out_embed.T)]
+            x = xp.c_[xp.zeros((configs.dim_model, configs.dim_output)), x]
             rng, key = random.split(rng)
             x = components['encoder'].process(weights['encoder'], x, key)
             # [dim_model, dim_out + (h, w, C)]

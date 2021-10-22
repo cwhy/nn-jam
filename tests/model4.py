@@ -65,7 +65,8 @@ class MlpModelConfig:
             n_patches_side=4,
             mlp_n_hidden_patches=[12],
             n_tfe_layers=4,
-            dim_output=y_dim,
+            dim_output=1,
+            dict_size_output=y_dim
         )
         config_test = config_train._replace(
             dropout_keep_rate=1
@@ -82,7 +83,7 @@ class MlpModelConfig:
             inputs = xp.expand_dims(inputs, -1)
             print(inputs.shape)
             # pprint(tree_map(lambda x: "{:.2f}, {:.2f}".format(x.mean().item(), x.std().item()), params))
-            outs = vit_test.process(params, inputs, random.PRNGKey(0))[:, :y_dim]
+            outs = vit_test.process(params, inputs, random.PRNGKey(0))[:, -1]
             logits = vmap(xp.dot, (0, 1))(params['out_embedding']['dict'], outs)
             print(logits.shape)
             print("logits", logits)
@@ -91,7 +92,7 @@ class MlpModelConfig:
         def forward_train(params, inputs, rng):
             inputs = xp.expand_dims(inputs, -1)
             print(inputs.shape)
-            outs = vit_train.process(params, inputs, rng)[:, :y_dim]
+            outs = vit_train.process(params, inputs, rng)[:, -1]
             logits = vmap(xp.dot, (0, 1))(params['out_embedding']['dict'], outs)
             print(logits.shape)
             return logits - logsumexp(logits, keepdims=True)

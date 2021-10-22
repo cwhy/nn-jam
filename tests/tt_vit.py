@@ -25,7 +25,8 @@ config = Vit(
     n_patches_side=7,
     mlp_n_hidden_patches=[12],
     n_tfe_layers=4,
-    dim_output=5
+    dim_output=1,
+    dict_size_output=5
 )
 
 data_config_ = MnistDataConfig(
