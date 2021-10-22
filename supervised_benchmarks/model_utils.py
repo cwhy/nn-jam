@@ -30,7 +30,7 @@ class Train(Generic[DataContent]):
         train_sampler = FixedEpochSamplerConfig(self.batch_size).get_sampler(train_data)
         for epoch in range(self.num_epochs):
             if 'before_epoch_' in self.model.probe:
-                self.model.probe['before_epoch_']()
+                self.model.probe['before_epoch_'](pool_dict)
             start_time = time.time()
             for _ in range(train_sampler.num_batches):
                 self.model.update_(train_sampler)
@@ -40,7 +40,7 @@ class Train(Generic[DataContent]):
             for b in benchmarks:
                 b.log_measure_(self.model)
             if 'after_epoch_' in self.model.probe:
-                self.model.probe['after_epoch_']()
+                self.model.probe['after_epoch_'](pool_dict)
 
 
 class TrainablePerformer(Protocol[DataContent]):
@@ -54,7 +54,7 @@ class TrainablePerformer(Protocol[DataContent]):
 
     @property
     @abstractmethod
-    def probe(self) -> Dict[Probes, Callable[[], None]]: ...
+    def probe(self) -> Dict[Probes, Callable[[Mapping[Port, DataPool[DataContent]]], None]]: ...
 
     def perform(self, data_src: Mapping[Port, DataContent], tgt: Port) -> DataContent: ...
 

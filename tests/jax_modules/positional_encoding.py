@@ -43,6 +43,6 @@ class PositionalEncoding(NamedTuple):
             x *= pos_encode
             # [output_channels, *input_shape]
 
-            return x.reshape(config.output_channels, prod(config.input_shape))
+            return x.reshape(config.output_channels, prod(config.input_shape)), pos_encode.reshape(config.output_channels, prod(config.input_shape))
 
         return Component.from_fixed_process(components, _fn)

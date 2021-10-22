@@ -1,3 +1,4 @@
+import math
 from typing import NamedTuple, List, Tuple, Protocol
 
 import numpy.typing as npt
@@ -36,7 +37,10 @@ class TransformerLayer(NamedTuple):
                 dim_model=configs.dim_model,
                 dim_input=configs.dim_model
             )),
-            'norm': LayerNorm.make(LayerNorm(
+            'norm1': LayerNorm.make(LayerNorm(
+                eps=configs.eps,
+                norm_axis=0)),
+            'norm2': LayerNorm.make(LayerNorm(
                 eps=configs.eps,
                 norm_axis=0)),
             'dropout': Dropout.make(configs),
@@ -50,8 +54,8 @@ class TransformerLayer(NamedTuple):
 
         def _fn(weights: ArrayTree, x: npt.NDArray, rng: RNGKey) -> npt.NDArray:
             rng, key1, key2 = random.split(rng, 3)
-            x = sequential(components, ['norm', 'mha', 'dropout'])(weights, x, key1) + x
-            x = vmap(sequential(components, ['norm', 'mlp', 'dropout']),
+            x = sequential(components, ['norm1', 'mha', 'dropout'])(weights, x, key1) + x
+            x = vmap(sequential(components, ['norm2', 'mlp', 'dropout']),
                      (None, configs.pos_t, None), configs.pos_t)(weights, x, key2) + x
             return x
 
@@ -133,6 +137,8 @@ class VitConfigs(TransformerEncoderConfigs):
     dim_output: int
     dict_size_output: int
 
+    input_keep_rate: float
+
 
 class Vit(NamedTuple):
     n_tfe_layers: int
@@ -151,9 +157,13 @@ class Vit(NamedTuple):
     dim_output: int
     dict_size_output: int
 
+    input_keep_rate: float
+
     @staticmethod
     def make(configs: VitConfigs) -> Component:
         components = {
+            'mask_embedding': Embeddings.make(Embeddings(dict_size=1,
+                                                         dim_model=configs.dim_model)),
             'out_embedding': Embeddings.make(Embeddings(dict_size=configs.dict_size_output,
                                                         dim_model=configs.dim_model)),
             'patching': DirtyPatches.make(DirtyPatches(
@@ -176,23 +186,59 @@ class Vit(NamedTuple):
                 dim_encoding=configs.dim_model,
                 positional_encode_strategy='dot'
             )),
+            'positional_encoding_y': PositionalEncoding.make(PositionalEncoding(
+                input_shape=(1,),
+                input_channels=configs.dim_model,
+                output_channels=configs.dim_model,
+                dim_encoding=configs.dim_model,
+                positional_encode_strategy='dot'
+            )),
             'encoder': TransformerEncoder.make(configs),
+            'norm': LayerNorm.make(LayerNorm(
+                eps=configs.eps,
+                norm_axis=0)),
         }
+        T = configs.n_patches_side ** 2 * configs.hwc[-1]
+
+        # [D, D, 1] -> [D]
+        def mask_with_default(x: npt.NDArray, m: npt.NDArray, d: npt.NDArray) -> npt.NDArray:
+            ds = xp.repeat(d, T)
+            ds *= 1 - m
+            x *= m
+            return ds + x
 
         # [H, W, C] -> [dim_model, T]
         def _fn(weights: ArrayTree, x: npt.NDArray, rng) -> npt.NDArray:
             rng, key = random.split(rng)
             x = components['patching'].process(weights['patching'], x, key)
-            # [dim_model, h, w, C]
-            x = components['positional_encoding'].fixed_process(weights['positional_encoding'], x)
-            # [dim_model, (h, w, C)]
-
-            out_embed = weights['out_embedding']['dict']
-            # [dim_model, dim_out + (h, w, C)]
-            x = xp.c_[xp.zeros((configs.dim_model, configs.dim_output)), x]
             rng, key = random.split(rng)
-            x = components['encoder'].process(weights['encoder'], x, key)
+            # [dim_model, h, w, C]
+
+            x_flattened = x.reshape((-1, T))
+            missing_embed = weights['mask_embedding']['dict'].T
+            if 0 < configs.input_keep_rate < 1:
+                keep_idx = random.bernoulli(key, configs.input_keep_rate, (T,))
+                masked_x = vmap(mask_with_default, (0, None, 0), 0)(x_flattened, keep_idx, missing_embed)
+            elif configs.input_keep_rate == 1:
+                keep_idx = xp.ones((T,))
+                masked_x = x
+            else:
+                raise Exception("~~@@!!....")
+
+            masked_x, pos_code = components['positional_encoding'].fixed_process(weights['positional_encoding'],
+                                                                                 masked_x.reshape((-1,
+                                                                                                   configs.n_patches_side,
+                                                                                                   configs.n_patches_side,
+                                                                                                   configs.hwc[-1])))
+            # [dim_model, (h, w, C)]
+            y, _ = components['positional_encoding_y'].fixed_process(weights['positional_encoding_y'], missing_embed)
+            yx = xp.c_[y, masked_x]
+            yx = components['norm'].process(weights['norm'], yx, key)
             # [dim_model, dim_out + (h, w, C)]
-            return x
+
+            rng, key = random.split(rng)
+            yx = components['encoder'].process(weights['encoder'], yx, key)
+            # [dim_model, dim_out + (h, w, C)]
+            return yx, x_flattened, xp.r_[1, 1 - keep_idx]
 
         return Component({k: v.params for k, v in components.items()}, _fn)
