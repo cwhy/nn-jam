@@ -1,8 +1,9 @@
 from typing import NamedTuple, TypedDict, Protocol
 
 import numpy.typing as npt
+from numpy.typing import NDArray
 
-from tests.jax_components import Component
+from tests.jax_components import Component, X
 from tests.jax_random_utils import WeightParams, ArrayTree
 
 
@@ -26,7 +27,9 @@ class Embeddings(NamedTuple):
         }
 
         # int -> float K
-        def _fn(params: ArrayTree, x: npt.NDArray) -> npt.NDArray:
+        def _fn(params: ArrayTree, x: NDArray) -> NDArray:
             return params['dict'][x, :]
 
-        return Component.from_fixed_process(components, _fn)
+        # noinspection PyTypeChecker
+        # Because pycharm sucks
+        return Component.from_fixed_pipeline(components, _fn)

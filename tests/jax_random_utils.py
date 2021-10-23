@@ -1,5 +1,7 @@
+from __future__ import annotations
 from abc import abstractmethod
-from typing import Tuple, NamedTuple, Union, Literal, Mapping, Any, Protocol, Optional
+from typing import Tuple, NamedTuple, Union, Literal, Mapping, Any, Protocol, Optional, TypeVar, Iterator, Collection, \
+    Dict, ItemsView, ValuesView, KeysView
 
 import numpy as np
 from jax import numpy as xp
@@ -7,6 +9,17 @@ from numpy import typing as npt
 
 ArrayGen = Literal['kaiming', 'dropout', 'embedding']
 RNGKey = Any
+
+KT = TypeVar('KT')
+VT_co = TypeVar('VT_co', covariant=True)
+
+
+class RecursiveMapping(Protocol[KT, VT_co]):
+    def __getitem__(self, key: KT) -> Union[VT_co, RecursiveMapping[KT, VT_co]]: ...
+
+    def items(self) -> ItemsView[KT, Union[VT_co, RecursiveMapping[KT, VT_co]]]: ...
+
+    def __len__(self) -> int: ...
 
 
 class ArrayParams(Protocol):
@@ -24,16 +37,17 @@ class ArrayParams(Protocol):
     def scale(self) -> float: ...
 
 
+ArrayParamMapping = RecursiveMapping[str, ArrayParams]
+ArrayParamTree = Union[RecursiveMapping[str, ArrayParams], ArrayParams]
+ArrayTreeMapping = RecursiveMapping[str, npt.NDArray]
+ArrayTree = Union[RecursiveMapping[str, npt.NDArray], npt.NDArray]
+
+
 class WeightParams(NamedTuple):
     # from in to out
     shape: Tuple[int, ...]
     init: Union[ArrayGen, int, float] = "kaiming"
     scale: float = 1
-
-
-ArrayParamMapping = Mapping[str, Any]
-ArrayParamTree = Union[Mapping[str, Any], ArrayParams]
-ArrayTree = Mapping[str, Any]
 
 
 def dropout_gen(keep_rate: float, shape: Tuple[int, ...]):
@@ -86,10 +100,10 @@ def array_gen(params: ArrayParams) -> npt.NDArray:
         raise NotImplementedError("unsupported init type")
 
 
-def init_weights_helper(params: ArrayParamTree) -> Union[ArrayTree, npt.NDArray]:
+# noinspection PyTypeChecker
+# Because pycharm sucks
+def init_weights_helper(params: ArrayParamTree) -> ArrayTree:
     if isinstance(params, WeightParams):
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         return array_gen(params)
     else:
         assert isinstance(params, dict)
@@ -99,7 +113,7 @@ def init_weights_helper(params: ArrayParamTree) -> Union[ArrayTree, npt.NDArray]
         }
 
 
-def init_weights(params: ArrayParamMapping) -> ArrayTree:
+def init_weights(params: ArrayParamMapping) -> ArrayTreeMapping:
     return {
         k: init_weights_helper(v)
         for k, v in params.items() if v is not None

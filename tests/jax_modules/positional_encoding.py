@@ -5,7 +5,7 @@ from typing import NamedTuple, Protocol, Tuple, Literal
 import numpy.typing as npt
 from jax import vmap
 
-from tests.jax_components import Component
+from tests.jax_components import Component, X
 from tests.jax_random_utils import WeightParams, ArrayTree
 
 
@@ -34,7 +34,9 @@ class PositionalEncoding(NamedTuple):
         assert config.output_channels == config.dim_encoding == config.input_channels
 
         # [input_channels, *input_shape] -> [output_channels, prod(input_shape)]
-        def _fn(params: ArrayTree, x: npt.NDArray) -> npt.NDArray:
+        def _fn(params: ArrayTree, inputs: ArrayTree) -> ArrayTree:
+            x = inputs[X]
+
             def _t_outer(a: npt.NDArray, b: npt.NDArray) -> npt.NDArray:
                 return a[..., None] @ b[None, :]
 
@@ -43,6 +45,9 @@ class PositionalEncoding(NamedTuple):
             x *= pos_encode
             # [output_channels, *input_shape]
 
-            return x.reshape(config.output_channels, prod(config.input_shape)), pos_encode.reshape(config.output_channels, prod(config.input_shape))
+            return {X: x.reshape(config.output_channels, prod(config.input_shape)),
+                    'pos_enc': pos_encode.reshape(config.output_channels, prod(config.input_shape))}
 
-        return Component.from_fixed_process(components, _fn)
+        # noinspection PyTypeChecker
+        # Because Pycharm sucks
+        return Component.from_fixed_process({X}, {X, 'pos_enc'}, components, _fn)

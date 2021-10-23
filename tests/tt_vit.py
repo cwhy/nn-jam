@@ -11,7 +11,7 @@ from supervised_benchmarks.dataset_protocols import Input, Output, Data
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from tests.jax_random_utils import init_weights
-from tests.transformer import Vit
+from tests.vit import Vit
 
 config = Vit(
     n_heads=4,

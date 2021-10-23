@@ -29,7 +29,7 @@ from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler, FixedEpochSamplerConfig, FullBatchSamplerConfig
 from tests.jax_activations import Activation
 from tests.jax_random_utils import ArrayTree, RNGKey, init_weights
-from tests.transformer import Vit
+from tests.vit import Vit
 
 
 @dataclass(frozen=True)

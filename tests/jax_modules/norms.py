@@ -34,4 +34,6 @@ class LayerNorm(NamedTuple):
             variance = xp.mean(centered ** 2, axis=config.norm_axis, keepdims=True)
             return params['a'] * centered / xp.sqrt(variance + config.eps) + params['b']
 
-        return Component.from_fixed_process(components, _fn)
+        # noinspection PyTypeChecker
+        # Because pycharm sucks
+        return Component.from_fixed_pipeline(components, _fn)

@@ -1,16 +1,15 @@
-from functools import reduce
-import jax.numpy as xp
-from typing import NamedTuple, Protocol, Tuple, Literal, List
+from typing import NamedTuple, Protocol, List, Literal, Mapping
 
 import jax
-import numpy.typing as npt
+import jax.numpy as xp
 from einops import rearrange
 from jax import vmap
+from numpy.typing import NDArray
 
 from tests.jax_activations import Activation
-from tests.jax_components import Component
-from tests.jax_modules.mlp import MlpConfigs, Mlp
-from tests.jax_random_utils import WeightParams, ArrayTree, RNGKey
+from tests.jax_components import Component, X, merge_params
+from tests.jax_modules.mlp import Mlp
+from tests.jax_random_utils import ArrayTree, RNGKey, ArrayTreeMapping
 
 
 class DirtyPatchesConfigs(Protocol):
@@ -53,8 +52,8 @@ class DirtyPatches(NamedTuple):
         }
 
         # [h, w, ch] -> [dim_out, n_sections_h, n_sections_w, ch]
-        def _fn(params: ArrayTree, x: npt.NDArray, rng: RNGKey) -> npt.NDArray:
-            x = xp.expand_dims(x, axis=0)
+        def _fn(params: ArrayTree, x: NDArray, rng: RNGKey) -> NDArray:
+            x = xp.expand_dims(x[X], axis=0)
             # n h w c
             patches = jax.lax.conv_general_dilated_patches(
                 lhs=x,
@@ -72,4 +71,6 @@ class DirtyPatches(NamedTuple):
             return rearrange(features, '(h w c) out -> out h w c',
                              out=config.dim_out, h=config.n_sections_h, w=config.n_sections_w, c=config.ch)
 
-        return Component({k: v.params for k, v in components.items()}, _fn)
+        # noinspection PyTypeChecker
+        # Because pycharm sucks
+        return Component.from_pipeline(merge_params(components), _fn)
