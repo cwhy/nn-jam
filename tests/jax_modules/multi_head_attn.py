@@ -48,11 +48,11 @@ class SelfMultiHeadAttn(NamedTuple):
         # [C] -> [3*K] -> [3,H,W]
         def _separate(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
             W = config.dim_model // config.n_heads
-            return components['kqv'].fixed_process(weights, x).reshape((3, config.n_heads, W))
+            return components['kqv'].fixed_pipeline(weights, x).reshape((3, config.n_heads, W))
 
         # [HW] -> [K] -> [K]
         def _combine(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
-            return components["out"].fixed_process(weights, x.ravel())
+            return components["out"].fixed_pipeline(weights, x.ravel())
 
         # [CT] -> [KT]
         def _fn(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:

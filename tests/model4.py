@@ -92,21 +92,20 @@ class MlpModelConfig:
             inputs = xp.expand_dims(inputs, -1)
             print(inputs.shape)
             # pprint(tree_map(lambda x: "{:.2f}, {:.2f}".format(x.mean().item(), x.std().item()), params))
-            outs, _, _ = vit_test.process(params, inputs, random.PRNGKey(0))
+            outs = vit_test.pipeline(params, inputs, random.PRNGKey(0))
             return xp.exp(get_logits(params, outs))
 
         def forward_train(params, inputs, rng):
             inputs = xp.expand_dims(inputs, -1)
             print(inputs.shape)
-            outs, _, _ = vit_train.process(params, inputs, rng)
+            outs = vit_train.pipeline(params, inputs, rng)
             return get_logits(params, outs)
 
         @jit
         def _loss(params, batch, rng):
-            inputs, targets = batch
-            rngs = random.split(rng, len(inputs))
-            preds = vmap(forward_train, (None, 0, 0))(params, inputs, rngs)
-            return -xp.mean(xp.sum(preds * targets, axis=1))
+            rngs = random.split(rng, len(batch['X']))
+            preds = vmap(forward_train, (None, 0, 0))(params, batch['X'], rngs)
+            return -xp.mean(xp.sum(preds * batch['Y'], axis=1))
 
         # def cosine(a, b):
         #     return jax.lax.dot(a, b) / xp.linalg.norm(a) / xp.linalg.norm(b)
@@ -134,6 +133,7 @@ class MlpModelConfig:
         @jit
         def update(params, step_size: float, batch, rng: RNGKey):
             key, rng = random.split(rng)
+            print("batches: ", batch)
             grads = grad(loss)(params, batch, key)
             return tree_map(lambda x, dx: x - step_size * dx, params, grads), rng
 
@@ -181,8 +181,8 @@ class MlpModel:
             i1, o1 = sp1[Input][:1000, :, :], sp1[Output][:1000, :]
             i2, o2 = sp2[Input][:1000, :, :], sp2[Output][:1000, :]
             print("loss: ",
-                  self.loss(self.weights, (i1, o1), PRNGKey(0)),
-                  self.loss(self.weights, (i2, o2), PRNGKey(0)))
+                  self.loss(self.weights, {"X": i1, "Y": o1}, PRNGKey(0)),
+                  self.loss(self.weights, {"X": i2, "Y": o2}, PRNGKey(0)))
         return {
             # "after_epoch_": lambda: print(self.weights['layer_0']['b'].mean(), self.weights['layer_0']['w'].mean())
             "after_epoch_": debug
@@ -191,7 +191,7 @@ class MlpModel:
     def update_(self, sampler: MiniBatchSampler):
         self.weights, self.state = self.update(self.weights,
                                                self.model.step_size,
-                                               (next(sampler.iter[Input]), next(sampler.iter[Output])),
+                                               {'X': next(sampler.iter[Input]), 'Y': next(sampler.iter[Output])},
                                                self.state)
 
     def predict(self, inputs: NDArray):

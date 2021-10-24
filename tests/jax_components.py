@@ -34,7 +34,7 @@ class Component(Generic[CompVar, WeightVar]):
         if self.is_pipeline:
             def _fn(weights: Mapping[CompVar, ArrayTree],
                     x: NDArray, key: RNGKey) -> NDArray:
-                return self.process(weights, x[X], key)[X]
+                return self.process(weights, {X: x}, key)[X]
 
             return _fn
         else:
@@ -43,10 +43,10 @@ class Component(Generic[CompVar, WeightVar]):
     @property
     def fixed_pipeline(self) -> Callable[[Mapping[CompVar, ArrayTree], NDArray],
                                          NDArray]:
-        if X in (self.ports_in & self.ports_out):
+        if self.is_pipeline:
             def _fn(weights: Mapping[CompVar, ArrayTree],
                     x: NDArray) -> NDArray:
-                return self.process(weights, x[X], None)[X]
+                return self.process(weights, {X: x}, None)[X]
 
             return _fn
         else:

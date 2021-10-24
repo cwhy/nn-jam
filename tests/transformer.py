@@ -82,7 +82,7 @@ class TransformerEncoder(NamedTuple):
             # noinspection PyTypeChecker
             # Because pycharm sucks
             x = sequential(components, [f"tfe_layer_{i}" for i in range(configs.n_tfe_layers)])(weights, x, key)
-            x = vmap(components['norm'].process, (None, configs.pos_t, None), configs.pos_t)(weights['norm'], x, key)
+            x = vmap(components['norm'].pipeline, (None, configs.pos_t, None), configs.pos_t)(weights['norm'], x, key)
             return x
 
         # noinspection PyTypeChecker

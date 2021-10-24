@@ -53,7 +53,7 @@ class DirtyPatches(NamedTuple):
 
         # [h, w, ch] -> [dim_out, n_sections_h, n_sections_w, ch]
         def _fn(params: ArrayTree, x: NDArray, rng: RNGKey) -> NDArray:
-            x = xp.expand_dims(x[X], axis=0)
+            x = xp.expand_dims(x, axis=0)
             # n h w c
             patches = jax.lax.conv_general_dilated_patches(
                 lhs=x,
@@ -67,7 +67,7 @@ class DirtyPatches(NamedTuple):
             patches = rearrange(patches, 'h w (c ph pw) -> (h w c) (ph pw)',
                                 c=config.ch, ph=dim_h, pw=dim_w)
 
-            features = vmap(components['mlp'].process, (None, 0, None), 0)(params['mlp'], patches, rng)
+            features = vmap(components['mlp'].pipeline, (None, 0, None), 0)(params['mlp'], patches, rng)
             return rearrange(features, '(h w c) out -> out h w c',
                              out=config.dim_out, h=config.n_sections_h, w=config.n_sections_w, c=config.ch)
 

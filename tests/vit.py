@@ -109,14 +109,14 @@ class Vit(NamedTuple):
             else:
                 raise Exception("~~@@!!....")
 
-            masked_x, pos_code = components['positional_encoding'].fixed_pipeline(
+            masked_x = components['positional_encoding'].fixed_pipeline(
                 weights['positional_encoding'],
                 masked_x.reshape((-1,
                                   configs.n_patches_side,
                                   configs.n_patches_side,
                                   configs.hwc[-1])))
             # [dim_model, (h, w, C)]
-            y, _ = components['positional_encoding_y'].fixed_pipeline(weights['positional_encoding_y'], missing_embed)
+            y = components['positional_encoding_y'].fixed_pipeline(weights['positional_encoding_y'], missing_embed)
             yx = xp.c_[y, masked_x]
             yx = components['norm'].pipeline(weights['norm'], yx, key)
             # [dim_model, dim_out + (h, w, C)]
