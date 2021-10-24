@@ -1,35 +1,56 @@
-# CWhy Supervised Learning Benchmark
-## Intro
-CSLB (CWhy Supervised Learning Benchmark) is my personal benchmark to measure perfomance of supervised learning.
-Risen from ashes of cwhy/MLKit(Rip TF1.0x)
+# NN-Jam
+Just like jamming in music, I jam in code with NN.
+Same as in music, this help me create cool stuffs, grok things better, and therapeutic at the same time.
 
-Support Python3.8+
+It is open so that it is convenient to share part of it with my friends.
+After the projects are matured, I will separate them out to be proper open source projects.
 
-## Non Goals
-* make a unbiased benchmark for everyone
-* measure computational resources of algorithms
-* no-friction plugin of new networks
-* unsupervised learning (maybe in the long future) or RL
-* ImageNet-level large datasets that poor souls can't afford
-* super efficient training
+I am jamming in Python3.8+
 
-## Final Goals
-* measure supervised learning as my bias goes
-* no nn framework dependency
-* very handy to plugin anything Python by wrappers
-* support cwhy/anynet input/output configurations
-* nice debug messages thoughout the whole experience
-* utilize Python to its finest
+## Common concepts
+### variable protocol
 
-## Current Goals
-* quick and dirty version for testing cwhy/anynet
-* types are a must, no array type yet
-* dataconfig type won't deal with transformations, only query
-* mnist/fashion mnist
+It is a lossless definition of data structure of all obtainable numeric data.
 
-## Short Term Goals
-* input output validation
-* cifar, tabular datasets from UCI and stuff
+### port
 
-## Acknowledgement
-* Download helper functions are from https://github.com/pytorch/vision
+A port is a sender or a receiver that takes/outputs variable of a certain protocol.
+
+### model:  
+
+A model has several ports that can send or receive data. 
+It also contains a process to receive data in some ports and send out in others.
+
+The model aim to be performing good.
+
+### audition:
+
+An audition is to test the basic-level performance of a model.
+
+## Current Projects
+It consists of three projects currently, there are *.md docs for each:
+### Variable protocols:  
+This defines the protocols for variables, and transformation of variables.
+Every other projects may refer to the protocols defined here.
+
+This project is not here yet, but currently I met a major design obstacle
+and it is in a minimal usable state.
+After that when I have the necessity to bring it here to jam with other projects.
+
+### Model Audition(old name Supervised Benchmarks)
+This project is to provide good interfaces to test models with benchmarks.
+It was called supervised benchmarks because my original design was targeted at supervised learning.
+But it is hard to say that self-supervise learning is not unsupervised learning right?
+
+### Jax-make
+This is a mini-framework for data modeling using jax the delightful library.
+It will be used to make models, test in audition.
+
+## Future Projects
+### Anynet
+The project is the origin of all current projects,
+ it depends on a moderate implementation level of all three of them.
+The idea of this project is written in another repo.
+
+### ...
+and more.. it may end up being a GUI project or a DSL for data modeling, who knows?
