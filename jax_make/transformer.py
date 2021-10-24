@@ -3,15 +3,15 @@ from typing import NamedTuple, List, Protocol
 import numpy.typing as npt
 from jax import random, vmap
 
-from tests.jax_activations import Activation
-from tests.jax_components import Component, sequential, merge_params
-from tests.jax_modules.dropout import Dropout
-from tests.jax_modules.embedding import Embeddings
-from tests.jax_modules.mlp import Mlp
-from tests.jax_modules.multi_head_attn import SelfMultiHeadAttn
-from tests.jax_modules.norms import LayerNorm
-from tests.jax_modules.positional_encoding import PositionalEncoding
-from tests.jax_random_utils import ArrayTree, RNGKey
+from jax_make.jax_activations import Activation
+from jax_make.jax_components import Component, sequential, merge_params
+from jax_make.jax_modules.dropout import Dropout
+from jax_make.jax_modules.embedding import Embeddings
+from jax_make.jax_modules.mlp import Mlp
+from jax_make.jax_modules.multi_head_attn import SelfMultiHeadAttn
+from jax_make.jax_modules.norms import LayerNorm
+from jax_make.jax_modules.positional_encoding import PositionalEncoding
+from jax_make.jax_random_utils import ArrayTree, RNGKey
 
 
 class TransformerEncoderConfigs(Protocol):

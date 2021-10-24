@@ -6,7 +6,7 @@ from typing import List, TypeVar, Literal, Optional, Generic, Callable, Mapping,
 from jax import random
 from numpy.typing import NDArray
 
-from tests.jax_random_utils import ArrayTree, RNGKey, ArrayParamTree, ArrayTreeMapping
+from jax_make.jax_random_utils import ArrayTree, RNGKey, ArrayParamTree, ArrayTreeMapping
 
 WeightVar = TypeVar("WeightVar")
 CompVar = TypeVar("CompVar", bound=str)

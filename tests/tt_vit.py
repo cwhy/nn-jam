@@ -10,8 +10,8 @@ from jax._src.random import PRNGKey
 from supervised_benchmarks.dataset_protocols import Input, Output, Data
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
-from tests.jax_random_utils import init_weights
-from tests.vit import Vit
+from jax_make.jax_random_utils import init_weights
+from jax_make.vit import Vit
 
 config = Vit(
     n_heads=4,
@@ -26,7 +26,8 @@ config = Vit(
     mlp_n_hidden_patches=[12],
     n_tfe_layers=4,
     dim_output=1,
-    dict_size_output=5
+    dict_size_output=5,
+    input_keep_rate=1
 )
 
 data_config_ = MnistDataConfig(
@@ -44,4 +45,4 @@ tf = Vit.make(config)
 weights = init_weights(tf.params)
 pprint(tree_map(lambda _x: _x.shape, weights))
 rng = PRNGKey(0)
-result = vmap(jit(tf.process), (None, 0, None), 0)(weights, inputs, rng)
+result = vmap(jit(tf.pipeline), (None, 0, None), 0)(weights, inputs, rng)

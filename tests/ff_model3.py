@@ -1,4 +1,4 @@
-# Using Mlp framework
+# Using jax-make for modeling
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -22,9 +22,9 @@ from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistCon
 from supervised_benchmarks.model_utils import Train, Probes
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler
-from tests.jax_activations import Activation
-from tests.jax_modules.mlp import Mlp
-from tests.jax_random_utils import ArrayTree, RNGKey, init_weights
+from jax_make.jax_activations import Activation
+from jax_make.jax_modules.mlp import Mlp
+from jax_make.jax_random_utils import ArrayTree, RNGKey, init_weights
 
 
 @dataclass(frozen=True)

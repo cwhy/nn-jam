@@ -4,8 +4,8 @@ import jax.numpy as xp
 from jax import tree_flatten, tree_map, jit, vmap, random
 from jax._src.random import PRNGKey
 
-from tests.jax_random_utils import init_weights
-from tests.transformer import Transformer, TransformerEncoder
+from jax_make.jax_random_utils import init_weights
+from jax_make.transformer import Transformer, TransformerEncoder
 
 config = Transformer(
     n_tfe_layers=3,

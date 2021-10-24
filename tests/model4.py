@@ -1,13 +1,10 @@
 # Vit for mnist
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from pprint import pprint
-from typing import Tuple, List, Mapping, FrozenSet, Literal, Callable, Any, Optional, Dict, NamedTuple
+from typing import Tuple, Mapping, FrozenSet, Literal, Callable, Any, Dict
 
-import jax
 from jax import jit, grad, tree_map, vmap, tree_flatten, random
 from jax._src.random import PRNGKey
 from jax import numpy as xp
@@ -24,12 +21,11 @@ from supervised_benchmarks.metrics import get_mean_acc
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.model_utils import Train, Probes
-from supervised_benchmarks.numpy_utils import ordinal_from_1hot
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler, FixedEpochSamplerConfig, FullBatchSamplerConfig
-from tests.jax_activations import Activation
-from tests.jax_random_utils import ArrayTree, RNGKey, init_weights
-from tests.vit import Vit
+from jax_make.jax_activations import Activation
+from jax_make.jax_random_utils import ArrayTree, RNGKey, init_weights
+from jax_make.vit import Vit
 
 
 @dataclass(frozen=True)

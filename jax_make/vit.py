@@ -3,14 +3,14 @@ from typing import Tuple, List, NamedTuple
 from jax import numpy as xp, random, vmap
 from numpy import typing as npt
 
-from tests.jax_activations import Activation
-from tests.jax_components import Component, merge_params
-from tests.jax_modules.dirty_patches import DirtyPatches
-from tests.jax_modules.embedding import Embeddings
-from tests.jax_modules.norms import LayerNorm
-from tests.jax_modules.positional_encoding import PositionalEncoding
-from tests.jax_random_utils import ArrayTree
-from tests.transformer import TransformerEncoderConfigs, TransformerEncoder
+from jax_make.jax_activations import Activation
+from jax_make.jax_components import Component, merge_params
+from jax_make.jax_modules.dirty_patches import DirtyPatches
+from jax_make.jax_modules.embedding import Embeddings
+from jax_make.jax_modules.norms import LayerNorm
+from jax_make.jax_modules.positional_encoding import PositionalEncoding
+from jax_make.jax_random_utils import ArrayTree
+from jax_make.transformer import TransformerEncoderConfigs, TransformerEncoder
 
 
 class VitConfigs(TransformerEncoderConfigs):

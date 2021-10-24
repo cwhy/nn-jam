@@ -3,3 +3,4 @@ tqdm
 numpy
 einops
 bokeh
+jax

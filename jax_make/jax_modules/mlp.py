@@ -4,11 +4,11 @@ import numpy.typing as npt
 from jax import random
 from numpy.typing import NDArray
 
-from tests.jax_activations import Activation, get_activation
-from tests.jax_modules.dropout import Dropout
-from tests.jax_components import Component, merge_params, X
-from tests.jax_paramed_functions import linear
-from tests.jax_random_utils import WeightParams, ArrayTree, RNGKey
+from jax_make.jax_activations import Activation, get_activation
+from jax_make.jax_modules.dropout import Dropout
+from jax_make.jax_components import Component, merge_params, X
+from jax_make.jax_paramed_functions import linear
+from jax_make.jax_random_utils import WeightParams, ArrayTree, RNGKey
 
 
 class MlpConfigs(Protocol):

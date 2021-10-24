@@ -4,8 +4,8 @@ import jax.numpy as xp
 from jax import random
 from numpy.typing import NDArray
 
-from tests.jax_components import Component, X
-from tests.jax_random_utils import ArrayTree, RNGKey
+from jax_make.jax_components import Component, X
+from jax_make.jax_random_utils import ArrayTree, RNGKey
 
 
 class DropoutConfigs(Protocol):

@@ -17,8 +17,8 @@ from supervised_benchmarks.dataset_protocols import Input, Output, Data
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, Mnist, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.visualize_utils import view_2d_mono, view_img_rgba
-from tests.jax_modules.dirty_patches import DirtyPatches
-from tests.jax_random_utils import init_weights
+from jax_make.jax_modules.dirty_patches import DirtyPatches
+from jax_make.jax_random_utils import init_weights
 
 data_config_ = MnistDataConfig(
     base_path=Path('/Data/torchvision/'),
