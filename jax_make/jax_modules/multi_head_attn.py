@@ -5,9 +5,9 @@ import jax.numpy as xp
 import numpy.typing as npt
 from jax import vmap
 
-from jax_make.jax_components import Component, merge_params
+from jax_make.components import Component, merge_params
 from jax_make.jax_paramed_functions import linear
-from jax_make.jax_random_utils import ArrayTree, RNGKey, WeightParams
+from jax_make.params import ArrayTree, RNGKey, WeightParams
 from jax_make.jax_utils import softmax
 
 

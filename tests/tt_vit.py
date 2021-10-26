@@ -10,7 +10,7 @@ from jax._src.random import PRNGKey
 from supervised_benchmarks.dataset_protocols import Input, Output, Data
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
-from jax_make.jax_random_utils import init_weights
+from jax_make.params import init_weights
 from jax_make.vit import Vit
 
 config = Vit(

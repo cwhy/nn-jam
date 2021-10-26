@@ -8,8 +8,8 @@ import numpy.typing as npt
 from einops import EinopsError, rearrange
 from einops.parsing import ParsedExpression
 
-from jax_components import Component
-from jax_random_utils import WeightParams, ArrayTree
+from components import Component
+from params import WeightParams, ArrayTree
 
 
 def _report_axes(axes: set, report_message: str):

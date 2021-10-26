@@ -7,7 +7,7 @@ from jax._src.random import PRNGKey
 from jax_make.einops_utils import mix, MixWeights
 from jax_make.jax_modules.dropout import Dropout
 from jax_make.jax_modules.positional_encoding import PositionalEncoding
-from jax_make.jax_random_utils import init_weights
+from jax_make.params import init_weights
 from jax_make.jax_modules.multi_head_attn import SelfMultiHeadAttn
 
 b, c, x, x1 = 4, 5, 2, 3

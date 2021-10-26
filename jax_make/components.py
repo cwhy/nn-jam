@@ -6,11 +6,13 @@ from typing import List, TypeVar, Literal, Optional, Generic, Callable, Mapping,
 from jax import random
 from numpy.typing import NDArray
 
-from jax_make.jax_random_utils import ArrayTree, RNGKey, ArrayParamTree, ArrayTreeMapping
+from jax_make.params import ArrayTree, RNGKey, ArrayParamTree, ArrayTreeMapping
 
 WeightVar = TypeVar("WeightVar")
 CompVar = TypeVar("CompVar", bound=str)
 X: Literal['X'] = 'X'
+
+FixedProcess = Callable[[Mapping[CompVar, ArrayTree], ArrayTreeMapping], ArrayTreeMapping]
 
 
 @dataclass
@@ -137,7 +139,6 @@ def connect_all(components: Mapping[CompVar, Component[CompVar, WeightVar]],
 def sequential(components: Mapping[CompVar, Component[CompVar, WeightVar]],
                sequence: List[CompVar]) -> Callable[[Mapping[CompVar, ArrayTree], NDArray, RNGKey],
                                                     NDArray]:
-
     if all(components[comp_name].is_pipeline for comp_name in sequence):
         def _fn(weights: Mapping[CompVar, ArrayTree],
                 flow_: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
@@ -147,6 +148,7 @@ def sequential(components: Mapping[CompVar, Component[CompVar, WeightVar]],
                 # Because pycharm sucks
                 flow_ = components[comp_name].pipeline(weights[comp_name], flow_, key)
             return flow_
+
         return _fn
     else:
         not_list = [comp_name

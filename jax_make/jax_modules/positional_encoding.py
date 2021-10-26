@@ -5,8 +5,8 @@ from typing import NamedTuple, Protocol, Tuple, Literal
 import numpy.typing as npt
 from jax import vmap
 
-from jax_make.jax_components import Component, X
-from jax_make.jax_random_utils import WeightParams, ArrayTree
+from jax_make.components import Component, X, FixedProcess
+from jax_make.params import WeightParams, ArrayTree
 
 
 class PositionalEncodingConfigs(Protocol):
@@ -37,17 +37,20 @@ class PositionalEncoding(NamedTuple):
         def _fn(params: ArrayTree, inputs: ArrayTree) -> ArrayTree:
             x = inputs[X]
 
-            def _t_outer(a: npt.NDArray, b: npt.NDArray) -> npt.NDArray:
-                return a[..., None] @ b[None, :]
-
-            pos_encode = reduce(vmap(_t_outer, (0, 0), 0),
-                                [params[f'encoding_dim_{i}'] for i in range(len(config.input_shape))])
-            x *= pos_encode
+            x *= dot_product_encode(params, config.input_shape)
             # [output_channels, *input_shape]
 
-            return {X: x.reshape(config.output_channels, prod(config.input_shape)),
-                    'pos_enc': pos_encode.reshape(config.output_channels, prod(config.input_shape))}
+            return {X: x.reshape(config.output_channels, prod(config.input_shape))}
 
         # noinspection PyTypeChecker
         # Because Pycharm sucks
-        return Component.from_fixed_process({X}, {X, 'pos_enc'}, components, _fn)
+        return Component.from_fixed_process({X}, {X}, components, _fn)
+
+
+def dot_product_encode(params: ArrayTree, input_shape: Tuple[int, ...]) -> npt.NDArray:
+    def _t_outer(a: npt.NDArray, b: npt.NDArray) -> npt.NDArray:
+        return a[..., None] @ b[None, :]
+
+    pos_encode = reduce(vmap(_t_outer, (0, 0), 0),
+                        [params[f'encoding_dim_{i}'] for i in range(len(input_shape))])
+    return pos_encode

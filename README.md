@@ -10,7 +10,7 @@ Just like instruments, too many dependency would create a mess and ruin the fun,
 - `numpy` brings the goodness of Matlab-style array programming to everyone
 - `tqdm` saves time for writing a nice-looking progress bar
 - `einops` linear algebra has a notation, and we need to fix that
-- `bokeh` an opinionated plotting library, reduces the many ways of doing things like in `matplotlib`
+- `bokeh` an opinionated plotting library, web-animation friendly
 - `jax` I was just expecting a reincarnation of TF1.x, not realizing the goodness of `vmap`s and `pytree` support 😲
 
 ## Common concepts
@@ -59,4 +59,5 @@ The project is the origin of all current projects,
 The idea of this project is written in another repo.
 
 ### ...
-and more.. it may end up being a GUI project or a DSL for data modeling, who knows?
+and more.. it may end up being a GUI project or a DSL for data modeling, 
+or I will end up using Elixir for nicer concurrency and metaprogramming, who knows?

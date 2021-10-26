@@ -3,8 +3,8 @@ from typing import NamedTuple, TypedDict, Protocol, Tuple, Union
 import jax.numpy as xp
 import numpy.typing as npt
 
-from jax_make.jax_components import Component
-from jax_make.jax_random_utils import WeightParams, ArrayTree
+from jax_make.components import Component
+from jax_make.params import WeightParams, ArrayTree
 
 
 class LayerNormWeights(TypedDict):

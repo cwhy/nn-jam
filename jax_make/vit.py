@@ -3,13 +3,13 @@ from typing import Tuple, List, NamedTuple
 from jax import numpy as xp, random, vmap
 from numpy import typing as npt
 
-from jax_make.jax_activations import Activation
-from jax_make.jax_components import Component, merge_params
+from jax_make.activations import Activation
+from jax_make.components import Component, merge_params
 from jax_make.jax_modules.dirty_patches import DirtyPatches
 from jax_make.jax_modules.embedding import Embeddings
 from jax_make.jax_modules.norms import LayerNorm
 from jax_make.jax_modules.positional_encoding import PositionalEncoding
-from jax_make.jax_random_utils import ArrayTree
+from jax_make.params import ArrayTree
 from jax_make.transformer import TransformerEncoderConfigs, TransformerEncoder
 
 
@@ -107,7 +107,7 @@ class Vit(NamedTuple):
                 keep_idx = xp.ones((T,))
                 masked_x = x
             else:
-                raise Exception("~~@@!!....")
+                raise Exception("Invalide input keep rate")
 
             masked_x = components['positional_encoding'].fixed_pipeline(
                 weights['positional_encoding'],

@@ -3,8 +3,8 @@ from typing import NamedTuple, TypedDict, Protocol
 import numpy.typing as npt
 from numpy.typing import NDArray
 
-from jax_make.jax_components import Component, X
-from jax_make.jax_random_utils import WeightParams, ArrayTree
+from jax_make.components import Component, X
+from jax_make.params import WeightParams, ArrayTree
 
 
 class EmbeddingsWeights(TypedDict):

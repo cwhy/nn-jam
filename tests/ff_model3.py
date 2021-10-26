@@ -22,9 +22,9 @@ from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistCon
 from supervised_benchmarks.model_utils import Train, Probes
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler
-from jax_make.jax_activations import Activation
+from jax_make.activations import Activation
 from jax_make.jax_modules.mlp import Mlp
-from jax_make.jax_random_utils import ArrayTree, RNGKey, init_weights
+from jax_make.params import ArrayTree, RNGKey, init_weights
 
 
 @dataclass(frozen=True)
