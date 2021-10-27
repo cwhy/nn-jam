@@ -11,11 +11,13 @@ from jax._src.random import PRNGKey
 from jax.scipy.special import logsumexp
 from numpy import typing as npt
 from numpy.typing import NDArray
+from pynng import Pair0
 from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
 
 from jax_make.params import ArrayTree, RNGKey, init_weights
 from jax_make.vit import Vit
+from stage.protocol import Stage
 from supervised_benchmarks.benchmark import BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataConfig, DataPool, DataContent
 from supervised_benchmarks.dataset_utils import subset_all
@@ -112,21 +114,25 @@ class MlpModelConfig:
 
         model = MlpModel(self, weights, PRNGKey(0), vmap(forward_test, (None, 0), 0), update, loss)
 
-        Train(
-            num_epochs=self.num_epochs,
-            batch_size=self.train_batch_size,
-            # BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTrain),
-            bench_configs=[
-                BenchmarkConfig(metrics={Output: get_mean_acc(10)},
-                                on=FixedTest,
-                                sampler_config=FixedEpochSamplerConfig(512)),
-                BenchmarkConfig(metrics={Output: get_mean_acc(10)},
-                                on=FixedTrain,
-                                sampler_config=FixedEpochSamplerConfig(512))],
-            model=model,
-            data_subset=FixedTrain,
-            data_config=self.train_data_config,
-        ).run_()
+        with Pair0(dial='tcp://127.0.0.1:54321') as socket:
+            stage = Stage(socket)
+            Train(
+                num_epochs=self.num_epochs,
+                batch_size=self.train_batch_size,
+                # BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTrain),
+                bench_configs=[
+                    BenchmarkConfig(metrics={Output: get_mean_acc(10)},
+                                    on=FixedTest,
+                                    sampler_config=FixedEpochSamplerConfig(512)),
+                    BenchmarkConfig(metrics={Output: get_mean_acc(10)},
+                                    on=FixedTrain,
+                                    sampler_config=FixedEpochSamplerConfig(512))],
+                model=model,
+                data_subset=FixedTrain,
+                data_config=self.train_data_config,
+                stage=stage
+            ).run_()
+            stage.socket.send()
         return model
 
 

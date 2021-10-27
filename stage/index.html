@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"> </script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
+    <title>Title</title>
+</head>
+
+<body>
+<script>
+    const socket = new WebSocket("ws://localhost:12345");
+    socket.onmessage = (m) => console.log(utf8.decode(m.data))
+    const data = [
+        { index: 0, value: 50 },
+        { index: 1, value: 100 },
+        { index: 2, value: 150 },
+    ];
+
+    // Get a surface
+    const surface = tfvis.visor().surface({ name: 'Barchart', tab: 'Charts' });
+
+    // Render a barchart on that surface
+    tfvis.render.barchart(surface, data, {});
+</script>
+
+</body>
+</html>

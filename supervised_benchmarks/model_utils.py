@@ -6,10 +6,12 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from functools import partial
 from threading import Thread
-from typing import List, Mapping, Generic, Protocol, FrozenSet, Callable, Literal, Dict
+from typing import List, Mapping, Generic, Protocol, FrozenSet, Callable, Literal, Dict, Optional
 
 from pynng import Pair0
 
+from jax_make.jax_modules.positional_encoding import dot_product_encode
+from stage.protocol import Stage
 from supervised_benchmarks.benchmark import Benchmark, BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Subset, Port, DataPool, DataContent, DataConfig
 from supervised_benchmarks.dataset_utils import subset_all
@@ -28,27 +30,30 @@ class Train(Generic[DataContent]):
     model: TrainablePerformer[DataContent]
     data_subset: Subset
     data_config: DataConfig
+    stage: Optional[Stage] = None
 
     def run_(self):
-        with Pair0(dial='tcp://127.0.0.1:54321') as socket:
-            pool_dict: Mapping[Port, DataPool[DataContent]] = self.data_config.get_data()
-            train_data = subset_all(pool_dict, self.data_subset)
-            benchmarks: List[Benchmark] = [b.prepare(pool_dict) for b in self.bench_configs]
-            train_sampler = FixedEpochSamplerConfig(self.batch_size).get_sampler(train_data)
-            for epoch in range(self.num_epochs):
-                if 'before_epoch_' in self.model.probe:
-                    self.model.probe['before_epoch_'](pool_dict)
-                start_time = time.time()
-                for _ in range(train_sampler.num_batches):
-                    self.model.update_(train_sampler)
-                epoch_time = time.time() - start_time
+        pool_dict: Mapping[Port, DataPool[DataContent]] = self.data_config.get_data()
+        train_data = subset_all(pool_dict, self.data_subset)
+        benchmarks: List[Benchmark] = [b.prepare(pool_dict) for b in self.bench_configs]
+        train_sampler = FixedEpochSamplerConfig(self.batch_size).get_sampler(train_data)
+        for epoch in range(self.num_epochs):
+            if 'before_epoch_' in self.model.probe:
+                self.model.probe['before_epoch_'](pool_dict)
+            start_time = time.time()
+            for _ in range(train_sampler.num_batches):
+                self.model.update_(train_sampler)
+            epoch_time = time.time() - start_time
 
-                print("Epoch {} in {:0.2f} sec".format(epoch, epoch_time))
-                results = [b.log_measure_(self.model)
-                           for b in benchmarks]
-                socket.send(json.dumps(dict(x=[epoch], y=[results[0][0].content])).encode("utf-8"))
-                if 'after_epoch_' in self.model.probe:
-                    self.model.probe['after_epoch_'](pool_dict)
+            print("Epoch {} in {:0.2f} sec".format(epoch, epoch_time))
+            results = [b.log_measure_(self.model)
+                       for b in benchmarks]
+            if self.stage is not None:
+                pos_encode = dot_product_encode(self.model.params['positional_encoding'], 3).reshape(12, -1)
+                corr = pos_encode.T @ pos_encode
+                self.stage.socket.send(json.dumps(dict(x=corr)).encode("utf-8"))
+            if 'after_epoch_' in self.model.probe:
+                self.model.probe['after_epoch_'](pool_dict)
 
 
 class TrainablePerformer(Protocol[DataContent]):

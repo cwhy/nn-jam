@@ -4,6 +4,8 @@ numpy
 einops
 bokeh
 jax
-pyzmq
 tornado
 matplotlib
+trio-websocket
+pynng
+trio

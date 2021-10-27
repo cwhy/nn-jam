@@ -3,7 +3,7 @@ from math import prod
 from typing import NamedTuple, Protocol, Tuple, Literal
 
 import numpy.typing as npt
-from jax import vmap
+from jax import vmap, jit
 
 from jax_make.components import Component, X, FixedProcess
 from jax_make.params import WeightParams, ArrayTree
@@ -37,7 +37,7 @@ class PositionalEncoding(NamedTuple):
         def _fn(params: ArrayTree, inputs: ArrayTree) -> ArrayTree:
             x = inputs[X]
 
-            x *= dot_product_encode(params, config.input_shape)
+            x *= dot_product_encode(params, len(config.input_shape))
             # [output_channels, *input_shape]
 
             return {X: x.reshape(config.output_channels, prod(config.input_shape))}
@@ -47,10 +47,12 @@ class PositionalEncoding(NamedTuple):
         return Component.from_fixed_process({X}, {X}, components, _fn)
 
 
-def dot_product_encode(params: ArrayTree, input_shape: Tuple[int, ...]) -> npt.NDArray:
+# {} -> [output_channels, *input_shape]
+@jit
+def dot_product_encode(params: ArrayTree, input_n_dims: int) -> npt.NDArray:
     def _t_outer(a: npt.NDArray, b: npt.NDArray) -> npt.NDArray:
         return a[..., None] @ b[None, :]
 
     pos_encode = reduce(vmap(_t_outer, (0, 0), 0),
-                        [params[f'encoding_dim_{i}'] for i in range(len(input_shape))])
+                        [params[f'encoding_dim_{i}'] for i in range(input_n_dims)])
     return pos_encode
