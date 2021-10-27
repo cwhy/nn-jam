@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pickle
 import time
 from abc import abstractmethod
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from functools import partial
 from threading import Thread
 from typing import List, Mapping, Generic, Protocol, FrozenSet, Callable, Literal, Dict, Optional
 
+import numpy as np
 from pynng import Pair0
 
 from jax_make.jax_modules.positional_encoding import dot_product_encode
@@ -49,9 +51,10 @@ class Train(Generic[DataContent]):
             results = [b.log_measure_(self.model)
                        for b in benchmarks]
             if self.stage is not None:
-                pos_encode = dot_product_encode(self.model.params['positional_encoding'], 3).reshape(12, -1)
-                corr = pos_encode.T @ pos_encode
-                self.stage.socket.send(json.dumps(dict(x=corr)).encode("utf-8"))
+                pos_encode = dot_product_encode(self.model.weights['positional_encoding'], 3).reshape(32, -1)
+                corr = np.corrcoef(pos_encode.T)
+                # corr = (corr - corr.min()) / (corr.max() - corr.min()) * 255
+                self.stage.socket.send(pickle.dumps(dict(x=corr)))
             if 'after_epoch_' in self.model.probe:
                 self.model.probe['after_epoch_'](pool_dict)
 

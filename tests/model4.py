@@ -114,7 +114,7 @@ class MlpModelConfig:
 
         model = MlpModel(self, weights, PRNGKey(0), vmap(forward_test, (None, 0), 0), update, loss)
 
-        with Pair0(dial='tcp://127.0.0.1:54321') as socket:
+        with Pair0(dial='tcp://127.0.0.1:54322') as socket:
             stage = Stage(socket)
             Train(
                 num_epochs=self.num_epochs,
@@ -132,7 +132,6 @@ class MlpModelConfig:
                 data_config=self.train_data_config,
                 stage=stage
             ).run_()
-            stage.socket.send()
         return model
 
 

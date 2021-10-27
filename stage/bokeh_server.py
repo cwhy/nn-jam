@@ -5,26 +5,26 @@ import numpy as np
 from bokeh.document import without_document_lock
 from bokeh.models import ColumnDataSource
 from bokeh.plotting import curdoc, figure
-from einops import repeat
+from einops import repeat, rearrange
 from pynng import Pair0
 from tornado.ioloop import IOLoop
 
-from supervised_benchmarks.visualize_utils import view_2d_mono
-
 doc = curdoc()
 
-w = 20
-h = 20
-if w < h:
+w = 16
+h = 16
+if w <= h:
     width_policy = 'fit'
     height_policy = 'max'
 else:
-    assert w >= h
+    assert w > h
     width_policy = 'max'
     height_policy = 'fit'
 
 
 def processimg(img):
+    # img = rearrange(img, '(a b) (c d) -> (a c) (b d)', a=4, b=4, c=4, d=4) * 255
+    img *= 255
     mono_opa = repeat(img, 'h w -> h w c', c=4)
     mono_opa[:, :, :3] = 0
     img = mono_opa
@@ -36,7 +36,7 @@ def processimg(img):
     return [v_img]
 
 
-source = ColumnDataSource(data=dict(x=processimg(np.random.randint(0, 256, (20, 20)))))
+source = ColumnDataSource(data=dict(x=processimg(np.random.randint(0, 256, (16, 16)))))
 
 p = figure(tooltips=[("x", "$x"), ("y", "$y"), ("value", "@image")],
            tools="",

@@ -48,7 +48,6 @@ class PositionalEncoding(NamedTuple):
 
 
 # {} -> [output_channels, *input_shape]
-@jit
 def dot_product_encode(params: ArrayTree, input_n_dims: int) -> npt.NDArray:
     def _t_outer(a: npt.NDArray, b: npt.NDArray) -> npt.NDArray:
         return a[..., None] @ b[None, :]
