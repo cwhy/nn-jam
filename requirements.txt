@@ -4,3 +4,6 @@ numpy
 einops
 bokeh
 jax
+pyzmq
+tornado
+matplotlib

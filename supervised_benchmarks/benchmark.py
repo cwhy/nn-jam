@@ -76,6 +76,7 @@ class Benchmark(Generic[DataContent]):
     def make_msg(self, results: List[MetricResult]) -> str:
         return f"{self.config.on.tag} result {results}"
 
-    def log_measure_(self, performer: Performer) -> None:
+    def log_measure_(self, performer: Performer) -> List[MetricResult]:
         results = self.measure(performer)
         print(f"{self.config.on.tag} result {results}")
+        return results
