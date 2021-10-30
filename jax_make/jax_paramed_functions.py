@@ -13,3 +13,4 @@ class LinearWeights(TypedDict):
 # w:ab, b:b, a -> b
 def linear(params: LinearWeights, x: Arr) -> Arr:
     return x @ params['w'] + params['b']
+

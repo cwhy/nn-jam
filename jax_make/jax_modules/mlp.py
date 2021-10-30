@@ -44,6 +44,7 @@ class Mlp(NamedTuple):
             for i, _out in enumerate(u_outs):
                 components[f'dropout_{i}'] = Dropout.make(config)
 
+        # n_in -> n_out
         def _fn(weights: ArrayTree, flow_: NDArray, rng: RNGKey) -> NDArray:
             activation = get_activation(config.activation)
             n_layers = len(config.n_hidden)

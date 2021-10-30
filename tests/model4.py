@@ -1,6 +1,7 @@
 # Vit for mnist
 from __future__ import annotations
 
+import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Tuple, Mapping, FrozenSet, Literal, Callable, Any, Dict
@@ -15,6 +16,7 @@ from pynng import Pair0
 from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
 
+from jax_make.jax_modules.positional_encoding import dot_product_encode
 from jax_make.params import ArrayTree, RNGKey, init_weights
 from jax_make.vit import Vit
 from stage.protocol import Stage
@@ -112,10 +114,10 @@ class MlpModelConfig:
             grads = grad(loss)(params, batch, key)
             return tree_map(lambda x, dx: x - step_size * dx, params, grads), rng
 
-        model = MlpModel(self, weights, PRNGKey(0), vmap(forward_test, (None, 0), 0), update, loss)
-
         with Pair0(dial='tcp://127.0.0.1:54322') as socket:
             stage = Stage(socket)
+            model = MlpModel(self, weights, PRNGKey(0), vmap(forward_test, (None, 0), 0), update, loss,
+                             train_stage=stage)
             Train(
                 num_epochs=self.num_epochs,
                 batch_size=self.train_batch_size,
@@ -130,7 +132,6 @@ class MlpModelConfig:
                 model=model,
                 data_subset=FixedTrain,
                 data_config=self.train_data_config,
-                stage=stage
             ).run_()
         return model
 
@@ -143,6 +144,7 @@ class MlpModel:
     forward_test: Callable[[ArrayTree, npt.NDArray], npt.NDArray]
     update: Callable[[ArrayTree, float, Any, RNGKey], Tuple[ArrayTree, RNGKey]]
     loss: Callable[[ArrayTree, Any, RNGKey], npt.NDArray]
+    train_stage: Stage
 
     @property
     def probe(self) -> Dict[Probes, Callable[[Mapping[Port, DataPool[DataContent]]], None]]:
@@ -155,6 +157,10 @@ class MlpModel:
             print("loss: ",
                   self.loss(self.weights, {"X": i1, "Y": o1}, PRNGKey(0)),
                   self.loss(self.weights, {"X": i2, "Y": o2}, PRNGKey(0)))
+            pos_encode = dot_product_encode(self.weights['positional_encoding'], 3).reshape(32, -1)
+            corr = xp.cov(pos_encode.T)
+            # corr = (corr - corr.min()) / (corr.max() - corr.min()) * 255
+            self.train_stage.socket.send(pickle.dumps(dict(x=corr)))
 
         return {
             # "after_epoch_": lambda: print(self.weights['layer_0']['b'].mean(), self.weights['layer_0']['w'].mean())

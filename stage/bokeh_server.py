@@ -23,7 +23,7 @@ else:
 
 
 def processimg(img):
-    # img = rearrange(img, '(a b) (c d) -> (a c) (b d)', a=4, b=4, c=4, d=4) * 255
+    img = rearrange(img, '(a b) (c d) -> (a c) (b d)', a=4, b=4, c=4, d=4)
     img *= 255
     mono_opa = repeat(img, 'h w -> h w c', c=4)
     mono_opa[:, :, :3] = 0

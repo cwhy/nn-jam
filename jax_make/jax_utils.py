@@ -1,3 +1,5 @@
+from typing import Callable
+
 import numpy.typing as npt
 import jax.numpy as xp
 from jax.scipy.special import logsumexp
@@ -28,3 +30,9 @@ def softmax_cross_entropy(logits: npt.NDArray, target: npt.NDArray) -> npt.NDArr
     return cross_entropy
 
 
+def get_cosine_similarity(eps: float) -> Callable[[npt.NDArray, npt.NDArray], npt.NDArray]:
+    def _fn(x: npt.NDArray, y: npt.NDArray) -> npt.NDArray:
+        y /= xp.maximum(xp.linalg.norm(y, axis=1, keepdims=True), xp.sqrt(eps))
+        x /= xp.maximum(xp.linalg.norm(x, axis=1, keepdims=True), xp.sqrt(eps))
+        return -xp.sum(x * y, axis=1)
+    return _fn

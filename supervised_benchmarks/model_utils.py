@@ -32,7 +32,6 @@ class Train(Generic[DataContent]):
     model: TrainablePerformer[DataContent]
     data_subset: Subset
     data_config: DataConfig
-    stage: Optional[Stage] = None
 
     def run_(self):
         pool_dict: Mapping[Port, DataPool[DataContent]] = self.data_config.get_data()
@@ -50,11 +49,6 @@ class Train(Generic[DataContent]):
             print("Epoch {} in {:0.2f} sec".format(epoch, epoch_time))
             results = [b.log_measure_(self.model)
                        for b in benchmarks]
-            if self.stage is not None:
-                pos_encode = dot_product_encode(self.model.weights['positional_encoding'], 3).reshape(32, -1)
-                corr = np.corrcoef(pos_encode.T)
-                # corr = (corr - corr.min()) / (corr.max() - corr.min()) * 255
-                self.stage.socket.send(pickle.dumps(dict(x=corr)))
             if 'after_epoch_' in self.model.probe:
                 self.model.probe['after_epoch_'](pool_dict)
 
