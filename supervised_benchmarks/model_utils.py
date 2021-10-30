@@ -12,7 +12,7 @@ from typing import List, Mapping, Generic, Protocol, FrozenSet, Callable, Litera
 import numpy as np
 from pynng import Pair0
 
-from jax_make.jax_modules.positional_encoding import dot_product_encode
+from jax_make.components.positional_encoding import dot_product_encode
 from stage.protocol import Stage
 from supervised_benchmarks.benchmark import Benchmark, BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Subset, Port, DataPool, DataContent, DataConfig

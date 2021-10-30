@@ -1,14 +1,14 @@
 from math import sqrt
-from typing import NamedTuple, TypedDict, Literal, Protocol
+from typing import NamedTuple, Protocol
 
 import jax.numpy as xp
 import numpy.typing as npt
 from jax import vmap
 
-from jax_make.components import Component, merge_params
-from jax_make.jax_paramed_functions import linear
-from jax_make.params import ArrayTree, RNGKey, WeightParams
-from jax_make.jax_utils import softmax
+from jax_make.component_protocol import Component, merge_params
+from jax_make.utils.pipelines import linear
+from jax_make.params import ArrayTree, WeightParams
+from jax_make.utils.functions import softmax
 
 
 class SelfMultiHeadAttnConfigs(Protocol):

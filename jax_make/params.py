@@ -5,10 +5,11 @@ from typing import Tuple, NamedTuple, Union, Literal, Mapping, Any, Protocol, Op
 
 import numpy as np
 from jax import numpy as xp
+from jax.interpreters.xla import DeviceArray
 from numpy import typing as npt
 
 ArrayGen = Literal['kaiming', 'dropout', 'embedding']
-RNGKey = Any
+RNGKey = DeviceArray
 
 KT = TypeVar('KT')
 VT_co = TypeVar('VT_co', covariant=True)
@@ -113,7 +114,7 @@ def init_weights_helper(params: ArrayParamTree) -> ArrayTree:
         }
 
 
-def init_weights(params: ArrayParamMapping) -> ArrayTreeMapping:
+def make_weights(params: ArrayParamMapping) -> ArrayTreeMapping:
     return {
         k: init_weights_helper(v)
         for k, v in params.items() if v is not None

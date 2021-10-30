@@ -2,9 +2,9 @@ from pprint import pprint
 
 import jax.numpy as xp
 from jax import tree_flatten, tree_map, jit, vmap, random
-from jax._src.random import PRNGKey
+from jax.random import PRNGKey
 
-from jax_make.params import init_weights
+from jax_make.params import make_weights
 from jax_make.transformer import Transformer, TransformerEncoder
 
 config = Transformer(
@@ -24,19 +24,22 @@ config = Transformer(
 C, N, T = config.dim_input, 10, 7
 x = xp.ones((C, N, T))
 tfe = TransformerEncoder.make(config)
-weights = init_weights(tfe.params)
+# noinspection PyTypeChecker
+weights = make_weights(tfe.weight_params)
 _, struct = tree_flatten(weights)
 pprint(tree_map(lambda _x: _x.shape, weights))
 rng = PRNGKey(0)
 rng, key = random.split(rng)
-result = vmap(jit(tfe.process), (None, 1, None), 1)(weights, x, rng)
+result = vmap(jit(tfe.pipeline), (None, 1, None), 1)(weights, x, rng)
 print(result.shape)
 
 
 x_raw = random.randint(key, (N, T), 0, config.dict_size)
+# noinspection PyTypeChecker
 tf = Transformer.make(config)
-weights = init_weights(tf.params)
+# noinspection PyTypeChecker
+weights = make_weights(tf.weight_params)
 pprint(tree_map(lambda _x: _x.shape, weights))
-result = vmap(jit(tf.process), (None, 0, None), 0)(weights, x_raw, rng)
+result = vmap(jit(tf.pipeline), (None, 0, None), 0)(weights, x_raw, rng)
 print(result)
 print(result.shape)

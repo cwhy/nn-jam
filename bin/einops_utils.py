@@ -157,3 +157,10 @@ class Mix(NamedTuple):
         return Component(components, _fn)
 
 
+b, c, x, x1 = 4, 5, 2, 3
+k = mix("b x c -> b x1 c", weight_shape='x x1', bias_shape='x1', x=x, x1=x1)
+print(k)
+print("finished jit")
+weights = MixWeights(w=xp.ones(k.weight_shape), b=xp.ones(k.bias_shape))
+k = k.make().process(weights, xp.ones((b, x, c)), PRNGKey(0))
+print(k.shape)

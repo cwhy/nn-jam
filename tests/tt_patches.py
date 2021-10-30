@@ -17,8 +17,8 @@ from supervised_benchmarks.dataset_protocols import Input, Output, Data
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, Mnist, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.visualize_utils import view_2d_mono, view_img_rgba
-from jax_make.jax_modules.dirty_patches import DirtyPatches
-from jax_make.params import init_weights
+from jax_make.components.dirty_patches import DirtyPatches
+from jax_make.params import make_weights
 
 data_config_ = MnistDataConfig(
     base_path=Path('/Data/torchvision/'),
@@ -70,7 +70,7 @@ patches = DirtyPatches.make(DirtyPatches(
 ))
 
 pprint(patches.params)
-weights = init_weights(patches.params)
+weights = make_weights(patches.params)
 pprint(tree_map(lambda _x: _x.shape, weights))
 rng = PRNGKey(0)
 out = vmap(patches.process, (None, 0, None), 0)(weights, r, rng)

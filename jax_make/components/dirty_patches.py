@@ -1,4 +1,4 @@
-from typing import NamedTuple, Protocol, List, Literal, Mapping
+from typing import NamedTuple, Protocol, List
 
 import jax
 import jax.numpy as xp
@@ -6,10 +6,10 @@ from einops import rearrange
 from jax import vmap
 from numpy.typing import NDArray
 
-from jax_make.activations import Activation
-from jax_make.components import Component, X, merge_params
-from jax_make.jax_modules.mlp import Mlp
-from jax_make.params import ArrayTree, RNGKey, ArrayTreeMapping
+from jax_make.utils.activations import Activation
+from jax_make.component_protocol import Component, merge_params
+from jax_make.components.mlp import Mlp
+from jax_make.params import ArrayTree, RNGKey
 
 
 class DirtyPatchesConfigs(Protocol):

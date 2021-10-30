@@ -5,7 +5,7 @@ from typing import NamedTuple, Protocol, Tuple, Literal
 import numpy.typing as npt
 from jax import vmap, jit
 
-from jax_make.components import Component, X, FixedProcess
+from jax_make.component_protocol import Component, X, FixedProcess, make_ports, pipeline_ports
 from jax_make.params import WeightParams, ArrayTree
 
 
@@ -34,17 +34,16 @@ class PositionalEncoding(NamedTuple):
         assert config.output_channels == config.dim_encoding == config.input_channels
 
         # [input_channels, *input_shape] -> [output_channels, prod(input_shape)]
-        def _fn(params: ArrayTree, inputs: ArrayTree) -> ArrayTree:
-            x = inputs[X]
-
+        def _fn(params: ArrayTree, inputs: npt.NDArray) -> npt.NDArray:
+            x = inputs
             x *= dot_product_encode(params, len(config.input_shape))
             # [output_channels, *input_shape]
 
-            return {X: x.reshape(config.output_channels, prod(config.input_shape))}
+            return x.reshape(config.output_channels, prod(config.input_shape))
 
         # noinspection PyTypeChecker
         # Because Pycharm sucks
-        return Component.from_fixed_process({X}, {X}, components, _fn)
+        return Component.from_fixed_pipeline(components, _fn)
 
 
 # {} -> [output_channels, *input_shape]

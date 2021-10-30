@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Tuple, List, Mapping, FrozenSet, Literal, Callable, Any, Optional, Dict, NamedTuple
+from typing import Tuple, List, Mapping, FrozenSet, Literal, Callable, Any, Dict
 
 import jax.numpy as jnp
 from jax import jit, grad, tree_map, vmap, tree_flatten, random
-from jax._src.random import PRNGKey
+from jax.random import PRNGKey
 from jax.scipy.special import logsumexp
 from numpy import typing as npt
 from numpy.typing import NDArray
@@ -22,9 +22,9 @@ from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistCon
 from supervised_benchmarks.model_utils import Train, Probes
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler
-from jax_make.activations import Activation
-from jax_make.jax_modules.mlp import Mlp
-from jax_make.params import ArrayTree, RNGKey, init_weights
+from jax_make.utils.activations import Activation
+from jax_make.components.mlp import Mlp
+from jax_make.params import ArrayTree, RNGKey, make_weights
 
 
 @dataclass(frozen=True)
@@ -62,17 +62,17 @@ class MlpModelConfig:
         mlp_train = Mlp.make(mlp_config_train)
         mlp_test = Mlp.make(mlp_config_test)
 
-        weights = init_weights(mlp_train.params)
+        weights = make_weights(mlp_train.weight_params)
         leaves, tree_def = tree_flatten(weights)
         print(tree_def)
 
         @jit
         def forward_test(params, inputs):
-            logits = mlp_test.process(params, inputs, random.PRNGKey(0))
+            logits = mlp_test.pipeline(params, inputs, random.PRNGKey(0))
             return logits - logsumexp(logits, keepdims=True)
 
         def forward_train(params, inputs, rng):
-            logits = mlp_train.process(params, inputs, rng)
+            logits = mlp_train.pipeline(params, inputs, rng)
             return logits - logsumexp(logits, keepdims=True)
 
         def _loss(params, batch, rng):

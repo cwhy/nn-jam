@@ -3,7 +3,7 @@ from typing import NamedTuple, TypedDict, Protocol, Tuple, Union
 import jax.numpy as xp
 import numpy.typing as npt
 
-from jax_make.components import Component
+from jax_make.component_protocol import Component
 from jax_make.params import WeightParams, ArrayTree
 
 

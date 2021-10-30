@@ -93,9 +93,9 @@ class WeightParams(NamedTuple):
    scale: float = 1
 ```
 All the information for initializing an array/tensor will be stored here.
-`WeightParams` will also form a `dict`, which is used to generate all the weights using `init_weights`:
+`WeightParams` will also form a `dict`, which is used to generate all the weights using `make_weights`:
 ```python
-weights = init_weights(weight_params)
+weights = make_weights(weight_params)
 ```
 ### process
 Process is a function that does the actual computation, it will take three parameters:
@@ -107,12 +107,19 @@ And it will return a dict of jax.numpy array as outputs.
 All processes will be passed though jax's jit,
  so they need to be pure.
 
+### ProcessPorts
+```python
+class ProcessPorts(NamedTuple):
+    inputs: FrozenSet[str]
+    outputs: FrozenSet[str]
+```
+It will store the available inputs and outputs for a process.
+Variable protocol will be included in the future for shape checks.
+
 ### Components
 A component represent uninitialized network modules. 
-It consists of two major parts: weight-params and process, which are both introduced.
-It will also contain input and output port definitions,
- currently I included parameter names only.
-Variable protocol will be included in the future for shape checks.
+It consists of two major parts: weight-params and processes.
+All the processes will be stored in a dict of `{ProcessPorts:Process}`
 
 ### make
 A `make` function will take configuration as a parameter to make a component. It takes two inputs:

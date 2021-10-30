@@ -12,7 +12,6 @@ WeightVar = TypeVar("WeightVar")
 CompVar = TypeVar("CompVar", bound=str)
 X: Literal['X'] = 'X'
 
-FixedProcess = Callable[[Mapping[CompVar, ArrayTree], ArrayTreeMapping], ArrayTreeMapping]
 
 
 @dataclass

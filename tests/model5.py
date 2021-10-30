@@ -8,7 +8,7 @@ from typing import Tuple, Mapping, FrozenSet, Literal, Callable, Any, Dict
 
 from jax import jit, grad, tree_map, vmap, tree_flatten, random
 from jax import numpy as xp
-from jax._src.random import PRNGKey
+from jax.random import PRNGKey
 from jax.scipy.special import logsumexp
 from numpy import typing as npt
 from numpy.typing import NDArray
@@ -16,8 +16,9 @@ from pynng import Pair0
 from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
 
-from jax_make.jax_modules.positional_encoding import dot_product_encode
-from jax_make.params import ArrayTree, RNGKey, init_weights
+from jax_make.component_protocol import make_ports
+from jax_make.components.positional_encoding import dot_product_encode
+from jax_make.params import ArrayTree, RNGKey, make_weights
 from jax_make.vit import Vit, VitReconstruct, get_reconstruct_loss
 from stage.protocol import Stage
 from supervised_benchmarks.benchmark import BenchmarkConfig
@@ -76,7 +77,7 @@ class MlpModelConfig:
         vit_train = VitReconstruct.make(config_vit)
         vit_test = VitReconstruct.make(config_test)
 
-        weights = init_weights(vit_train.params)
+        weights = make_weights(vit_train.weight_params)
         leaves, tree_def = tree_flatten(weights)
         print(tree_def)
 
@@ -89,12 +90,12 @@ class MlpModelConfig:
         @jit
         def forward_test(params, inputs):
             # pprint(tree_map(lambda x: "{:.2f}, {:.2f}".format(x.mean().item(), x.std().item()), params))
-            outs = vit_test.process(params, inputs, random.PRNGKey(0))
+            outs = vit_test.processes[make_ports()](params, inputs, random.PRNGKey(0))
             return xp.exp(get_logits(params, outs['y']))
 
         def forward_train(params, inputs, rng):
             print(inputs.shape)
-            outs = vit_train.process(params, inputs, rng)
+            outs = vit_train.processes[make_ports()](params, inputs, rng)
             return get_logits(params, outs)
 
         def _loss(params, batch, rng):

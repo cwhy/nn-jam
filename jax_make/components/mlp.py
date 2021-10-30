@@ -1,13 +1,12 @@
 from typing import NamedTuple, List, Protocol
 
-import numpy.typing as npt
 from jax import random
 from numpy.typing import NDArray
 
-from jax_make.activations import Activation, get_activation
-from jax_make.jax_modules.dropout import Dropout
-from jax_make.components import Component, merge_params, X
-from jax_make.jax_paramed_functions import linear
+from jax_make.utils.activations import Activation, get_activation
+from jax_make.components.dropout import Dropout
+from jax_make.component_protocol import Component, merge_params
+from jax_make.utils.pipelines import linear
 from jax_make.params import WeightParams, ArrayTree, RNGKey
 
 
@@ -54,7 +53,7 @@ class Mlp(NamedTuple):
                 flow_ = components[layer_name].fixed_pipeline(weights[layer_name], flow_)
                 flow_ = activation(flow_)
                 if config.dropout_keep_rate != 1:
-                    flow_ = components[f"dropout_{layer_i}"].process(weights[layer_name], flow_, keys[layer_i])
+                    flow_ = components[f"dropout_{layer_i}"].pipeline(weights[layer_name], flow_, keys[layer_i])
             output_layer = f"layer_{len(config.n_hidden)}"
             flow_ = components[output_layer].fixed_pipeline(weights[output_layer], flow_)
             return flow_

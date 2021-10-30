@@ -10,7 +10,7 @@ from jax._src.random import PRNGKey
 from supervised_benchmarks.dataset_protocols import Input, Output, Data
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
-from jax_make.params import init_weights
+from jax_make.params import make_weights
 from jax_make.vit import Vit
 
 config = Vit(
@@ -42,7 +42,7 @@ print(td.content[0:10].shape)  # 10, 28, 28
 inputs = xp.expand_dims(td.content[0:10], -1)
 
 tf = Vit.make(config)
-weights = init_weights(tf.params)
+weights = make_weights(tf.params)
 pprint(tree_map(lambda _x: _x.shape, weights))
 rng = PRNGKey(0)
 result = vmap(jit(tf.pipeline), (None, 0, None), 0)(weights, inputs, rng)

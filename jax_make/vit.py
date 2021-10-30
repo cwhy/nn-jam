@@ -1,16 +1,16 @@
-from typing import Tuple, List, NamedTuple, Callable, Dict, Literal
+from typing import Tuple, List, NamedTuple, Callable
 
 from jax import numpy as xp, random, vmap
 from numpy import typing as npt
 
-from jax_make.activations import Activation
-from jax_make.components import Component, merge_params
-from jax_make.jax_modules.dirty_patches import DirtyPatches
-from jax_make.jax_modules.embedding import Embeddings
-from jax_make.jax_modules.mlp import Mlp
-from jax_make.jax_modules.norms import LayerNorm
-from jax_make.jax_modules.positional_encoding import PositionalEncoding
-from jax_make.jax_utils import get_cosine_similarity
+from jax_make.utils.activations import Activation
+from jax_make.component_protocol import Component, merge_params
+from jax_make.components.dirty_patches import DirtyPatches
+from jax_make.components.embedding import Embeddings
+from jax_make.components.mlp import Mlp
+from jax_make.components.norms import LayerNorm
+from jax_make.components.positional_encoding import PositionalEncoding
+from jax_make.utils.functions import get_cosine_similarity
 from jax_make.params import ArrayTree
 from jax_make.transformer import TransformerEncoderConfigs, TransformerEncoder
 
