@@ -10,12 +10,14 @@ from jax_make.component_protocol import Component, X, FixedProcess, make_ports, 
 from jax_make.params import WeightParams, ArrayTree
 
 
+PositionalEncodeStrategies = Literal['dot', 'sum', 'naive_sum']
+
 class PositionalEncodingConfigs(Protocol):
     input_shape: Tuple[int, ...]
     input_channels: int
     output_channels: int
     dim_encoding: int
-    positional_encode_strategy: Literal['dot', 'sum']
+    positional_encode_strategy: PositionalEncodeStrategies
 
 
 class PositionalEncoding(NamedTuple):
@@ -23,7 +25,7 @@ class PositionalEncoding(NamedTuple):
     input_channels: int
     output_channels: int
     dim_encoding: int
-    positional_encode_strategy: Literal['dot', 'sum']
+    positional_encode_strategy: PositionalEncodeStrategies
 
     @staticmethod
     def make(config: PositionalEncodingConfigs) -> Component:
@@ -33,7 +35,7 @@ class PositionalEncoding(NamedTuple):
             components = {
                 f'encoding_dim_{i}': WeightParams(shape=(config.dim_encoding, dim),
                                                   init="normal",
-                                                  scale=0.1 ** (1 / len(config.input_shape)))
+                                                  scale=0.01 ** (1 / len(config.input_shape)))
                 for i, dim in enumerate(config.input_shape)
             }
 
@@ -52,7 +54,7 @@ class PositionalEncoding(NamedTuple):
             components = {
                 f'encoding_dim_{i}': WeightParams(shape=(config.dim_encoding, dim),
                                                   init="normal",
-                                                  scale=0.1 / len(config.input_shape))
+                                                  scale=0.01 / len(config.input_shape))
                 for i, dim in enumerate(config.input_shape)
             }
 
@@ -60,10 +62,30 @@ class PositionalEncoding(NamedTuple):
             def _fn(params: ArrayTree, inputs: npt.NDArray) -> npt.NDArray:
                 x = inputs
 
-                x += sum_product_encode(params, config.input_shape)
+                x += sum_encode(params, config.input_shape)
                 # [output_channels, *input_shape]
 
                 return x.reshape(config.output_channels, prod(config.input_shape))
+
+            # noinspection PyTypeChecker
+            # Because Pycharm sucks
+            return Component.from_fixed_pipeline(components, _fn)
+        elif config.positional_encode_strategy == 'naive_sum':
+            dict_size = prod(config.input_shape)
+            components = {
+                f'encoding_all_dim': WeightParams(shape=(config.dim_encoding, dict_size),
+                                                  init="normal",
+                                                  scale=0.01)
+            }
+
+            # [input_channels, *input_shape] -> [output_channels, prod(input_shape)]
+            def _fn(params: ArrayTree, inputs: npt.NDArray) -> npt.NDArray:
+                x = inputs.reshape(config.output_channels, prod(config.input_shape))
+                # [output_channels, *input_shape]
+
+                x += params['encoding_all_dim']
+
+                return x
 
             # noinspection PyTypeChecker
             # Because Pycharm sucks
@@ -83,7 +105,7 @@ def dot_product_encode(params: ArrayTree, input_n_dims: int) -> npt.NDArray:
 
 
 # {} -> [output_channels, *input_shape]
-def sum_product_encode(params: ArrayTree, input_shape: Tuple[int, ...]) -> npt.NDArray:
+def sum_encode(params: ArrayTree, input_shape: Tuple[int, ...]) -> npt.NDArray:
     return reduce(xp.add,
                   (params[f'encoding_dim_{i}'].reshape(
                       [-1] + [n if ii == i else 1 for ii, n in enumerate(input_shape)])

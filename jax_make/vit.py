@@ -187,7 +187,8 @@ class VitReconstruct(NamedTuple):
                     n_in=configs.dim_model,
                     n_hidden=configs.mlp_n_hidden_patches,
                     n_out=patch_size,
-                    activation=configs.mlp_activation,
+                    activation='tanh',
+                    # activation=configs.mlp_activation,
                     dropout_keep_rate=configs.dropout_keep_rate,
                 )
             ),
@@ -226,11 +227,17 @@ class VitReconstruct(NamedTuple):
         T = configs.n_patches_side ** 2 * ch
 
         # [D, D, 1] -> [D]
-        def mask_with_default(x: npt.NDArray, m: npt.NDArray, d: npt.NDArray) -> npt.NDArray:
+        def mask_x_with_default(x: npt.NDArray, m: npt.NDArray, d: npt.NDArray) -> npt.NDArray:
             ds = xp.repeat(d, T)
             ds *= 1 - m
             x *= m
             return ds + x
+
+        # [D, D, 1] -> [D]
+        def mask_y_with_default(x: npt.NDArray, m: npt.NDArray, d: npt.NDArray) -> npt.NDArray:
+            d *= 1 - m
+            x *= m
+            return d + x
 
         def _pre_process_x(weights: ArrayTree, x: npt.NDArray, key) -> npt.NDArray:
             if configs.hwc[-1] == 0:
@@ -239,22 +246,6 @@ class VitReconstruct(NamedTuple):
             # [dim_model, h, w, C]
 
             return x
-
-        # [dim_model, T] -> [dim_model, T]
-        def _random_mask(weights: ArrayTree,
-                         embed_array: npt.NDArray,
-                         missing_embed: npt.NDArray,
-                         key) -> Tuple[npt.NDArray, npt.NDArray]:
-            if 0 < configs.input_keep_rate < 1:
-                x_mask = random.bernoulli(key, configs.input_keep_rate, (T,))
-                masked_array = vmap(mask_with_default, (0, None, 0), 0)(embed_array, x_mask, missing_embed)
-            elif configs.input_keep_rate == 1:
-                x_mask = xp.ones((T,))
-                masked_array = embed_array
-            else:
-                raise Exception("Invalid input keep rate")
-
-            return masked_array, x_mask
 
         # x: [H, W, C] -> x_rec: [dim_model, T], y_rec: dim_model, x_mask: T
         def _fn(weights: ArrayTree, inputs: ArrayTree, rng) -> ArrayTree:
@@ -267,10 +258,22 @@ class VitReconstruct(NamedTuple):
             ](weights['patching'], {Input: x}, key)
             # [dim_model, h, w, C]
             x_flattened = patches_out[Output].reshape((configs.dim_model, T))
+            y_emb = components['out_embedding'].fixed_pipeline(weights['out_embedding'], y)
 
             missing_embed = weights['mask_embedding']['dict'].T
-            rng, key = random.split(rng)
-            masked_x, x_mask = _random_mask(weights, x_flattened, missing_embed, key)
+            if 0 < configs.input_keep_rate < 1:
+                rng, key_x, key_y = random.split(rng, 3)
+                x_mask = random.bernoulli(key_x, configs.input_keep_rate, (T,))
+                masked_x = vmap(mask_x_with_default, (0, None, 0), 0)(x_flattened, x_mask, missing_embed)
+                y_mask = random.bernoulli(key_y, configs.input_keep_rate, (1,))
+                masked_y = vmap(mask_y_with_default, (0, None, 0), 0)(y_emb, y_mask, missing_embed)
+            elif configs.input_keep_rate == 1:
+                x_mask = xp.ones((T,))
+                y_mask = xp.zeros(1)
+                masked_x = x_flattened
+                masked_y = y_emb
+            else:
+                raise Exception("Invalid input keep rate")
             masked_x = components['positional_encoding'].fixed_pipeline(
                 weights['positional_encoding'],
                 masked_x.reshape((configs.dim_model,
@@ -278,9 +281,10 @@ class VitReconstruct(NamedTuple):
                                   configs.n_patches_side,
                                   ch)))
             # [dim_model, (h, w, C)]
-            y_masked_emb = components['positional_encoding_y'].fixed_pipeline(weights['positional_encoding_y'],
-                                                                              missing_embed)
-            yx = xp.c_[y_masked_emb, masked_x]
+
+            masked_y = components['positional_encoding_y'].fixed_pipeline(
+                weights['positional_encoding_y'], masked_y)
+            yx = xp.c_[masked_y, masked_x]
             yx = components['norm'].pipeline(weights['norm'], yx, key)
             # [dim_model, dim_out + (h, w, C)]
 
@@ -297,6 +301,7 @@ class VitReconstruct(NamedTuple):
             y_rec = components['y_reconstruct'].pipeline(weights['y_reconstruct'], y_rec, key2)
             logits = weights['out_embedding']['dict'] @ y_rec
             loss_y = -xp.mean((logits - logsumexp(logits, keepdims=True)) * nn.one_hot(y, configs.dict_size_output))
+            # loss_y *= y_mask
 
             # loss_y = loss_fn(y_emb, y_rec)
 
@@ -307,9 +312,10 @@ class VitReconstruct(NamedTuple):
             print(loss_x_all.shape, "\n*************************")
             # [patch_size, T]
             # loss_x = xp.mean(loss_x_all)
-            loss_x_m = xp.mean(loss_x_all, axis=0) * (1 - x_mask) / xp.maximum((1 - x_mask).sum(), 1)
-            loss_x_nm = xp.mean(loss_x_all, axis=0) * x_mask / xp.maximum(x_mask.sum(), 1)
+            loss_x_m = xp.sum(xp.mean(loss_x_all, axis=0) * (1 - x_mask)) / xp.maximum((1 - x_mask).sum(), 1)
+            loss_x_nm = xp.sum(xp.mean(loss_x_all, axis=0) * x_mask) / xp.maximum(x_mask.sum(), 1)
             loss_x = loss_x_m + loss_x_nm
+            # loss_x = loss_x_m
             rec_loss = loss_x + loss_y
             x_rec_img = einops.rearrange(x_rec, '(dh dw) (h w) -> (h dh) (w dw)', dh=h_patch, h=configs.n_patches_side)
             return {'rec_loss': rec_loss, 'x_rec_img': x_rec_img}

@@ -7,12 +7,17 @@ from pathlib import Path
 from pprint import pprint
 from typing import Tuple, Mapping, FrozenSet, Literal, Callable, Any, Dict
 
+import optax as optax
 from jax import jit, grad, tree_map, vmap, tree_flatten, random
 from jax import numpy as xp
 from jax.random import PRNGKey
 from jax.scipy.special import logsumexp
 from numpy import typing as npt
 from numpy.typing import NDArray
+from optax._src.base import OptState
+from optax._src.combine import chain
+from optax._src.schedule import polynomial_schedule
+from optax._src.transform import scale_by_adam, scale_by_schedule
 from pynng import Pair0
 from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar, ordinal
@@ -70,7 +75,7 @@ class MlpModelConfig:
             n_tfe_layers=8,
             dim_output=1,
             dict_size_output=y_dim,
-            input_keep_rate=0.8,
+            input_keep_rate=0.5,
         )
         config_test = config_vit._replace(
             dropout_keep_rate=1,
@@ -112,21 +117,39 @@ class MlpModelConfig:
             grads = grad(loss)(params, batch, key)
             return tree_map(lambda x, dx: x - step_size * dx, params, grads), rng
 
+        @jit
+        def update_adam(params, batch, _state: Tuple[RNGKey, OptState]):
+            rng, _opt_state = _state
+            key, rng = random.split(rng)
+            grads = grad(loss)(params, batch, key)
+            updates, _opt_state = optimiser.update(grads, _opt_state)
+            params = optax.apply_updates(params, updates)
+            return params, (rng, _opt_state)
+
+        schedule_fn = polynomial_schedule(
+            init_value=-self.step_size/100, end_value=-self.step_size, power=1, transition_steps=5000)
+        optimiser = chain(
+            scale_by_adam(eps=1e-4),
+            scale_by_schedule(schedule_fn))
+        opt_state: OptState = optimiser.init(weights)
+
         with Pair0(dial='tcp://127.0.0.1:54323') as socket:
             stage = Stage(socket)
-            model = MlpModel(self, weights, PRNGKey(0), vmap(forward_test, (None, 0), 0), update, forward_train,
+            state = (PRNGKey(0), opt_state)
+            model = MlpModel(self, weights, state,
+                             vmap(forward_test, (None, 0), 0), update_adam, forward_train,
                              train_stage=stage)
             Train(
                 num_epochs=self.num_epochs,
                 batch_size=self.train_batch_size,
-                # BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))}, on=FixedTrain),
                 bench_configs=[
                     BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(ordinal(y_dim)))},
                                     on=FixedTest,
                                     sampler_config=FixedEpochSamplerConfig(512)),
-                    BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(ordinal(y_dim)))},
-                                    on=FixedTrain,
-                                    sampler_config=FixedEpochSamplerConfig(512))],
+                #     BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(ordinal(y_dim)))},
+                #                     on=FixedTrain,
+                #                     sampler_config=FixedEpochSamplerConfig(512)),
+                ],
                 model=model,
                 data_subset=FixedTrain,
                 data_config=self.train_data_config,
@@ -138,9 +161,9 @@ class MlpModelConfig:
 class MlpModel:
     model: MlpModelConfig
     weights: ArrayTree
-    state: RNGKey
+    state: Tuple[RNGKey, OptState]
     forward_test: Callable[[ArrayTree, npt.NDArray], npt.NDArray]
-    update: Callable[[ArrayTree, float, Any, RNGKey], Tuple[ArrayTree, RNGKey]]
+    update: Callable[[ArrayTree, Any, Tuple[RNGKey, OptState]], Tuple[ArrayTree, Tuple[RNGKey, OptState]]]
     forward_train: Callable[[ArrayTree, Any, RNGKey], ArrayTree]
     train_stage: Stage
 
@@ -150,10 +173,11 @@ class MlpModel:
             cfg = FullBatchSamplerConfig()
             sp1 = cfg.get_sampler(subset_all(pool, FixedTrain)).full_batch
             sp2 = cfg.get_sampler(subset_all(pool, FixedTest)).full_batch
+
             i1, o1 = sp1[Input][:1000, :, :], sp1[Output][:1000]
             i2, o2 = sp2[Input][:1000, :, :], sp2[Output][:1000]
-            forwarded_train = self.forward_train(self.weights, {Input: i1, Output: o1}, self.state)
-            forwarded_test = self.forward_train(self.weights, {Input: i2, Output: o2}, self.state)
+            forwarded_train = self.forward_train(self.weights, {Input: i1, Output: o1}, self.state[0])
+            forwarded_test = self.forward_train(self.weights, {Input: i2, Output: o2}, self.state[0])
             print("loss: ",
                   forwarded_train['rec_loss'].mean(),
                   forwarded_test['rec_loss'].mean())
@@ -174,7 +198,6 @@ class MlpModel:
 
     def update_(self, sampler: MiniBatchSampler):
         self.weights, self.state = self.update(self.weights,
-                                               self.model.step_size,
                                                {Input: next(sampler.iter[Input]), Output: next(sampler.iter[Output])},
                                                self.state)
 
@@ -209,8 +232,8 @@ benchmark_config_ = BenchmarkConfig(
 # Because Pycharm sucks
 model_ = MlpModelConfig(
     dim_model=64,
-    step_size=0.01,
-    num_epochs=1000,
+    step_size=0.001,
+    num_epochs=20000,
     train_batch_size=128,
     train_data_config=data_config_,
 ).prepare()

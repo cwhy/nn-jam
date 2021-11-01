@@ -85,7 +85,7 @@ def embedding_init(sd: float, shape: Tuple[int, ...]) -> npt.NDArray:
     weight matrix of shape (dict_size, ..., dim_model)
     """
     dim_model = shape[-1]
-    return xp.array(0.1 * np.random.normal(0, sd, shape))
+    return xp.array(0.01 * np.random.normal(0, sd, shape))
 
 
 def normal_init(sd: float, shape: Tuple[int, ...]) -> npt.NDArray:
