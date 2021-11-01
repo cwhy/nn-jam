@@ -4,6 +4,7 @@ from __future__ import annotations
 import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
+from pprint import pprint
 from typing import Tuple, Mapping, FrozenSet, Literal, Callable, Any, Dict
 
 from jax import jit, grad, tree_map, vmap, tree_flatten, random
@@ -14,17 +15,17 @@ from numpy import typing as npt
 from numpy.typing import NDArray
 from pynng import Pair0
 from variable_protocols.protocols import Variable
-from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
+from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar, ordinal
 
-from jax_make.component_protocol import make_ports
+from jax_make.component_protocol import make_ports, pipeline_ports
 from jax_make.components.positional_encoding import dot_product_encode
 from jax_make.params import ArrayTree, RNGKey, make_weights
-from jax_make.vit import Vit, VitReconstruct, get_reconstruct_loss
+from jax_make.vit import VitReconstruct
 from stage.protocol import Stage
 from supervised_benchmarks.benchmark import BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataConfig, DataPool, DataContent
 from supervised_benchmarks.dataset_utils import subset_all
-from supervised_benchmarks.metrics import get_mean_acc
+from supervised_benchmarks.metrics import get_pair_metric
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.model_utils import Train, Probes
@@ -34,6 +35,7 @@ from supervised_benchmarks.sampler import MiniBatchSampler, FixedEpochSamplerCon
 
 @dataclass(frozen=True)
 class MlpModelConfig:
+    dim_model: int
     step_size: float
     num_epochs: int
     train_batch_size: int
@@ -54,17 +56,17 @@ class MlpModelConfig:
     def prepare(self) -> Performer[NDArray]:
         y_dim = 10
         eps = 0.00001
-        config_vit = Vit(
+        config_vit = VitReconstruct(
             n_heads=8,
-            dim_model=32,
+            dim_model=self.dim_model,
             dropout_keep_rate=1,
             eps=eps,
-            mlp_n_hidden=[50],
+            mlp_n_hidden=[128],
             mlp_activation='gelu',
             pos_t=-1,
-            hwc=(28, 28, 1),
+            hwc=(28, 28, 0),
             n_patches_side=4,
-            mlp_n_hidden_patches=[64],
+            mlp_n_hidden_patches=[128],
             n_tfe_layers=8,
             dim_output=1,
             dict_size_output=y_dim,
@@ -78,8 +80,9 @@ class MlpModelConfig:
         vit_test = VitReconstruct.make(config_test)
 
         weights = make_weights(vit_train.weight_params)
-        leaves, tree_def = tree_flatten(weights)
-        print(tree_def)
+        pprint(tree_map(lambda x: "{:.2f}, {:.2f}".format(x.mean().item(), x.std().item()), weights))
+        # leaves, tree_def = tree_flatten(weights)
+        # print(tree_def)
 
         def get_logits(params, y_rec):
             logits = params['out_embedding']['dict'] @ y_rec
@@ -88,28 +91,19 @@ class MlpModelConfig:
             return logits - logsumexp(logits, keepdims=True)
 
         @jit
-        def forward_test(params, inputs):
-            # pprint(tree_map(lambda x: "{:.2f}, {:.2f}".format(x.mean().item(), x.std().item()), params))
-            outs = vit_test.processes[make_ports()](params, inputs, random.PRNGKey(0))
-            return xp.exp(get_logits(params, outs['y']))
-
-        def forward_train(params, inputs, rng):
-            print(inputs.shape)
-            outs = vit_train.processes[make_ports()](params, inputs, rng)
-            return get_logits(params, outs)
-
-        def _loss(params, batch, rng):
-            rngs = random.split(rng, len(batch['X']))
-            outs = vmap(forward_train, (None, 0, 0))(params, batch['X'], rngs)
-            preds = vmap(get_reconstruct_loss(eps), [0]*5, 0)(outs['x'], batch[''], outs[''], outs[''])
-            return -xp.mean()
+        def forward_test(params, x):
+            outs = vit_test.pipeline(params, x, random.PRNGKey(0))
+            return xp.argmax(xp.exp(get_logits(params, outs)))
 
         @jit
-        def _loss_all(params, batch, rng):
-            rngs = random.split(rng, len(batch['X']))
-            return -xp.mean()
+        def forward_train(params, batch, rng):
+            rngs = random.split(rng, batch[Output].shape[0])
+            outs = vmap(vit_train.processes[make_ports((Input, Output), ('rec_loss', 'x_rec_img'))],
+                        (None, 0, 0))(params, batch, rngs)
+            return outs
 
-        loss = _loss
+        def loss(params, batch, rng):
+            return forward_train(params, batch, rng)['rec_loss'].mean()
 
         @jit
         def update(params, step_size: float, batch, rng: RNGKey):
@@ -118,19 +112,19 @@ class MlpModelConfig:
             grads = grad(loss)(params, batch, key)
             return tree_map(lambda x, dx: x - step_size * dx, params, grads), rng
 
-        with Pair0(dial='tcp://127.0.0.1:54322') as socket:
+        with Pair0(dial='tcp://127.0.0.1:54323') as socket:
             stage = Stage(socket)
-            model = MlpModel(self, weights, PRNGKey(0), vmap(forward_test, (None, 0), 0), update, loss,
+            model = MlpModel(self, weights, PRNGKey(0), vmap(forward_test, (None, 0), 0), update, forward_train,
                              train_stage=stage)
             Train(
                 num_epochs=self.num_epochs,
                 batch_size=self.train_batch_size,
-                # BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTrain),
+                # BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))}, on=FixedTrain),
                 bench_configs=[
-                    BenchmarkConfig(metrics={Output: get_mean_acc(10)},
+                    BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(ordinal(y_dim)))},
                                     on=FixedTest,
                                     sampler_config=FixedEpochSamplerConfig(512)),
-                    BenchmarkConfig(metrics={Output: get_mean_acc(10)},
+                    BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(ordinal(y_dim)))},
                                     on=FixedTrain,
                                     sampler_config=FixedEpochSamplerConfig(512))],
                 model=model,
@@ -147,7 +141,7 @@ class MlpModel:
     state: RNGKey
     forward_test: Callable[[ArrayTree, npt.NDArray], npt.NDArray]
     update: Callable[[ArrayTree, float, Any, RNGKey], Tuple[ArrayTree, RNGKey]]
-    loss: Callable[[ArrayTree, Any, RNGKey], npt.NDArray]
+    forward_train: Callable[[ArrayTree, Any, RNGKey], ArrayTree]
     train_stage: Stage
 
     @property
@@ -156,25 +150,32 @@ class MlpModel:
             cfg = FullBatchSamplerConfig()
             sp1 = cfg.get_sampler(subset_all(pool, FixedTrain)).full_batch
             sp2 = cfg.get_sampler(subset_all(pool, FixedTest)).full_batch
-            i1, o1 = sp1[Input][:1000, :, :], sp1[Output][:1000, :]
-            i2, o2 = sp2[Input][:1000, :, :], sp2[Output][:1000, :]
+            i1, o1 = sp1[Input][:1000, :, :], sp1[Output][:1000]
+            i2, o2 = sp2[Input][:1000, :, :], sp2[Output][:1000]
+            forwarded_train = self.forward_train(self.weights, {Input: i1, Output: o1}, self.state)
+            forwarded_test = self.forward_train(self.weights, {Input: i2, Output: o2}, self.state)
             print("loss: ",
-                  self.loss(self.weights, {"X": i1, "Y": o1}, PRNGKey(0)),
-                  self.loss(self.weights, {"X": i2, "Y": o2}, PRNGKey(0)))
-            pos_encode = dot_product_encode(self.weights['positional_encoding'], 3).reshape(32, -1)
-            corr = xp.cov(pos_encode.T)
+                  forwarded_train['rec_loss'].mean(),
+                  forwarded_test['rec_loss'].mean())
+            pos_encode = dot_product_encode(self.weights['positional_encoding'], 3).reshape(self.model.dim_model, -1)
+            print(pos_encode.mean())
+            # corr = xp.corrcoef(pos_encode.T)
+            corr = xp.corrcoef(pos_encode.T)
+            corr2 = xp.corrcoef(self.weights['out_embedding']['dict'])
             # corr = (corr - corr.min()) / (corr.max() - corr.min()) * 255
-            self.train_stage.socket.send(pickle.dumps(dict(x=corr)))
+            self.train_stage.socket.send(pickle.dumps(dict(x=corr, y=corr2,
+                                                           tr_img=forwarded_train['x_rec_img'][-1, :, :],
+                                                           tst_img=forwarded_test['x_rec_img'][-1, :, :])))
 
         return {
             # "after_epoch_": lambda: print(self.weights['layer_0']['b'].mean(), self.weights['layer_0']['w'].mean())
-            "after_epoch_": debug
+            "before_epoch_": debug
         }
 
     def update_(self, sampler: MiniBatchSampler):
         self.weights, self.state = self.update(self.weights,
                                                self.model.step_size,
-                                               {'X': next(sampler.iter[Input]), 'Y': next(sampler.iter[Output])},
+                                               {Input: next(sampler.iter[Input]), Output: next(sampler.iter[Output])},
                                                self.state)
 
     def predict(self, inputs: NDArray):
@@ -195,18 +196,21 @@ data_config_ = MnistDataConfig(
     base_path=Path('/Data/torchvision/'),
     port_vars={
         Input: MnistConfigIn(is_float=True, is_flat=False).get_var(),
-        Output: MnistConfigOut(is_1hot=True).get_var()
+        Output: MnistConfigOut(is_1hot=False).get_var()
     })
 
+# noinspection PyTypeChecker
+# Because Pycharm sucks
 benchmark_config_ = BenchmarkConfig(
-    metrics={Output: get_mean_acc(10)},
+    metrics={Output: get_pair_metric('mean_acc', data_config_.port_vars[Output])},
     on=FixedTest)
 
 # noinspection PyTypeChecker
 # Because Pycharm sucks
 model_ = MlpModelConfig(
+    dim_model=64,
     step_size=0.01,
-    num_epochs=200,
+    num_epochs=1000,
     train_batch_size=128,
     train_data_config=data_config_,
 ).prepare()

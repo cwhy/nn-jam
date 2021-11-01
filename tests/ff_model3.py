@@ -91,8 +91,8 @@ class MlpModelConfig:
         Train(
             num_epochs=self.num_epochs,
             batch_size=self.train_batch_size,
-            bench_configs=[BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTrain),
-                           BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTest)],
+            bench_configs=[BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))}, on=FixedTrain),
+                           BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))}, on=FixedTest)],
             model=model,
             data_subset=FixedTrain,
             data_config=self.train_data_config,
@@ -142,7 +142,7 @@ data_config_ = MnistDataConfig(
     })
 
 benchmark_config_ = BenchmarkConfig(
-    metrics={Output: get_mean_acc(10)},
+    metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))},
     on=FixedTest)
 
 # noinspection PyTypeChecker

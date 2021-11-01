@@ -8,7 +8,7 @@ from jax import numpy as xp
 from jax.interpreters.xla import DeviceArray
 from numpy import typing as npt
 
-ArrayGen = Literal['kaiming', 'dropout', 'embedding']
+ArrayGen = Literal['kaiming', 'dropout', 'embedding', 'normal']
 RNGKey = DeviceArray
 
 KT = TypeVar('KT')
@@ -85,7 +85,11 @@ def embedding_init(sd: float, shape: Tuple[int, ...]) -> npt.NDArray:
     weight matrix of shape (dict_size, ..., dim_model)
     """
     dim_model = shape[-1]
-    return xp.array(0.01 * np.random.normal(0, sd, shape))
+    return xp.array(0.1 * np.random.normal(0, sd, shape))
+
+
+def normal_init(sd: float, shape: Tuple[int, ...]) -> npt.NDArray:
+    return xp.array(np.random.normal(0, sd, shape))
 
 
 def array_gen(params: ArrayParams) -> npt.NDArray:
@@ -95,6 +99,8 @@ def array_gen(params: ArrayParams) -> npt.NDArray:
         return kaiming_init(params.scale, params.shape)
     elif params.init == 'embedding':
         return embedding_init(params.scale, params.shape)
+    elif params.init == 'normal':
+        return normal_init(params.scale, params.shape)
     elif params.init == 'dropout':
         return dropout_gen(params.scale, params.shape)
     else:

@@ -23,7 +23,7 @@ from stage.protocol import Stage
 from supervised_benchmarks.benchmark import BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataConfig, DataPool, DataContent
 from supervised_benchmarks.dataset_utils import subset_all
-from supervised_benchmarks.metrics import get_mean_acc
+from supervised_benchmarks.metrics import get_mean_acc, get_pair_metric
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.model_utils import Train, Probes
@@ -121,12 +121,13 @@ class MlpModelConfig:
             Train(
                 num_epochs=self.num_epochs,
                 batch_size=self.train_batch_size,
-                # BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTrain),
+                # BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))},
+                # on=FixedTrain),
                 bench_configs=[
-                    BenchmarkConfig(metrics={Output: get_mean_acc(10)},
+                    BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))},
                                     on=FixedTest,
                                     sampler_config=FixedEpochSamplerConfig(512)),
-                    BenchmarkConfig(metrics={Output: get_mean_acc(10)},
+                    BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))},
                                     on=FixedTrain,
                                     sampler_config=FixedEpochSamplerConfig(512))],
                 model=model,
@@ -195,7 +196,7 @@ data_config_ = MnistDataConfig(
     })
 
 benchmark_config_ = BenchmarkConfig(
-    metrics={Output: get_mean_acc(10)},
+    metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))},
     on=FixedTest)
 
 # noinspection PyTypeChecker

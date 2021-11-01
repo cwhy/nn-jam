@@ -3,11 +3,12 @@ from pathlib import Path
 import matplotlib.gridspec as gridspec
 import numpy.typing as npt
 from matplotlib import pyplot as plt
+from variable_protocols.variables import var_scalar, one_hot
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Input, Output
 from supervised_benchmarks.iraven.iraven import get_iraven_, IravenDataConfig, iraven_in_raw, iraven_out_raw, FixedTest
-from supervised_benchmarks.metrics import get_mean_acc
+from supervised_benchmarks.metrics import get_mean_acc, get_pair_metric
 from supervised_benchmarks.sampler import FullBatchSampler
 
 
@@ -48,8 +49,10 @@ data_config_ = IravenDataConfig(
         Output: iraven_out_raw,
     })
 
+# noinspection PyTypeChecker
+# Because Pycharm sucks
 benchmark_config_ = BenchmarkConfig(
-    metrics={Output: get_mean_acc(10)},
+    metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))},
     on=FixedTest)
 benchmark = benchmark_config_.prepare(data_config_.get_data())
 sampler = benchmark.sampler

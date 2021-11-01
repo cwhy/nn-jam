@@ -37,7 +37,7 @@ pos_encode = PositionalEncoding.make(PositionalEncoding(
     input_channels=4,
     output_channels=4,
     dim_encoding=4,
-    positional_encode_strategy='dot'
+    positional_encode_strategy='sum'
 ))
 inputs = xp.ones((4, 2, 3, 5, 7))
 # noinspection PyTypeChecker

@@ -22,7 +22,7 @@ class FixedProcess(Generic[CompVar]):
 
 class Process(Generic[CompVar]):
     def __call__(self, weights: Mapping[CompVar, ArrayTree],
-                 inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping: ...
+                 inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping: ...
 
 
 class Pipeline(Generic[CompVar]):
@@ -58,6 +58,16 @@ def make_ports(inputs: str | Tuple[str, ...], outputs: str | Tuple[str, ...]) ->
 
 
 pipeline_ports = make_ports(Input, Output)
+
+
+def pipeline2processes(pipeline: Pipeline[CompVar]) -> Dict[ProcessPorts, Process[CompVar]]:
+    def _fn(weights: Mapping[CompVar, ArrayTree],
+            x: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+        return {Output: pipeline(weights, x[Input], rng)}
+
+    # noinspection PyTypeChecker
+    # Because pycharm sucks
+    return {pipeline_ports: _fn}
 
 
 # Fixed_pipeline -> pipeline -> process
@@ -121,14 +131,7 @@ class Component(Generic[CompVar]):
     def from_pipeline(cls,
                       params: Mapping[CompVar, ArrayParamTree],
                       pipeline: Pipeline[CompVar]) -> Component[CompVar]:
-
-        def _fn(weights: Mapping[CompVar, ArrayTree],
-                x: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
-            return {Output: pipeline(weights, x[Input], rng)}
-
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
-        return cls(params, {pipeline_ports: _fn})
+        return cls(params, pipeline2processes(pipeline))
 
     @classmethod
     def from_fixed_process(cls,

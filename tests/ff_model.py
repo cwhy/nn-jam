@@ -15,7 +15,7 @@ from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataQuery, DataConfig
-from supervised_benchmarks.metrics import get_mean_acc
+from supervised_benchmarks.metrics import get_mean_acc, get_pair_metric
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.model_utils import Train
@@ -76,8 +76,8 @@ class MlpModelConfig:
         Train(
             num_epochs=self.num_epochs,
             batch_size=self.train_batch_size,
-            bench_configs=[BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTrain),
-                           BenchmarkConfig(metrics={Output: get_mean_acc(10)}, on=FixedTest)],
+            bench_configs=[BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))}, on=FixedTrain),
+                           BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))}, on=FixedTest)],
             model=model,
             data_subset=FixedTrain,
             data_config=self.train_data_config
@@ -117,7 +117,7 @@ data_config_ = MnistDataConfig(
     })
 
 benchmark_config_ = BenchmarkConfig(
-    metrics={Output: get_mean_acc(10)},
+    metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))},
     on=FixedTest)
 
 # noinspection PyTypeChecker
