@@ -9,3 +9,4 @@ matplotlib
 trio-websocket
 pynng
 trio
+optax

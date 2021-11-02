@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="owner@10.97.176.211:3333" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="dgx">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/owner/Projects/nn-jam" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/Data/torchvision/MNIST" local="/Data/torchvision/MNIST" />
+            <mapping deploy="/media/owner/data/raven/IRaven" local="/mnt/dataSSD/raven/IRaven" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/venv" />
+          </excludedPaths>
+        </serverdata>
+      </paths>
+      <paths name="owner@10.97.176.211:3333">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/pycharm_project_422" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>

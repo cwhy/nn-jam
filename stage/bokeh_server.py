@@ -47,7 +47,7 @@ def show_img(img, _h, _w):
 
 
 def processx(img):
-    img = rearrange(img, '(a b) (c d) -> (a c) (b d)', a=n_patches_side,  c=n_patches_side)
+    # img = rearrange(img, '(a b) (c d) -> (a c) (b d)', a=n_patches_side,  c=n_patches_side)
     return show_img(img, h, w)
 
 
