@@ -5,25 +5,24 @@ import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
 from pprint import pprint
+from random import randint
 from typing import Tuple, Mapping, FrozenSet, Literal, Callable, Any, Dict
 
 import optax as optax
-from jax import jit, grad, tree_map, vmap, tree_flatten, random
+from jax import jit, grad, tree_map, vmap, random
 from jax import numpy as xp
 from jax.random import PRNGKey
 from jax.scipy.special import logsumexp
 from numpy import typing as npt
 from numpy.typing import NDArray
+from optax._src.alias import adamw
 from optax._src.base import OptState
-from optax._src.combine import chain
-from optax._src.schedule import polynomial_schedule
-from optax._src.transform import scale_by_adam, scale_by_schedule
 from pynng import Pair0
 from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar, ordinal
 
-from jax_make.component_protocol import make_ports, pipeline_ports
-from jax_make.components.positional_encoding import dot_product_encode
+from jax_make.component_protocol import make_ports
+from jax_make.components.positional_encoding import sum_encode
 from jax_make.params import ArrayTree, RNGKey, make_weights
 from jax_make.vit import VitReconstruct
 from stage.protocol import Stage
@@ -61,6 +60,7 @@ class MlpModelConfig:
     def prepare(self) -> Performer[NDArray]:
         y_dim = 10
         eps = 0.00001
+        weight_decay = 0.0001
         config_vit = VitReconstruct(
             n_heads=8,
             dim_model=self.dim_model,
@@ -70,12 +70,13 @@ class MlpModelConfig:
             mlp_activation='gelu',
             pos_t=-1,
             hwc=(28, 28, 0),
-            n_patches_side=4,
+            n_patches_side=7,
             mlp_n_hidden_patches=[128],
-            n_tfe_layers=8,
+            n_tfe_layers=4,
             dim_output=1,
             dict_size_output=y_dim,
             input_keep_rate=0.5,
+            init_scale=0.0001,
         )
         config_test = config_vit._replace(
             dropout_keep_rate=1,
@@ -122,15 +123,16 @@ class MlpModelConfig:
             rng, _opt_state = _state
             key, rng = random.split(rng)
             grads = grad(loss)(params, batch, key)
-            updates, _opt_state = optimiser.update(grads, _opt_state)
+            updates, _opt_state = optimiser.update(grads, _opt_state, params)
             params = optax.apply_updates(params, updates)
             return params, (rng, _opt_state)
 
-        schedule_fn = polynomial_schedule(
-            init_value=-self.step_size/100, end_value=-self.step_size, power=1, transition_steps=5000)
-        optimiser = chain(
-            scale_by_adam(eps=1e-4),
-            scale_by_schedule(schedule_fn))
+        optimiser = adamw(self.step_size, 0.9, 0.98, eps, weight_decay)
+        # schedule_fn = polynomial_schedule(
+        #     init_value=-self.step_size/10, end_value=-self.step_size, power=1, transition_steps=5000)
+        # optimiser = chain(
+        #     scale_by_adam(eps=1e-4),
+        #     scale_by_schedule(schedule_fn))
         opt_state: OptState = optimiser.init(weights)
 
         with Pair0(dial='tcp://127.0.0.1:54323') as socket:
@@ -181,15 +183,16 @@ class MlpModel:
             print("loss: ",
                   forwarded_train['rec_loss'].mean(),
                   forwarded_test['rec_loss'].mean())
-            pos_encode = dot_product_encode(self.weights['positional_encoding'], 3).reshape(self.model.dim_model, -1)
-            print(pos_encode.mean())
+            # pos_encode = sum_encode(self.weights['positional_encoding'], (4, 4)).reshape(self.model.dim_model, -1)
+            pos_encode = self.weights['positional_encoding']['encoding_all_dim']
+            print(pos_encode.std())
             # corr = xp.corrcoef(pos_encode.T)
             corr = xp.corrcoef(pos_encode.T)
             corr2 = xp.corrcoef(self.weights['out_embedding']['dict'])
             # corr = (corr - corr.min()) / (corr.max() - corr.min()) * 255
             self.train_stage.socket.send(pickle.dumps(dict(x=corr, y=corr2,
-                                                           tr_img=forwarded_train['x_rec_img'][-1, :, :],
-                                                           tst_img=forwarded_test['x_rec_img'][-1, :, :])))
+                                                           tr_img=forwarded_train['x_rec_img'][randint(0, 1000), :, :],
+                                                           tst_img=forwarded_test['x_rec_img'][randint(0, 1000), :, :])))
 
         return {
             # "after_epoch_": lambda: print(self.weights['layer_0']['b'].mean(), self.weights['layer_0']['w'].mean())

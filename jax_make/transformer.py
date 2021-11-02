@@ -23,6 +23,7 @@ class TransformerEncoderConfigs(Protocol):
     eps: float
     mlp_n_hidden: List[int]
     mlp_activation: Activation
+    init_scale: float
 
 
 class TransformerLayer(NamedTuple):

@@ -48,6 +48,7 @@ class Vit(NamedTuple):
     dict_size_output: int
 
     input_keep_rate: float
+    init_scale: float
 
     @staticmethod
     def make(configs: VitConfigs) -> Component:
@@ -155,6 +156,7 @@ class VitReconstruct(NamedTuple):
     dict_size_output: int
 
     input_keep_rate: float
+    init_scale: float
 
     @staticmethod
     def make(configs: VitConfigs) -> Component:
@@ -168,9 +170,11 @@ class VitReconstruct(NamedTuple):
         patch_size = h_patch * w_patch * ch
         components = {
             'mask_embedding': Embeddings.make(Embeddings(dict_size=1,
-                                                         dim_model=configs.dim_model)),
+                                                         dim_model=configs.dim_model,
+                                                         init_scale=configs.init_scale)),
             'out_embedding': Embeddings.make(Embeddings(dict_size=configs.dict_size_output,
-                                                        dim_model=configs.dim_model)),
+                                                        dim_model=configs.dim_model,
+                                                        init_scale=configs.init_scale)),
             'patching': DirtyPatches.make(DirtyPatches(
                 dim_out=configs.dim_model,
                 n_sections_w=configs.n_patches_side,
@@ -178,17 +182,17 @@ class VitReconstruct(NamedTuple):
                 h=configs.hwc[0],
                 w=configs.hwc[1],
                 ch=ch,
-                mlp_n_hidden=configs.mlp_n_hidden_patches,
+                mlp_n_hidden=[],
                 mlp_activation=configs.mlp_activation,
                 dropout_keep_rate=configs.dropout_keep_rate
             )),
             'x_reconstruct': Mlp.make(
                 Mlp(
                     n_in=configs.dim_model,
-                    n_hidden=configs.mlp_n_hidden_patches,
+                    n_hidden=[],
                     n_out=patch_size,
-                    activation='tanh',
-                    # activation=configs.mlp_activation,
+                    # activation='tanh',
+                    activation=configs.mlp_activation,
                     dropout_keep_rate=configs.dropout_keep_rate,
                 )
             ),
@@ -207,14 +211,16 @@ class VitReconstruct(NamedTuple):
                 input_channels=configs.dim_model,
                 output_channels=configs.dim_model,
                 dim_encoding=configs.dim_model,
-                positional_encode_strategy='sum'
+                positional_encode_strategy='naive_sum',
+                init_scale=configs.init_scale,
             )),
             'positional_encoding_y': PositionalEncoding.make(PositionalEncoding(
                 input_shape=(1,),
                 input_channels=configs.dim_model,
                 output_channels=configs.dim_model,
                 dim_encoding=configs.dim_model,
-                positional_encode_strategy='sum'
+                positional_encode_strategy='naive_sum',
+                init_scale=configs.init_scale
             )),
             'encoder': TransformerEncoder.make(configs),
             'norm': LayerNorm.make(LayerNorm(
@@ -301,7 +307,7 @@ class VitReconstruct(NamedTuple):
             y_rec = components['y_reconstruct'].pipeline(weights['y_reconstruct'], y_rec, key2)
             logits = weights['out_embedding']['dict'] @ y_rec
             loss_y = -xp.mean((logits - logsumexp(logits, keepdims=True)) * nn.one_hot(y, configs.dict_size_output))
-            # loss_y *= y_mask
+            loss_y *= 1 - y_mask  # Use this for precise y converge
 
             # loss_y = loss_fn(y_emb, y_rec)
 

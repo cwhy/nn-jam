@@ -65,7 +65,7 @@ class Benchmark(Generic[DataContent]):
 
             measures = []
             for tgt, metric in metrics.items():
-                print(merge_vec(results[tgt]).mean(axis=0))
+                print("out_mean: ", merge_vec(results[tgt]).mean(axis=0))
                 measure = metric.measure(merge_vec(results[tgt]), merge_vec(targets[tgt]))
                 measures.append(measure)
             return measures

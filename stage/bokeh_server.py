@@ -12,8 +12,9 @@ from tornado.ioloop import IOLoop
 
 doc = curdoc()
 
-w = 16
-h = 16
+n_patches_side = 7
+w = n_patches_side ** 2
+h = n_patches_side ** 2
 w2 = 10
 h2 = 10
 w3 = 28
@@ -46,7 +47,7 @@ def show_img(img, _h, _w):
 
 
 def processx(img):
-    img = rearrange(img, '(a b) (c d) -> (a c) (b d)', a=4, b=4, c=4, d=4)
+    img = rearrange(img, '(a b) (c d) -> (a c) (b d)', a=n_patches_side,  c=n_patches_side)
     return show_img(img, h, w)
 
 
@@ -84,7 +85,7 @@ p1 = get_figure(h, w, "x")
 p2 = get_figure(h2, w2, "y")
 p3 = get_figure(h3, w3, "tr_img")
 
-p = row([column(p1, p2), p3])
+p = row([column(p3, p2), p1])
 
 
 @without_document_lock

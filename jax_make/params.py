@@ -74,10 +74,10 @@ def kaiming_init(sd: float, shape: Tuple[int, ...]) -> npt.NDArray:
     return xp.array(np.sqrt(2 / n_in) * np.random.normal(0, sd, shape))
 
 
-def embedding_init(sd: float, shape: Tuple[int, ...]) -> npt.NDArray:
+def embedding_init(scale: float, shape: Tuple[int, ...]) -> npt.NDArray:
     """
     Arguments:
-    :param sd:  standard deviation for initialization
+    :param scale:  standard deviation for initialization
         :param shape:  = (dict_size, ..., dim_model)
     where
 
@@ -85,7 +85,7 @@ def embedding_init(sd: float, shape: Tuple[int, ...]) -> npt.NDArray:
     weight matrix of shape (dict_size, ..., dim_model)
     """
     dim_model = shape[-1]
-    return xp.array(0.01 * np.random.normal(0, sd, shape))
+    return xp.array(np.random.normal(0, scale * np.sqrt(dim_model), shape))
 
 
 def normal_init(sd: float, shape: Tuple[int, ...]) -> npt.NDArray:

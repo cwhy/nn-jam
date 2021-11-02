@@ -14,16 +14,18 @@ class EmbeddingsWeights(TypedDict):
 class EmbeddingsConfigs(Protocol):
     dict_size: int
     dim_model: int
+    init_scale: float
 
 
 class Embeddings(NamedTuple):
     dict_size: int
     dim_model: int
+    init_scale: float
 
     @staticmethod
     def make(config: EmbeddingsConfigs) -> Component:
         components = {
-            'dict': WeightParams(shape=(config.dict_size, config.dim_model), init="embedding"),
+            'dict': WeightParams(shape=(config.dict_size, config.dim_model), init="embedding", scale=config.init_scale),
         }
 
         # int -> float K

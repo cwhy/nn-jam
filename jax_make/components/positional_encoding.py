@@ -9,8 +9,8 @@ from jax import vmap, jit, tree_map
 from jax_make.component_protocol import Component, X, FixedProcess, make_ports, pipeline_ports
 from jax_make.params import WeightParams, ArrayTree
 
-
 PositionalEncodeStrategies = Literal['dot', 'sum', 'naive_sum']
+
 
 class PositionalEncodingConfigs(Protocol):
     input_shape: Tuple[int, ...]
@@ -18,6 +18,7 @@ class PositionalEncodingConfigs(Protocol):
     output_channels: int
     dim_encoding: int
     positional_encode_strategy: PositionalEncodeStrategies
+    init_scale: float
 
 
 class PositionalEncoding(NamedTuple):
@@ -26,6 +27,7 @@ class PositionalEncoding(NamedTuple):
     output_channels: int
     dim_encoding: int
     positional_encode_strategy: PositionalEncodeStrategies
+    init_scale: float
 
     @staticmethod
     def make(config: PositionalEncodingConfigs) -> Component:
@@ -34,8 +36,8 @@ class PositionalEncoding(NamedTuple):
         if config.positional_encode_strategy == 'dot':
             components = {
                 f'encoding_dim_{i}': WeightParams(shape=(config.dim_encoding, dim),
-                                                  init="normal",
-                                                  scale=0.01 ** (1 / len(config.input_shape)))
+                                                  init="embedding",
+                                                  scale=config.init_scale / len(config.input_shape))
                 for i, dim in enumerate(config.input_shape)
             }
 
@@ -53,8 +55,8 @@ class PositionalEncoding(NamedTuple):
         elif config.positional_encode_strategy == 'sum':
             components = {
                 f'encoding_dim_{i}': WeightParams(shape=(config.dim_encoding, dim),
-                                                  init="normal",
-                                                  scale=0.01 / len(config.input_shape))
+                                                  init="embedding",
+                                                  scale=config.init_scale / len(config.input_shape))
                 for i, dim in enumerate(config.input_shape)
             }
 
@@ -74,8 +76,8 @@ class PositionalEncoding(NamedTuple):
             dict_size = prod(config.input_shape)
             components = {
                 f'encoding_all_dim': WeightParams(shape=(config.dim_encoding, dict_size),
-                                                  init="normal",
-                                                  scale=0.01)
+                                                  init="embedding",
+                                                  scale=config.init_scale)
             }
 
             # [input_channels, *input_shape] -> [output_channels, prod(input_shape)]
