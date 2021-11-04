@@ -10,3 +10,8 @@ trio-websocket
 pynng
 trio
 optax
+uvicorn
+fastapi
+pydantic
+torch
+ray

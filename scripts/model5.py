@@ -17,12 +17,11 @@ from numpy import typing as npt
 from numpy.typing import NDArray
 from optax._src.alias import adamw
 from optax._src.base import OptState
-from pynng import Pair0
+from pynng import Pub0
 from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar, ordinal
 
 from jax_make.component_protocol import make_ports
-from jax_make.components.positional_encoding import sum_encode
 from jax_make.params import ArrayTree, RNGKey, make_weights
 from jax_make.vit import VitReconstruct
 from stage.protocol import Stage
@@ -66,13 +65,13 @@ class MlpModelConfig:
             dim_model=self.dim_model,
             dropout_keep_rate=1,
             eps=eps,
-            mlp_n_hidden=[128],
+            mlp_n_hidden=[100],
             mlp_activation='gelu',
             pos_t=-1,
             hwc=(28, 28, 0),
             n_patches_side=7,
-            mlp_n_hidden_patches=[128],
-            n_tfe_layers=4,
+            mlp_n_hidden_patches=[64],
+            n_tfe_layers=8,
             dim_output=1,
             dict_size_output=y_dim,
             input_keep_rate=0.5,
@@ -96,12 +95,10 @@ class MlpModelConfig:
             print("logits", logits)
             return logits - logsumexp(logits, keepdims=True)
 
-        @jit
         def forward_test(params, x):
             outs = vit_test.pipeline(params, x, random.PRNGKey(0))
             return xp.argmax(xp.exp(get_logits(params, outs)))
 
-        @jit
         def forward_train(params, batch, rng):
             rngs = random.split(rng, batch[Output].shape[0])
             outs = vmap(vit_train.processes[make_ports((Input, Output), ('rec_loss', 'x_rec_img'))],
@@ -111,14 +108,12 @@ class MlpModelConfig:
         def loss(params, batch, rng):
             return forward_train(params, batch, rng)['rec_loss'].mean()
 
-        @jit
         def update(params, step_size: float, batch, rng: RNGKey):
             key, rng = random.split(rng)
             print("batches: ", batch)
             grads = grad(loss)(params, batch, key)
             return tree_map(lambda x, dx: x - step_size * dx, params, grads), rng
 
-        @jit
         def update_adam(params, batch, _state: Tuple[RNGKey, OptState]):
             rng, _opt_state = _state
             key, rng = random.split(rng)
@@ -135,11 +130,11 @@ class MlpModelConfig:
         #     scale_by_schedule(schedule_fn))
         opt_state: OptState = optimiser.init(weights)
 
-        with Pair0(dial='tcp://127.0.0.1:54323') as socket:
-            stage = Stage(socket)
+        with Pub0(dial='tcp://127.0.0.1:54323') as pub:
+            stage = Stage(pub)
             state = (PRNGKey(0), opt_state)
             model = MlpModel(self, weights, state,
-                             vmap(forward_test, (None, 0), 0), update_adam, forward_train,
+                             vmap(jit(forward_test), (None, 0), 0), jit(update_adam), jit(forward_train),
                              train_stage=stage)
             Train(
                 num_epochs=self.num_epochs,
@@ -180,8 +175,9 @@ class MlpModel:
             i2, o2 = sp2[Input][:1000, :, :], sp2[Output][:1000]
             forwarded_train = self.forward_train(self.weights, {Input: i1, Output: o1}, self.state[0])
             forwarded_test = self.forward_train(self.weights, {Input: i2, Output: o2}, self.state[0])
+            loss_tr = forwarded_train['rec_loss'].mean()
             print("loss: ",
-                  forwarded_train['rec_loss'].mean(),
+                  loss_tr,
                   forwarded_test['rec_loss'].mean())
             # pos_encode = sum_encode(self.weights['positional_encoding'], (4, 4)).reshape(self.model.dim_model, -1)
             pos_encode = self.weights['positional_encoding']['encoding_all_dim']
@@ -192,7 +188,8 @@ class MlpModel:
             # corr = (corr - corr.min()) / (corr.max() - corr.min()) * 255
             self.train_stage.socket.send(pickle.dumps(dict(x=corr, y=corr2,
                                                            tr_img=forwarded_train['x_rec_img'][randint(0, 1000), :, :],
-                                                           tst_img=forwarded_test['x_rec_img'][randint(0, 1000), :, :])))
+                                                           tst_img=forwarded_test['x_rec_img'][randint(0, 1000), :, :],
+                                                           loss_tr=loss_tr)))
 
         return {
             # "after_epoch_": lambda: print(self.weights['layer_0']['b'].mean(), self.weights['layer_0']['w'].mean())
@@ -235,9 +232,9 @@ benchmark_config_ = BenchmarkConfig(
 # Because Pycharm sucks
 model_ = MlpModelConfig(
     dim_model=64,
-    step_size=0.001,
+    step_size=0.01,
     num_epochs=20000,
-    train_batch_size=128,
+    train_batch_size=4096,
     train_data_config=data_config_,
 ).prepare()
 # noinspection PyTypeChecker

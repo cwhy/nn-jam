@@ -280,6 +280,7 @@ class VitReconstruct(NamedTuple):
                 masked_y = y_emb
             else:
                 raise Exception("Invalid input keep rate")
+            # sd around 0.3
             masked_x = components['positional_encoding'].fixed_pipeline(
                 weights['positional_encoding'],
                 masked_x.reshape((configs.dim_model,
