@@ -31,6 +31,7 @@ class VitConfigs(TransformerEncoderConfigs):
 
 
 class Vit(NamedTuple):
+    universal: bool
     n_tfe_layers: int
     n_heads: int  # H
     dim_model: int  # k
@@ -139,6 +140,7 @@ class Vit(NamedTuple):
 
 
 class VitReconstruct(NamedTuple):
+    universal: bool
     n_tfe_layers: int
     n_heads: int  # H
     dim_model: int  # k

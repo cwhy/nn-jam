@@ -23,7 +23,7 @@ from stage.protocol import Stage
 from supervised_benchmarks.benchmark import BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Input, Output, Port, DataConfig, DataPool, DataContent
 from supervised_benchmarks.dataset_utils import subset_all
-from supervised_benchmarks.metrics import get_mean_acc, get_pair_metric
+from supervised_benchmarks.metrics import get_pair_metric
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.model_utils import Train, Probes

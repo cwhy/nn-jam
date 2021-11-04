@@ -61,11 +61,12 @@ class MlpModelConfig:
         eps = 0.00001
         weight_decay = 0.0001
         config_vit = VitReconstruct(
+            universal=False,
             n_heads=8,
             dim_model=self.dim_model,
             dropout_keep_rate=1,
             eps=eps,
-            mlp_n_hidden=[100],
+            mlp_n_hidden=[128],
             mlp_activation='gelu',
             pos_t=-1,
             hwc=(28, 28, 0),
