@@ -70,6 +70,16 @@ def pipeline2processes(pipeline: Pipeline[CompVar]) -> Dict[ProcessPorts, Proces
     return {pipeline_ports: _fn}
 
 
+def fixed_pipeline2processes(pipeline: FixedPipeline[CompVar]) -> Dict[ProcessPorts, Process[CompVar]]:
+    def _fn(weights: Mapping[CompVar, ArrayTree],
+            x: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+        return {Output: pipeline(weights, x[Input])}
+
+    # noinspection PyTypeChecker
+    # Because pycharm sucks
+    return {pipeline_ports: _fn}
+
+
 # Fixed_pipeline -> pipeline -> process
 
 # TODO: Component based io generics InputVars, OutputVars

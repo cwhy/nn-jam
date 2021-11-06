@@ -5,7 +5,8 @@ import jax.numpy as xp
 import numpy.typing as npt
 from jax import vmap
 
-from jax_make.component_protocol import Component, merge_params, pipeline2processes, make_ports, Input, Output
+from jax_make.component_protocol import Component, merge_params, pipeline2processes, make_ports, Input, Output, \
+    fixed_pipeline2processes
 from jax_make.utils.pipelines import linear
 from jax_make.params import ArrayTree, WeightParams
 from jax_make.utils.functions import softmax
@@ -89,6 +90,6 @@ class SelfMultiHeadAttn(NamedTuple):
 
         # noinspection PyTypeChecker
         # Because pycharm sucks
-        processes = pipeline2processes(_fn)
+        processes = fixed_pipeline2processes(_fn)
         processes[masked_mha_port] = _fn_mask
         return Component(merge_params(components), processes)

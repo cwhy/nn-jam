@@ -53,6 +53,8 @@ class MlpModelConfig:
     def prepare(self) -> Performer[NDArray]:
         y_dim = 10
         config_vit = Vit(
+            universal=False,
+            init_scale=0.001,
             n_heads=8,
             dim_model=32,
             dropout_keep_rate=1,

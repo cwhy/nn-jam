@@ -9,7 +9,7 @@ from random import randint
 from typing import Tuple, Mapping, FrozenSet, Literal, Callable, Any, Dict
 
 import optax as optax
-from jax import jit, grad, tree_map, vmap, random
+from jax import jit, grad, tree_map, vmap, random, tree_leaves
 from jax import numpy as xp
 from jax.random import PRNGKey
 from jax.scipy.special import logsumexp
@@ -61,7 +61,7 @@ class MlpModelConfig:
         eps = 0.00001
         weight_decay = 0.0001
         config_vit = VitReconstruct(
-            universal=False,
+            universal=True,
             n_heads=8,
             dim_model=self.dim_model,
             dropout_keep_rate=1,
@@ -84,9 +84,10 @@ class MlpModelConfig:
         )
         vit_train = VitReconstruct.make(config_vit)
         vit_test = VitReconstruct.make(config_test)
-
+        pprint(tree_map(lambda x: x, vit_train.weight_params))
         weights = make_weights(vit_train.weight_params)
         pprint(tree_map(lambda x: "{:.2f}, {:.2f}".format(x.mean().item(), x.std().item()), weights))
+        print("params count:", sum(x.size for x in tree_leaves(weights)))
         # leaves, tree_def = tree_flatten(weights)
         # print(tree_def)
 
@@ -98,7 +99,7 @@ class MlpModelConfig:
 
         def forward_test(params, x):
             outs = vit_test.pipeline(params, x, random.PRNGKey(0))
-            return xp.argmax(xp.exp(get_logits(params, outs)))
+            return xp.argmax(get_logits(params, outs))
 
         def forward_train(params, batch, rng):
             rngs = random.split(rng, batch[Output].shape[0])

@@ -1,5 +1,6 @@
 import pickle
 from functools import partial
+import time
 
 import numpy as np
 from bokeh.document import without_document_lock

@@ -200,7 +200,7 @@ class VitReconstruct(NamedTuple):
             ),
             'y_reconstruct': Mlp.make(
                 Mlp(n_in=configs.dim_model,
-                    n_hidden=configs.mlp_n_hidden,
+                    n_hidden=[],
                     n_out=configs.dim_model,
                     activation=configs.mlp_activation,
                     dropout_keep_rate=configs.dropout_keep_rate

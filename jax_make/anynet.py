@@ -1,11 +1,14 @@
 from typing import List, NamedTuple, Tuple
 
 import numpy.typing as npt
-from jax import numpy as xp, random, vmap
+from jax import numpy as xp, random, vmap, nn
+from jax._src.nn.functions import logsumexp
+from numpy.typing import NDArray
 
 from jax_make.component_protocol import Component, merge_params
 from jax_make.component_protocol import make_ports, Input, Output
 from jax_make.components.embedding import Embeddings
+from jax_make.components.multi_head_attn import masked_mha_port
 from jax_make.params import ArrayTree, WeightParams
 from jax_make.transformer import TransformerEncoderConfigs, TransformerEncoder
 from jax_make.utils.activations import Activation
@@ -16,8 +19,7 @@ class AnyNetConfigs(TransformerEncoderConfigs):
     n_classes: int
     n_positions: int
     input_keep_rate: float
-    max_n_ints: int
-    max_n_floats: int
+    max_inputs: int
 
 
 class AnyNet(NamedTuple):
@@ -35,15 +37,16 @@ class AnyNet(NamedTuple):
     n_classes: int
     n_positions: int
     input_keep_rate: float
-    max_n_ints: int
-    max_n_floats: int
+    max_inputs: int
 
     @staticmethod
     def make(configs: AnyNetConfigs) -> Component:
         components = {
-            # 0 for padded empty features for ragged batches
+            # 0 for masked features to reconstruct
+            # -1 for padded empty features for ragged batches
+            # -2 for float offset embedding
             'embedding': Embeddings.make(Embeddings(
-                dict_size=configs.n_classes + 1,
+                dict_size=configs.n_classes + 3,
                 dim_model=configs.dim_model,
                 init_scale=configs.init_embed_scale
             )),
@@ -60,83 +63,68 @@ class AnyNet(NamedTuple):
                 shape=(configs.dim_model, 2),
                 init="embedding",
                 scale=configs.init_embed_scale),
-            'missing_embedding': WeightParams(
-                shape=(configs.dim_model, 1),
-                init="embedding",
-                scale=configs.init_embed_scale),
         }
 
-        def _parse_int(weights: ArrayTree, pos: npt.NDArray, value: npt.NDArray) -> npt.NDArray:
+        def _parse(weights: ArrayTree,
+                   pos: NDArray,
+                   index: NDArray,
+                   value: NDArray) -> NDArray:
             pos_embed = components['positional_embedding'].fixed_pipeline(
                 weights['positional_embedding'], pos)
-            val_embed = components['embedding'].fixed_pipeline(
-                weights['embedding'], value)
-            return pos_embed + val_embed
-
-        def _parse_float(weights: ArrayTree, pos: npt.NDArray, value: npt.NDArray) -> npt.NDArray:
-            pos_embed = components['positional_embedding'].fixed_pipeline(
-                weights['positional_embedding'], pos)
+            index_embed = components['embedding'].fixed_pipeline(
+                weights['embedding'], index)
             val_embed = weights['float_embedding'][:, 0] * value
-            return pos_embed + val_embed
+            return pos_embed + index_embed + val_embed
 
-        # ints: (int, int)[A], floats: (int, float)[B] -> [dim_model, A+B]
-        def _fn(weights: ArrayTree, inputs: ArrayTree, rng) -> npt.NDArray:
-            int_embeds = vmap(_parse_int, (None, 0, 0), 0)(weights, inputs['ints_pos'], inputs['ints'])
-            float_embeds = vmap(_parse_float, (None, 0, 0), 0)(weights, inputs['floats_pos'], inputs['floats'])
-            embeds = xp.c_[int_embeds, float_embeds]
-            rng, key = random.split(rng)
-            return components['encoder'].pipeline(weights['encoder'], embeds, key)
+        # out_embed[dim_model], int[], float[] -> float[]
+        def _calc_loss(weights: ArrayTree, out_embed: NDArray, index: NDArray, val: NDArray,
+                       mask: NDArray) -> NDArray:
+            logits = weights['embedding']['dict'] @ out_embed
+            out_val = (weights['embedding']['dict'][:, -2] + weights['float_embedding'][:, 1]) @ out_embed
+            int_loss = -xp.mean(
+                (logits - logsumexp(logits, keepdims=True)) * nn.one_hot(index, configs.n_classes)) * mask
+            float_loss = mask * (out_val - val) ** 2
+            return int_loss + float_loss
 
+        def _calc_output(weights: ArrayTree, out_embed: NDArray) -> Tuple[NDArray, NDArray]:
+            logits = weights['embedding']['dict'] @ out_embed
+            out_val = (weights['embedding']['dict'][:, -2] + weights['float_embedding'][:, 1]) @ out_embed
+            return xp.argmax(logits), out_val
 
-        # ints: (int, int)[A], floats: (int, float)[B] -> float
+        # input_pos: (int)[T], input: (int)[T, value: (float)[T]] -> float
         def _loss(weights: ArrayTree, inputs: ArrayTree, rng) -> ArrayTree:
-            int_embeds = vmap(_parse_int, (None, 0, 0), 0)(weights, inputs['ints_pos'], inputs['ints'])
-            float_embeds = vmap(_parse_float, (None, 0, 0), 0)(weights, inputs['floats_pos'], inputs['floats'])
-            embeds = xp.c_[int_embeds, float_embeds]
-            len_inputs = configs.max_n_ints + configs.max_n_floats
             if 0 < configs.input_keep_rate < 1:
-                rng, key_i, key_f = random.split(rng, 3)
-                mask = random.bernoulli(key_i, configs.input_keep_rate, (len_inputs,))
-
-                # [D, D, 1] -> [D]
-                def mask_with_default(x: npt.NDArray, d: npt.NDArray) -> npt.NDArray:
-                    ds = xp.repeat(d, len_inputs)
-                    return ds * (1 - mask) + x * mask
-                masked_embeds = vmap(mask_with_default, (0, 0), 0)(embeds, weights['missing_embedding'])
+                rng, key = random.split(rng)
+                pred_mask = random.bernoulli(key, configs.input_keep_rate, (configs.max_inputs,))
             else:
-                mask = xp.ones((len_inputs,))
-                masked_embeds = embeds
+                pred_mask = xp.ones((configs.max_inputs,))
+            indices = pred_mask * inputs[Input]
+            values = pred_mask * inputs['value']
+            embeds = vmap(_parse, (None, 0, 0), 0)(weights, inputs['input_pos'], indices, values)
 
             rng, key = random.split(rng)
-            out_embeds = components['encoder'].processes[](weights['encoder'], masked_embeds, key)
+            encoder_inputs = {Input: embeds, 'mask': inputs['mask']}
+            out_embeds = components['encoder'].processes[masked_mha_port](
+                weights['encoder'], encoder_inputs, key)[Output]
 
-            logits = weights['embedding']['dict'] @ out_embeds
-            loss_y = -xp.mean((logits - logsumexp(logits, keepdims=True)) * nn.one_hot(y, configs.dict_size_output))
+            all_losses = vmap(_calc_loss, (None, configs.pos_t, 0, 0), configs.pos_t)(
+                weights, out_embeds, inputs[Input], inputs['values'], pred_mask)
+            return {'loss': all_losses.mean()}
 
-            return
-
-        # [H, W, C] -> [dim_model]
-        def _x2y(weights: ArrayTree, inputs: ArrayTree, rng) -> npt.NDArray:
-            ints, floats = inputs['ints'], inputs['floats']
+        # input_pos: (int)[T], input: (int)[T, value: (float)[T]] -> [int, T], [float, T]
+        def _query(weights: ArrayTree, inputs: ArrayTree, rng) -> ArrayTree:
+            embeds = vmap(_parse, (None, 0, 0), 0)(weights, inputs['input_pos'], inputs[Input], inputs['value'])
             rng, key = random.split(rng)
-
-            yx = xp.c_[y_masked_emb, x]
-            yx = components['norm'].fixed_pipeline(weights['norm'], yx)
-            # [dim_model, dim_out + (h, w, C)]
-
-            yx = components['encoder'].pipeline(weights['encoder'], yx, rng)
-            # [dim_model, dim_out + (h, w, C)]
-
-            y_rec = yx[:, 0]
-            y_rec = components['y_reconstruct'].pipeline(weights['y_reconstruct'], y_rec, rng)
-            return y_rec
+            out_embed = components['encoder'].pipeline(weights['encoder'], embeds, key)
+            class_i, value = vmap(_calc_output, (None, configs.pos_t), configs.pos_t)(weights, out_embed)
+            return {"class_index": class_i, 'value': value}
 
         # noinspection PyTypeChecker
         # Because Pycharm sucks
         params.update(merge_params(components))
         processes = {
-            make_ports(Input, 'loss'): _fn,
-            make_ports((Input, "query"), Output): _x2y
+            make_ports((Input, 'mask', 'input_pos', 'value'), 'loss'): _loss,
+            make_ports((Input, 'input_pos', 'value'), ('class_index', 'value')): _query
         }
         # noinspection PyTypeChecker
         # Because Pycharm sucks
