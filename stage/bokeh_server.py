@@ -103,10 +103,17 @@ time_base = time.time()
 
 @without_document_lock
 def update(new_data):
-    source_pics.data.update({k: v(new_data[k]) for k, v in img_processes.items()})
-    lines_data = {k: [v.item()] for k, v in new_data.items() if k in lines}
-    lines_data['epoch'] = [time.time() - time_base]
-    source_line.stream(lines_data)
+    try:
+        source_pics.data.update({k: v(new_data[k]) for k, v in img_processes.items()})
+    except Exception as e:
+        print(f"some pics not received {e}")
+
+    try:
+        lines_data = {k: [v.item()] for k, v in new_data.items() if k in lines}
+        lines_data['epoch'] = [time.time() - time_base]
+        source_line.stream(lines_data)
+    except Exception as e:
+        print(f"some lines not received {e}")
 
 
 doc.add_root(p)

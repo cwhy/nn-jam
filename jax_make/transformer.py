@@ -70,14 +70,14 @@ class TransformerLayer(NamedTuple):
             # noinspection PyTypeChecker
             # Because pycharm sucks
             inputs[Input] = sequential(components, ['norm1'])(weights, inputs[Input], key1)
-            attn_out = components['mha'].processes[masked_mha_port](weights['mha'], inputs, key2)
+            attn_out = components['mha'].processes[masked_mha_port](weights['mha'], inputs, None)
             attned_x = attn_out[Output]
-            x += sequential(components, ['dropout'])(weights['dropout'], attned_x, key1)
+            x += sequential(components, ['dropout'])(weights['dropout'], attned_x, key2)
 
             # noinspection PyTypeChecker
             # Because pycharm sucks
             x = vmap(sequential(components, ['norm2', 'mlp', 'dropout']),
-                     (None, configs.pos_t, None), configs.pos_t)(weights, x, key2) + x
+                     (None, configs.pos_t, None), configs.pos_t)(weights, x, key3) + x
             return {Output: x, 'attn': attn_out['attn']}
 
         # noinspection PyTypeChecker

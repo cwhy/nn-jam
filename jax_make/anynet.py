@@ -13,18 +13,27 @@ from jax_make.params import ArrayTree, WeightParams
 from jax_make.transformer import TransformerEncoderConfigs, TransformerEncoder
 from jax_make.utils.activations import Activation
 
+QUERY_MASK = 0
+PAD_MASK = -1
+FLOAT_OFFSET = -2
+SYMBOLS = slice(1, -2)
+
+VALUE_SYMBOL = 0
+FLOAT_IN = 0
+FLOAT_OUT = 1
+
 
 class AnyNetConfigs(TransformerEncoderConfigs):
     init_embed_scale: int
-    n_classes: int
+    n_symbols: int
     n_positions: int
     input_keep_rate: float
     max_inputs: int
 
 
 class AnyNet(NamedTuple):
+    universal: bool
     n_tfe_layers: int
-    n_seq: int  # T
     n_heads: int  # H
     dim_model: int  # k
     pos_t: int
@@ -34,7 +43,7 @@ class AnyNet(NamedTuple):
     mlp_activation: Activation
 
     init_embed_scale: int
-    n_classes: int
+    n_symbols: int
     n_positions: int
     input_keep_rate: float
     max_inputs: int
@@ -42,11 +51,11 @@ class AnyNet(NamedTuple):
     @staticmethod
     def make(configs: AnyNetConfigs) -> Component:
         components = {
-            # 0 for masked features to reconstruct
-            # -1 for padded empty features for ragged batches
-            # -2 for float offset embedding
-            'embedding': Embeddings.make(Embeddings(
-                dict_size=configs.n_classes + 3,
+            # MASK: 0 for masked features to reconstruct
+            # PAD: -1 for padded empty features for ragged batches
+            # FLOAT_OFFSET: -2 for float offset embedding
+            'symbol_embedding': Embeddings.make(Embeddings(
+                dict_size=configs.n_symbols + 3,
                 dim_model=configs.dim_model,
                 init_scale=configs.init_embed_scale
             )),
@@ -57,10 +66,10 @@ class AnyNet(NamedTuple):
             )),
             'encoder': TransformerEncoder.make(configs)
         }
-        # one for in , one for out
+        # FLOAT_IN: 0 for in , FLOAT_OUT: 1 for out
         params = {
             'float_embedding': WeightParams(
-                shape=(configs.dim_model, 2),
+                shape=(2, configs.dim_model),
                 init="embedding",
                 scale=configs.init_embed_scale),
         }
@@ -71,24 +80,27 @@ class AnyNet(NamedTuple):
                    value: NDArray) -> NDArray:
             pos_embed = components['positional_embedding'].fixed_pipeline(
                 weights['positional_embedding'], pos)
-            index_embed = components['embedding'].fixed_pipeline(
-                weights['embedding'], index)
-            val_embed = weights['float_embedding'][:, 0] * value
+            index_embed = components['symbol_embedding'].fixed_pipeline(
+                weights['symbol_embedding'], index)
+            val_embed = weights['float_embedding'][FLOAT_IN, :] * value
             return pos_embed + index_embed + val_embed
 
         # out_embed[dim_model], int[], float[] -> float[]
         def _calc_loss(weights: ArrayTree, out_embed: NDArray, index: NDArray, val: NDArray,
                        mask: NDArray) -> NDArray:
-            logits = weights['embedding']['dict'] @ out_embed
-            out_val = (weights['embedding']['dict'][:, -2] + weights['float_embedding'][:, 1]) @ out_embed
+            symbol_dict = weights['symbol_embedding']['dict'][SYMBOLS, :]
+            logits = symbol_dict @ out_embed
+            out_val = (symbol_dict[FLOAT_OFFSET, :]
+                       + weights['float_embedding'][FLOAT_OUT, :]) @ out_embed
             int_loss = -xp.mean(
-                (logits - logsumexp(logits, keepdims=True)) * nn.one_hot(index, configs.n_classes)) * mask
+                (logits - logsumexp(logits, keepdims=True)) * nn.one_hot(index, configs.n_symbols)) * mask
             float_loss = mask * (out_val - val) ** 2
             return int_loss + float_loss
 
         def _calc_output(weights: ArrayTree, out_embed: NDArray) -> Tuple[NDArray, NDArray]:
-            logits = weights['embedding']['dict'] @ out_embed
-            out_val = (weights['embedding']['dict'][:, -2] + weights['float_embedding'][:, 1]) @ out_embed
+            logits = weights['symbol_embedding']['dict'] @ out_embed
+            out_val = (weights['symbol_embedding']['dict'][FLOAT_OFFSET, :]
+                       + weights['float_embedding'][FLOAT_OUT, :]) @ out_embed
             return xp.argmax(logits), out_val
 
         # input_pos: (int)[T], input: (int)[T, value: (float)[T]] -> float
@@ -100,15 +112,15 @@ class AnyNet(NamedTuple):
                 pred_mask = xp.ones((configs.max_inputs,))
             indices = pred_mask * inputs[Input]
             values = pred_mask * inputs['value']
-            embeds = vmap(_parse, (None, 0, 0), 0)(weights, inputs['input_pos'], indices, values)
+            embeds = vmap(_parse, (None, 0, 0, 0), configs.pos_t)(weights, inputs['input_pos'], indices, values)
 
             rng, key = random.split(rng)
             encoder_inputs = {Input: embeds, 'mask': inputs['mask']}
             out_embeds = components['encoder'].processes[masked_mha_port](
                 weights['encoder'], encoder_inputs, key)[Output]
 
-            all_losses = vmap(_calc_loss, (None, configs.pos_t, 0, 0), configs.pos_t)(
-                weights, out_embeds, inputs[Input], inputs['values'], pred_mask)
+            all_losses = vmap(_calc_loss, (None, configs.pos_t, 0, 0, 0), configs.pos_t)(
+                weights, out_embeds, inputs[Input], inputs['value'], pred_mask)
             return {'loss': all_losses.mean()}
 
         # input_pos: (int)[T], input: (int)[T, value: (float)[T]] -> [int, T], [float, T]
@@ -117,15 +129,19 @@ class AnyNet(NamedTuple):
             rng, key = random.split(rng)
             out_embed = components['encoder'].pipeline(weights['encoder'], embeds, key)
             class_i, value = vmap(_calc_output, (None, configs.pos_t), configs.pos_t)(weights, out_embed)
-            return {"class_index": class_i, 'value': value}
+            return {"symbol": class_i, 'value': value}
 
         # noinspection PyTypeChecker
         # Because Pycharm sucks
         params.update(merge_params(components))
         processes = {
-            make_ports((Input, 'mask', 'input_pos', 'value'), 'loss'): _loss,
-            make_ports((Input, 'input_pos', 'value'), ('class_index', 'value')): _query
+            loss_ports: _loss,
+            inference_ports: _query
         }
         # noinspection PyTypeChecker
         # Because Pycharm sucks
         return Component(params, processes)
+
+
+loss_ports = make_ports((Input, 'mask', 'input_pos', 'value'), 'loss')
+inference_ports = make_ports((Input, 'input_pos', 'value'), ('symbol', 'value'))

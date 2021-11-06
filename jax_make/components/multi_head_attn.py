@@ -72,7 +72,7 @@ class SelfMultiHeadAttn(NamedTuple):
             return x
 
         # [CT] -> [KT]
-        def _fn_mask(weights: ArrayTree, inputs: ArrayTree) -> ArrayTree:
+        def _fn_mask(weights: ArrayTree, inputs: ArrayTree, rng=None) -> ArrayTree:
             x, mask = inputs[Input], inputs['mask']
             # Split into heads ([C] -> [3*K] -> [3,H,W]) * T
             # W: latent dims
@@ -82,7 +82,7 @@ class SelfMultiHeadAttn(NamedTuple):
             attn = vmap(_dot_attention_mask, (0, 0, None))(q, k, mask)
 
             # [H, T, T] [H, W, T] -> [H, W, T]
-            values = xp.einsum('hts, hws -> hws')
+            values = xp.einsum('hts, hws -> hws', attn, v)
 
             # Merge back the heads and output ([HW] -> [K] -> [K])*T
             x = vmap(_combine, (None, -1), -1)(weights['out'], values)

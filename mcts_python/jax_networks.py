@@ -18,7 +18,7 @@ class JaxMcts:
         weight_decay = 0.0001
         dim_model = 64
         optimiser = adamw(lr, 0.9, 0.98, eps, weight_decay)
-        Transformer(
+        AnyNet(
             n_heads=8,
             dim_model=dim_model,
             dropout_keep_rate=1,
