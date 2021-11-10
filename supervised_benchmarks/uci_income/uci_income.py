@@ -3,33 +3,24 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
 
-import numpy as np
 import numpy.typing as npt
-from tqdm import trange
 from variable_protocols.variables import Variable, ordinal, dim, var_scalar, var_tensor, var_group
 
 from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, \
-    Data, DataPortMap, OutputOptions, Context, FixedSubset
-from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
-from supervised_benchmarks.download_utils import check_integrity
+    Data, DataPortMap, OutputOptions, Context, FixedSubset, AllVars
+from supervised_benchmarks.uci_income.utils import analyze_data, load_data
 
 name: Literal["UciIncome"] = "UciIncome"
 
 
-n_samples_tr = 6000
-n_samples_val = 2000
-n_samples_tst = 2000
-n_samples = n_samples_tr + n_samples_val + n_samples_tst
-
-
-class IravenData(NamedTuple):
+class UciIncomeData(NamedTuple):
     port: Port
     protocol: Variable
     subset: Subset
     content: npt.NDArray
 
 
-class IravenDataPool(NamedTuple):
+class UciIncomeDataPool(NamedTuple):
     array_dict: Mapping[str, npt.NDArray]
     port: Port
     src_var: Variable
@@ -51,90 +42,52 @@ class IravenDataPool(NamedTuple):
                 data_array = self.array_dict[port_tag][subset.indices]
         # noinspection PyTypeChecker
         # because pyCharm sucks
-        return IravenData(self.port, self.tgt_var, subset, data_array)
+        return UciIncomeData(self.port, self.tgt_var, subset, data_array)
 
 
-n_rows = 3
-n_cols = 3
-n_options = 8
-n_pics = n_rows * n_cols - 1 + n_options  # 16
-H = 160
-W = 160
-# noinspection PyTypeChecker
-# because pyCharm sucks
-pic = var_tensor(ordinal(256), {dim("h", H), dim("w", W)})
-# noinspection PyTypeChecker
-# because pyCharm sucks
-iraven_in_raw = var_group({
-    var_tensor(pic, {dim("row", n_rows), dim("col", n_cols)}),
-    var_tensor(pic, {dim("options", n_options)})})
-# noinspection PyTypeChecker
-# because pyCharm sucks
-iraven_out_raw = var_scalar(ordinal(n_options))
+data_info = analyze_data()
+n_samples_tr = data_info.n_rows_tr
+n_samples_tst = data_info.n_rows_tst
+n_samples = n_samples_tr + n_samples_tst
 
-FixedTrain = FixedSubset('FixedTrain', list(filter(lambda x: x % 10 <= 5, range(n_samples))))
-FixedValidation = FixedSubset('FixedValidation', list(filter(lambda x: x % 10 in (8, 9), range(n_samples))))
-FixedTest = FixedSubset('FixedTest', list(filter(lambda x: x % 10 in (6, 7), range(n_samples))))
+FixedTrain = FixedSubset('FixedTrain', list(range(n_samples_tr)))
+FixedTest = FixedSubset('FixedTest', list(range(n_samples_tst)))
 FixedAll = FixedSubset('All', list(range(n_samples)))
 
 
-def get_iraven_(base_path: Path, version: str, size: int, task: str) -> Dict[str, npt.NDArray]:
-    assert size % 5 == 0
-    resources = [(f"iraven{size}v{version}.zip", None)]
-    version_tag = f"{size}v{version}"
-    processed_cache = get_data_dir(base_path, name, 'processed').joinpath(version_tag, f'{task}.npz')
-    if not check_integrity(processed_cache):
-        mirrors = [f"https://github.com/cwhy/i-raven/releases/download/{version}"]
-        download_resources(base_path, name, resources, mirrors, f"{size}v{version}")
-        data_path = get_data_dir(base_path, name, 'raw').joinpath(version_tag, "dataset", task)
-        data_dict = {
-            "images": np.empty((size, n_pics, H, W), dtype=np.uint8),
-            "targets": np.empty(size, dtype=np.uint8)
-        }
-        for index in trange(size):
-            if index % 10 <= 5:
-                subset = 'train'
-            elif index % 10 in (6, 7):
-                subset = 'val'
-            else:
-                assert index % 10 in (8, 9)
-                subset = 'test'
-
-            data_file_path = data_path.joinpath(f"RAVEN_{index}_{subset}.npz")
-            with np.load(str(data_file_path)) as data:
-                data_dict["images"][index, :, :, :] = data['image']
-                data_dict["targets"][index] = data['target']
-        processed_path = get_data_dir(base_path, name, 'processed').joinpath(version_tag)
-        processed_path.mkdir(exist_ok=True)
-        np.savez_compressed(processed_cache, **data_dict)
-        return data_dict
-    else:
-        print("loading dataset... please wait...")
-        return dict(np.load(str(processed_cache)))
-
-
-class Iraven:
+class UciIncome:
     @property
     def ports(self) -> FrozenSet[Port]:
         return frozenset({Input, Output})
 
-    def __init__(self, base_path: Path, version: str, size: int, task: str) -> None:
-        self.array_dict: Dict[str, npt.NDArray] = get_iraven_(base_path, version, size, task)
+    def __init__(self, base_path: Path) -> None:
+        # TODO implement download logic
+        symbol_table_tr, value_table_tr = load_data(data_info, is_train=True)
+        symbol_table_tst, value_table_tst = load_data(data_info, is_train=False)
+
+        self.array_dict: Dict[str, npt.NDArray] = {
+            'tr_symbol': symbol_table_tr,
+            'tr_value': value_table_tr,
+            'tst_symbol': symbol_table_tst,
+            'tst_value': value_table_tst
+        }
+
         # noinspection PyTypeChecker
         # because pyCharm sucks
         self.protocols: Mapping[str, Variable] = {
-            Input: iraven_in_raw,
-            Output: iraven_out_raw
+            Input: uci_income_in_raw,
+            Output: uci_income_out_raw,
+            AllVars: uci_income_all_raw
         }
 
     @property
-    def name(self) -> Literal['IRaven']:
+    def name(self) -> Literal['UciIncome']:
         return name
 
-    def retrieve(self, query: DataQuery) -> Mapping[Port, IravenDataPool]:
+    def retrieve(self, query: DataQuery) -> Mapping[Port, UciIncomeDataPool]:
         assert all(port in self.ports for port in query)
         return {
-            port: IravenDataPool(
+            port:UciIncomeDataPool(
                 self.array_dict,
                 port,
                 src_var=self.protocols[port],
@@ -145,13 +98,10 @@ class Iraven:
 
 # noinspection PyTypeChecker
 # Because pycharm sucks
-class IravenDataConfig(NamedTuple):
-    task: str
+class UciIncomeDataConfig(NamedTuple):
     base_path: Path
-    version: str
-    size: int
     port_vars: DataQuery
     type: Literal['DataConfig'] = 'DataConfig'
 
     def get_data(self) -> DataPortMap:
-        return Iraven(self.base_path, self.version, self.size, self.task).retrieve(self.port_vars)
+        return UciIncome(self.base_path).retrieve(self.port_vars)

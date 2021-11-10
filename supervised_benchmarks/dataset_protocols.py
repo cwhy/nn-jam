@@ -3,9 +3,10 @@ from typing import Literal, Protocol, NamedTuple, Mapping, List, FrozenSet, Type
 
 from variable_protocols.variables import Variable
 
-Port = Literal['Input', 'Output', 'Context', 'OutputOptions']
+Port = Literal['Input', 'Output', 'Context', 'OutputOptions', 'AllVars']
 Input: Literal['Input'] = 'Input'
 Output: Literal['Output'] = 'Output'
+AllVars: Literal['AllVars'] = 'AllVars'
 
 Context: Literal['Context'] = 'Context'
 OutputOptions: Literal['OutputOptions'] = 'OutputOptions'

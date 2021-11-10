@@ -1,40 +1,11 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import NamedTuple, Dict, List
 
 import numpy as np
 import csv
 
-FLOAT_OFFSET = -2
-VALUE_SYMBOL = 0
-variable_names = [
-    "age",
-    "workclass",
-    "fnlwgt",
-    "education",
-    "education-num",
-    "marital-status",
-    "occupation",
-    "relationship",
-    "race",
-    "sex",
-    "capital-gain",
-    "capital-loss",
-    "hours-per-week",
-    "native-country",
-    "income"
-]
-row_width = len(variable_names)
-
-
-class TabularDataInfo(NamedTuple):
-    n_rows_tr: int
-    n_rows_tst: int
-    tr_path: Path
-    tst_path: Path
-    symbol_id_table: Dict[str, int]
-    is_digits: List[bool]
-    special_values: Dict[str, float]
+from supervised_benchmarks.uci_income.consts import FLOAT_OFFSET, VALUE_SYMBOL, variable_names, row_width, \
+    TabularDataInfo
 
 
 def analyze_data():
@@ -127,9 +98,3 @@ def load_data(info: TabularDataInfo, is_train: bool):
                         load_symbol_(entry, n_rows, i)
                 n_rows += 1
     return symbol_table, value_table
-
-
-data_info = analyze_data()
-symbol_table_tr, value_table_tr = load_data(data_info, True)
-symbol_table_tst, value_table_tst = load_data(data_info, False)
-
