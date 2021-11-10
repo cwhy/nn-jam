@@ -13,12 +13,14 @@ from jax_make.params import ArrayTree, WeightParams
 from jax_make.transformer import TransformerEncoderConfigs, TransformerEncoder
 from jax_make.utils.activations import Activation
 
-QUERY_MASK = 0
+QUERY_SYMBOL_MASK = 0
 PAD_MASK = -1
 FLOAT_OFFSET = -2
 SYMBOLS = slice(1, -2)
 
+QUERY_VALUE = 0
 VALUE_SYMBOL = 0
+
 FLOAT_IN = 0
 FLOAT_OUT = 1
 
@@ -125,7 +127,7 @@ class AnyNet(NamedTuple):
 
         # input_pos: (int)[T], input: (int)[T, value: (float)[T]] -> [int, T], [float, T]
         def _query(weights: ArrayTree, inputs: ArrayTree, rng) -> ArrayTree:
-            embeds = vmap(_parse, (None, 0, 0), 0)(weights, inputs['input_pos'], inputs[Input], inputs['value'])
+            embeds = vmap(_parse, (None, 0, 0, 0), configs.pos_t)(weights, inputs['input_pos'], inputs[Input], inputs['value'])
             rng, key = random.split(rng)
             out_embed = components['encoder'].pipeline(weights['encoder'], embeds, key)
             class_i, value = vmap(_calc_output, (None, configs.pos_t), configs.pos_t)(weights, out_embed)

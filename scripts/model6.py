@@ -1,4 +1,4 @@
-# Test anynet on mnist
+# Test anynet on randomized mnist
 from __future__ import annotations
 
 import pickle
@@ -21,7 +21,7 @@ from pynng import Pub0
 from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar, ordinal
 
-from jax_make.anynet import AnyNet, inference_ports, QUERY_MASK, FLOAT_OFFSET, VALUE_SYMBOL
+from jax_make.anynet import AnyNet, inference_ports, QUERY_SYMBOL_MASK, FLOAT_OFFSET, VALUE_SYMBOL, QUERY_VALUE
 from jax_make.component_protocol import make_ports
 from jax_make.params import ArrayTree, RNGKey, make_weights
 from jax_make.vit import VitReconstruct
@@ -63,7 +63,7 @@ class MlpModelConfig:
         weight_decay = 0.0001
         len_x = 28 * 28
         len_y = 1
-        confit_any_net = AnyNet(
+        config_any_net = AnyNet(
             universal=True,
             n_heads=8,
             dim_model=self.dim_model,
@@ -80,11 +80,11 @@ class MlpModelConfig:
             n_positions=len_x + len_y,
             max_inputs=len_x + len_y
         )
-        config_test = confit_any_net._replace(
+        config_test = config_any_net._replace(
             dropout_keep_rate=1,
             input_keep_rate=1,
         )
-        net_train = AnyNet.make(confit_any_net)
+        net_train = AnyNet.make(config_any_net)
         net_test = AnyNet.make(config_test)
         pprint(tree_map(lambda x: x, net_train.weight_params))
         weights = make_weights(net_train.weight_params)
@@ -93,12 +93,11 @@ class MlpModelConfig:
         # leaves, tree_def = tree_flatten(weights)
         # print(tree_def)
         mask_full = xp.ones(len_x + len_y)
-        pos_sequence_all = xp.arange(len_x + len_y)
-        empty_values_ask = xp.zeros(len_x + len_y)
+        pos_sequence_all = xp.arange(len_x + len_y, dtype=int)
         float_offsets = xp.ones(len_x, dtype=int) * FLOAT_OFFSET
 
         def forward_test(params, x):
-            inputs = {Input: xp.c_[x, QUERY_MASK], 'input_pos': pos_sequence_all, 'value': empty_values_ask}
+            inputs = {Input: xp.r_[float_offsets, QUERY_SYMBOL_MASK], 'input_pos': pos_sequence_all, 'value': xp.r_[x, QUERY_VALUE]}
             outs = net_test.processes[inference_ports](params, inputs, random.PRNGKey(0))['symbol']
             return outs[-1]  # -1, Not mask!!
 
@@ -233,7 +232,7 @@ model_ = MlpModelConfig(
     dim_model=32,
     step_size=0.01,
     num_epochs=20000,
-    train_batch_size=64,
+    train_batch_size=32,
     train_data_config=data_config_,
 ).prepare()
 # noinspection PyTypeChecker
