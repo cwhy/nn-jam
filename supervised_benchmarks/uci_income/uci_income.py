@@ -4,7 +4,9 @@ from pathlib import Path
 from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
 
 import numpy.typing as npt
-from variable_protocols.variables import Variable, ordinal, dim, var_scalar, var_tensor, var_group
+
+from supervised_benchmarks.uci_income.consts import row_width
+from variable_protocols.variables import Variable, ordinal, dim, var_scalar, var_tensor, var_group, gaussian
 
 from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, \
     Data, DataPortMap, OutputOptions, Context, FixedSubset, AllVars
@@ -54,6 +56,21 @@ FixedTrain = FixedSubset('FixedTrain', list(range(n_samples_tr)))
 FixedTest = FixedSubset('FixedTest', list(range(n_samples_tst)))
 FixedAll = FixedSubset('All', list(range(n_samples)))
 
+dict_size = len(data_info.symbol_id_table) + 3
+
+
+# noinspection PyTypeChecker
+# because pyCharm sucks
+def get_anynet_feature(_dict_size: int, _n_features: int) -> Variable:
+    return var_group(
+        {var_tensor(gaussian(0, 1), {dim("Feature", _n_features)}),
+         var_tensor(ordinal(_dict_size), {dim("Feature", _n_features)})})
+
+
+uci_income_all_anynet = get_anynet_feature(dict_size, row_width)
+uci_income_in_anynet = get_anynet_feature(dict_size, row_width - 1)
+uci_income_out_anynet = get_anynet_feature(dict_size, 1)
+
 
 class UciIncome:
     @property
@@ -75,9 +92,9 @@ class UciIncome:
         # noinspection PyTypeChecker
         # because pyCharm sucks
         self.protocols: Mapping[str, Variable] = {
-            Input: uci_income_in_raw,
-            Output: uci_income_out_raw,
-            AllVars: uci_income_all_raw
+            Input: uci_income_in_anynet,
+            Output: uci_income_out_anynet,
+            AllVars: uci_income_all_anynet
         }
 
     @property
@@ -87,7 +104,7 @@ class UciIncome:
     def retrieve(self, query: DataQuery) -> Mapping[Port, UciIncomeDataPool]:
         assert all(port in self.ports for port in query)
         return {
-            port:UciIncomeDataPool(
+            port: UciIncomeDataPool(
                 self.array_dict,
                 port,
                 src_var=self.protocols[port],
