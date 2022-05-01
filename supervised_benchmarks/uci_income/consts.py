@@ -30,4 +30,5 @@ class TabularDataInfo(NamedTuple):
     tst_path: Path
     symbol_id_table: Dict[str, int]
     is_digits: List[bool]
-    special_values: Dict[str, float]
+    # Values that are common
+    common_values: Dict[str, float]

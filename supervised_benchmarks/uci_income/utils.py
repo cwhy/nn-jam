@@ -41,13 +41,13 @@ def analyze_data():
     all_symbols_list = list(all_symbol)
     symbol_id_table = {v: i for i, v in enumerate(all_symbols_list)}
 
-    special_values = {}
+    common_values = {}
     for i, s in enumerate(number_counts):
         if is_digits[i]:
-            special = max(s.values())
-            if special > sum(sorted(s.values())[-5:-1]):
-                special_values[f"{variable_names[i]}_offset_{int(special)}"] = special
-                symbol_id_table[f"{variable_names[i]}_offset_{int(special)}"] = len(symbol_id_table)
+            common_val = max(s.values())
+            if common_val > sum(sorted(s.values())[-5:-1]):
+                common_values[f"{variable_names[i]}_offset_{int(common_val)}"] = common_val
+                symbol_id_table[f"{variable_names[i]}_offset_{int(common_val)}"] = len(symbol_id_table)
 
     with tst_path.open('r') as f:
         uci_reader = csv.reader(f, delimiter=',')
@@ -59,7 +59,7 @@ def analyze_data():
                 assert len(row) == row_width
                 n_rows_tst += 1
 
-    return TabularDataInfo(n_rows_tr, n_rows_tst, tr_path, tst_path, symbol_id_table, is_digits, special_values)
+    return TabularDataInfo(n_rows_tr, n_rows_tst, tr_path, tst_path, symbol_id_table, is_digits, common_values)
 
 
 def load_data(info: TabularDataInfo, is_train: bool):
@@ -77,7 +77,7 @@ def load_data(info: TabularDataInfo, is_train: bool):
 
     def load_number_(_entry: float, row_id: int, row_pos: int):
         offset_name = f"{variable_names[row_pos]}_offset_{int(_entry)}"
-        if info.special_values.get(offset_name, None) == _entry:
+        if info.common_values.get(offset_name, None) == _entry:
             symbol_table[row_id, row_pos] = info.symbol_id_table[offset_name]
         else:
             value_table[row_id, row_pos] = _entry

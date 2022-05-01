@@ -15,6 +15,7 @@ def softmax(inputs: npt.NDArray) -> npt.NDArray:
 
 def get_cosine_similarity_loss(eps: float) -> Callable[[npt.NDArray, npt.NDArray], npt.NDArray]:
     # x: [D], y: [D] -> []
+    # smaller is better
     def _fn(x: npt.NDArray, y: npt.NDArray) -> npt.NDArray:
         y /= xp.maximum(xp.linalg.norm(y), xp.sqrt(eps))
         x /= xp.maximum(xp.linalg.norm(x), xp.sqrt(eps))

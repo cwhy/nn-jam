@@ -1,47 +1,53 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
+from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict, TypedDict
 
 import numpy.typing as npt
 
-from supervised_benchmarks.uci_income.consts import row_width
-from variable_protocols.variables import Variable, ordinal, dim, var_scalar, var_tensor, var_group, gaussian
-
 from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, \
     Data, DataPortMap, OutputOptions, Context, FixedSubset, AllVars
+from supervised_benchmarks.uci_income.consts import row_width
 from supervised_benchmarks.uci_income.utils import analyze_data, load_data
+from variable_protocols.variables import Variable, ordinal, dim, var_tensor, var_group, gaussian
 
 name: Literal["UciIncome"] = "UciIncome"
+
+
+class NpDataContent(TypedDict):
+    symbols: npt.ArrayLike
+    values: npt.ArrayLike
 
 
 class UciIncomeData(NamedTuple):
     port: Port
     protocol: Variable
     subset: Subset
-    content: npt.NDArray
+    content: NpDataContent
 
 
 class UciIncomeDataPool(NamedTuple):
-    array_dict: Mapping[str, npt.NDArray]
+    array_dict: Mapping[str, npt.ArrayLike]
     port: Port
     src_var: Variable
     tgt_var: Variable
 
-    def subset(self, subset: Subset) -> Data[npt.NDArray]:
+    def subset(self, subset: Subset) -> Data[npt.ArrayLike]:
         assert self.src_var == self.tgt_var
-        if self.port is OutputOptions:
-            data_array = self.array_dict['images'][subset.indices, 8:, :, :]
-        elif self.port is Context:
-            data_array = self.array_dict['images'][subset.indices, :8, :, :]
+        if subset == FixedTrain:
+            prefix = "tr"
+        elif subset == FixedTest:
+            prefix = "tst"
         else:
-            if self.port is Input:
-                port_tag = 'images'
-                data_array = self.array_dict[port_tag][subset.indices, :, :, :]
-            else:
-                assert self.port is Output
-                port_tag = 'targets'
-                data_array = self.array_dict[port_tag][subset.indices]
+            raise ValueError(f"Unsupported subset: {subset}")
+        if self.port == AllVars:
+            data_array = NpDataContent(
+                symbols=self.array_dict[f'{prefix}_symbol'],
+                values=self.array_dict[f'{prefix}_value']
+            )
+        else:
+            raise ValueError(f"Unsupported port: {self.port}")
+
         # noinspection PyTypeChecker
         # because pyCharm sucks
         return UciIncomeData(self.port, self.tgt_var, subset, data_array)
@@ -75,7 +81,7 @@ uci_income_out_anynet = get_anynet_feature(dict_size, 1)
 class UciIncome:
     @property
     def ports(self) -> FrozenSet[Port]:
-        return frozenset({Input, Output})
+        return frozenset({Input, Output, AllVars})
 
     def __init__(self, base_path: Path) -> None:
         # TODO implement download logic
