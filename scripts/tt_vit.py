@@ -7,7 +7,8 @@ import jax.numpy as xp
 from jax import tree_map, jit, vmap
 from jax._src.random import PRNGKey
 
-from supervised_benchmarks.dataset_protocols import Input, Output, Data
+from supervised_benchmarks.dataset_protocols import Data
+from supervised_benchmarks.ports import Input, Output
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from jax_make.params import make_weights

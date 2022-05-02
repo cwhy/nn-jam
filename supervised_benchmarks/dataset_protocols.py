@@ -1,15 +1,9 @@
+from __future__ import annotations
 from abc import abstractmethod
-from typing import Literal, Protocol, NamedTuple, Mapping, List, FrozenSet, TypeVar
+from typing import Literal, Protocol, NamedTuple, Mapping, FrozenSet, TypeVar
 
+from supervised_benchmarks.ports import Port
 from variable_protocols.variables import Variable
-
-Port = Literal['Input', 'Output', 'Context', 'OutputOptions', 'AllVars']
-Input: Literal['Input'] = 'Input'
-Output: Literal['Output'] = 'Output'
-AllVars: Literal['AllVars'] = 'AllVars'
-
-Context: Literal['Context'] = 'Context'
-OutputOptions: Literal['OutputOptions'] = 'OutputOptions'
 
 SupportedDatasetNames = Literal['MNIST', 'IRaven']
 DataQuery = Mapping[Port, Variable]
@@ -29,31 +23,39 @@ DataContentCov = TypeVar('DataContentCov', bound=DataContentBound, covariant=Tru
 DataContentContra = TypeVar('DataContentContra', bound=DataContentBound, contravariant=True)
 DataContent = TypeVar('DataContent', bound=DataContentBound)
 
-FixedSubsetType = Literal['All', 'FixedTrain', 'FixedTest', 'FixedValidation']
+FixedTrain = Literal['FixedTrain']
+FixedTest = Literal['FixedTest']
+FixedValidation = Literal['FixedValidation']
+All = Literal['All']
+FixedSubsetType = Literal[All, FixedTrain, FixedTest, FixedValidation]
 
 
 class Subset(Protocol):
     @property
     @abstractmethod
-    def tag(self) -> Literal[FixedSubsetType, 'RandomSample']: ...
+    def tag(self) -> Literal[FixedSubsetType, 'Sampled']: ...
 
     @property
     @abstractmethod
-    def indices(self) -> List[int]: ...
+    def len(self) -> int: ...
 
 
 class FixedSubset(NamedTuple):
     tag: FixedSubsetType
-    indices: List[int]
+    len: int
 
     @property
     def uid(self) -> FixedSubsetType:
         return self.tag
 
 
-class FixedSample(NamedTuple):
-    indices: List[int]
-    tag: Literal['RandomSample']
+class SampledSubset(NamedTuple):
+    tag: Literal['Sampled']
+    intervals: frozenset[tuple[int, int]]  # in Python style(end-1)
+
+    @property
+    def len(self) -> int:
+        return sum(map(lambda x: x[1] - x[0], self.intervals))
 
 
 class Data(Protocol[DataContentCov]):
@@ -86,6 +88,10 @@ class DataPool(Protocol[DataContentCov]):
     @property
     @abstractmethod
     def tgt_var(self) -> Variable: ...
+
+    @property
+    @abstractmethod
+    def fixed_subsets(self) -> Mapping[FixedSubsetType, Data[DataContentCov]]: ...
 
     def subset(self, subset: Subset) -> Data[DataContentCov]: ...
 

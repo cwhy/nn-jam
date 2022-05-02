@@ -6,8 +6,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity
-from supervised_benchmarks.dataset_protocols import SupportedDatasetNames, Port, DataPool, Subset, DataContentCov, Data, \
+from supervised_benchmarks.dataset_protocols import SupportedDatasetNames, DataPool, Subset, DataContentCov, Data, \
     DataContent
+from supervised_benchmarks.ports import Port
 
 DataPath = Literal['processed', 'cache', 'raw']
 StorageType = Literal['array_dict']

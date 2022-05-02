@@ -7,8 +7,8 @@ import numpy as np
 import numpy.typing as npt
 from variable_protocols.variables import Variable
 
-from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, \
-    FixedSubset, Data, DataPortMap
+from supervised_benchmarks.dataset_protocols import Subset, DataQuery, FixedSubset, Data, DataPortMap
+from supervised_benchmarks.ports import Port, Input, Output
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
 from supervised_benchmarks.mnist.mnist_utils import read_sn3_pascalvincent_ndarray
 from supervised_benchmarks.mnist.mnist_variations import get_transformations, MnistConfigIn, MnistConfigOut

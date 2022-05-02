@@ -5,7 +5,8 @@ from typing import Protocol, Mapping, Literal, FrozenSet
 
 from variable_protocols.protocols import Variable
 
-from supervised_benchmarks.dataset_protocols import DataContent, Port, DataPool, Dataset, DataConfig
+from supervised_benchmarks.dataset_protocols import DataContent, DataPool, Dataset, DataConfig
+from supervised_benchmarks.ports import Port
 
 
 class ModelConfig(Protocol[DataContent]):

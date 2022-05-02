@@ -8,8 +8,8 @@ import numpy.typing as npt
 from tqdm import trange
 from variable_protocols.variables import Variable, ordinal, dim, var_scalar, var_tensor, var_group
 
-from supervised_benchmarks.dataset_protocols import Port, Subset, DataQuery, Input, Output, \
-    Data, DataPortMap, OutputOptions, Context, FixedSubset
+from supervised_benchmarks.dataset_protocols import Subset, DataQuery, Data, DataPortMap, FixedSubset
+from supervised_benchmarks.ports import Port, Input, Output, Context, OutputOptions
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
 from supervised_benchmarks.download_utils import check_integrity
 

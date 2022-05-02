@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Mapping, Generic, List, Literal
-from supervised_benchmarks.dataset_protocols import DataContent, Port, DataPool, Subset, DataConfig
+from supervised_benchmarks.dataset_protocols import DataContent, DataPool, Subset, DataConfig
+from supervised_benchmarks.ports import Port
 from supervised_benchmarks.dataset_utils import subset_all, merge_vec
 from supervised_benchmarks.metric_protocols import PairMetric, MetricResult
 from supervised_benchmarks.protocols import Performer

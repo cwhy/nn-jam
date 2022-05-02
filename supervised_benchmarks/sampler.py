@@ -4,7 +4,8 @@ from typing import Generic, Literal, Iterator, Mapping, Protocol, runtime_checka
 
 import numpy.random as npr
 
-from supervised_benchmarks.dataset_protocols import DataContentCov, Port, Data
+from supervised_benchmarks.dataset_protocols import DataContentCov, Data
+from supervised_benchmarks.ports import Port
 from supervised_benchmarks.mnist.mnist import FixedTrain
 
 SamplerType = Literal['FixedEpochSampler', 'FullBatchSampler', 'MiniBatchSampler']
@@ -101,7 +102,7 @@ class FixedEpochSamplerConfig(NamedTuple):
                     data_dict: Mapping[Port, Data[DataContentCov]]) -> FixedEpochSampler[DataContentCov]:
         batch_size = self.batch_size
         # TODO refactor Data to contain Map[Port, Content]
-        num_data = len(next(iter(data_dict.values())).subset.indices)
+        num_data = next(iter(data_dict.values())).subset.len
         num_complete_batches, leftover = divmod(num_data, batch_size)
         num_batches = num_complete_batches + int(bool(leftover))
 

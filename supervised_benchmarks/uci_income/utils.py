@@ -8,12 +8,15 @@ from supervised_benchmarks.uci_income.consts import FLOAT_OFFSET, VALUE_SYMBOL, 
     TabularDataInfo
 
 
-def analyze_data():
+# TODO common tabular data utils using polars
+
+
+def analyze_data(base_path: Path) -> TabularDataInfo:
     is_digits = [True] * row_width
     number_counts = [defaultdict(int) for _ in range(row_width)]
     string_baskets = [set() for _ in range(row_width)]
-    tr_path = Path('/Data/uci/adult.data')
-    tst_path = Path('/Data/uci/adult.test')
+    tr_path = base_path.joinpath('adult.data')
+    tst_path = base_path.joinpath('adult.test')
 
     with tr_path.open('r') as f:
         uci_reader = csv.reader(f, delimiter=',')
@@ -63,6 +66,7 @@ def analyze_data():
 
 
 def load_data(info: TabularDataInfo, is_train: bool):
+    # TODO implement download logic
     if is_train:
         n_rows = info.n_rows_tr
         path = info.tr_path

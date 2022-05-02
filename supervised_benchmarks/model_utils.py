@@ -15,7 +15,8 @@ from pynng import Pair0
 from jax_make.components.positional_encoding import dot_product_encode
 from stage.protocol import Stage
 from supervised_benchmarks.benchmark import Benchmark, BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import Subset, Port, DataPool, DataContent, DataConfig
+from supervised_benchmarks.dataset_protocols import Subset, DataPool, DataContent, DataConfig
+from supervised_benchmarks.ports import Port
 from supervised_benchmarks.dataset_utils import subset_all
 from supervised_benchmarks.protocols import ModelConfig
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, MiniBatchSampler

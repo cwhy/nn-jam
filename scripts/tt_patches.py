@@ -13,7 +13,8 @@ from einops import rearrange
 from jax import tree_map, vmap
 from jax._src.random import PRNGKey
 
-from supervised_benchmarks.dataset_protocols import Input, Output, Data
+from supervised_benchmarks.dataset_protocols import Data
+from supervised_benchmarks.ports import Input, Output
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, Mnist, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.visualize_utils import view_2d_mono, view_img_rgba

@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from bokeh.io import show
 
-from supervised_benchmarks.dataset_protocols import Input
+from supervised_benchmarks.ports import Input
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, Mnist, mnist_in_raw, FixedTrain
 from supervised_benchmarks.visualize_utils import view_2d_mono
 
