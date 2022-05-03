@@ -1,29 +1,25 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
-from typing import Mapping, Generic, List, Literal
-from supervised_benchmarks.dataset_protocols import DataContent, DataPool, Subset, DataConfig
-from supervised_benchmarks.ports import Port
-from supervised_benchmarks.dataset_utils import subset_all, merge_vec
+from typing import Mapping, List, Literal, NamedTuple
+
+from supervised_benchmarks.dataset_protocols import DataPool, Subset, DataConfig
+from supervised_benchmarks.numpy_utils import merge_vec
 from supervised_benchmarks.metric_protocols import PairMetric, MetricResult
+from supervised_benchmarks.ports import Port
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import FullBatchSampler, FullBatchSamplerConfig, Sampler, SamplerConfig, \
     FixedEpochSampler
 
 
-# Using dataclass because NamedTuple does not support generics
-@dataclass(frozen=True)
-class BenchmarkConfig(Generic[DataContent]):
-    metrics: Mapping[Port, PairMetric[DataContent]]
+class BenchmarkConfig(NamedTuple):
+    metrics: Mapping[Port, PairMetric]
     on: Subset
     sampler_config: SamplerConfig = FullBatchSamplerConfig()
     type: Literal['BenchmarkConfig'] = 'BenchmarkConfig'
 
-    # noinspection PyTypeChecker
-    # Because Pycharm sucks
-    def prepare(self, data_pool: Mapping[Port, DataPool[DataContent]]) -> Benchmark[DataContent]:
-        bench_data = subset_all(data_pool, self.on)
+    def prepare(self, data_pool: DataPool) -> Benchmark:
+        bench_data = data_pool.subset(self.on)
         return Benchmark(
             sampler=self.sampler_config.get_sampler(bench_data),
             config=self
@@ -35,11 +31,9 @@ class BenchmarkConfig(Generic[DataContent]):
         return benchmark.measure(model)
 
 
-# Using dataclass because NamedTuple does not support generics
-@dataclass(frozen=True)
-class Benchmark(Generic[DataContent]):
-    sampler: Sampler[DataContent]
-    config: BenchmarkConfig[DataContent]
+class Benchmark(NamedTuple):
+    sampler: Sampler
+    config: BenchmarkConfig
 
     def measure(self, performer: Performer) -> List[MetricResult]:
         sampler: Sampler = self.sampler
@@ -58,7 +52,7 @@ class Benchmark(Generic[DataContent]):
             results = defaultdict(list)
             targets = defaultdict(list)
             for _ in range(sampler.num_batches):
-                data_map = {port: next(_iter) for port, _iter in sampler.iter.items()}
+                data_map = next(sampler.iter)
                 for tgt in metrics:
                     result = performer.perform(data_map, tgt)
                     results[tgt].append(result)
@@ -66,7 +60,7 @@ class Benchmark(Generic[DataContent]):
 
             measures = []
             for tgt, metric in metrics.items():
-                print("out_mean: ", merge_vec(results[tgt]).mean(axis=0))
+                print("out_mean: ", merge_vec(results[tgt]).mean())
                 measure = metric.measure(merge_vec(results[tgt]), merge_vec(targets[tgt]))
                 measures.append(measure)
             return measures

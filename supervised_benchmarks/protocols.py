@@ -3,13 +3,14 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Protocol, Mapping, Literal, FrozenSet
 
+from numpy.typing import NDArray
+
+from supervised_benchmarks.dataset_protocols import DataUnit
+from supervised_benchmarks.ports import Port
 from variable_protocols.protocols import Variable
 
-from supervised_benchmarks.dataset_protocols import DataContent, DataPool, Dataset, DataConfig
-from supervised_benchmarks.ports import Port
 
-
-class ModelConfig(Protocol[DataContent]):
+class ModelConfig(Protocol):
     """
     All benchmark related configs are here
     """
@@ -34,12 +35,10 @@ class ModelConfig(Protocol[DataContent]):
     @abstractmethod
     def type(self) -> Literal['ModelConfig']: ...
 
-    def prepare(self) -> Performer[DataContent]: ...
-
-# Mapping[Port, DataPool[DataContent]]
+    def prepare(self) -> Performer: ...
 
 
-class Performer(Protocol[DataContent]):
+class Performer(Protocol):
     @property
     @abstractmethod
     def model(self) -> ModelConfig:
@@ -48,10 +47,8 @@ class Performer(Protocol[DataContent]):
         """
         ...
 
-    def perform(self, data_src: Mapping[Port, DataContent], tgt: Port) -> DataContent: ...
+    def perform(self, data_src: DataUnit, tgt: Port) -> NDArray: ...
 
     def perform_batch(self,
-                      data_src: Mapping[Port, DataContent],
-                      tgt: FrozenSet[Port]) -> Mapping[Port, DataContent]: ...
-
-
+                      data_src: DataUnit,
+                      tgt: FrozenSet[Port]) -> DataUnit: ...

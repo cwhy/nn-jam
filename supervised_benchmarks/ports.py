@@ -1,56 +1,16 @@
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Literal, Protocol, NamedTuple
+from typing import Literal, NamedTuple
 
-PortType = Literal['Input', 'Output', 'Context', 'OutputOptions', 'AllVars']
-
-
-class Port(Protocol):
-    @property
-    @abstractmethod
-    def type(self) -> PortType: ...
-
-    @property
-    @abstractmethod
-    def name(self) -> int: ...
+# If the port is both Input and Output, type it as Input
+PortType = Literal['Input', 'Output', 'Context']
 
 
-class Input(NamedTuple):
-    type: Literal['Input'] = 'Input'
-
-    @property
-    def name(self) -> Literal['Input']:
-        return self.type
+class Port(NamedTuple):
+    type: PortType
+    name: str
 
 
-class Output(NamedTuple):
-    type: Literal['Output'] = 'Output'
-
-    @property
-    def name(self) -> Literal['Output']:
-        return self.type
-
-
-class Context(NamedTuple):
-    type: Literal['Context'] = 'Context'
-
-    @property
-    def name(self) -> Literal['Context']:
-        return self.type
-
-
-class OutputOptions(NamedTuple):
-    type: Literal['OutputOptions'] = 'OutputOptions'
-
-    @property
-    def name(self) -> Literal['OutputOptions']:
-        return self.type
-
-
-class AllVars(NamedTuple):
-    type: Literal['AllVars'] = 'AllVars'
-
-    @property
-    def name(self) -> Literal['AllVars']:
-        return self.type
+Input = Port(type='Input', name='Input')
+Output = Port(type='Output', name='Output')
+Context = Port(type='Context', name='Context')

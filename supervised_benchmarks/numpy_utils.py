@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import List
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -15,3 +19,5 @@ def ordinal_from_1hot(x: NDArray) -> NDArray:
     return np.argmax(x, axis=-1)
 
 
+def merge_vec(xs: List[NDArray]) -> NDArray:
+    return np.concatenate(xs, axis=0)

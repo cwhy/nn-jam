@@ -1,25 +1,17 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from dataclasses import dataclass
-from typing import Literal, Protocol, NamedTuple, List, TypeVar, Tuple, Generic, Any, Callable
+from typing import Literal, Protocol, NamedTuple, List, TypeVar, Tuple, Any, Callable
 
-from variable_protocols.variables import Variable, var_scalar, ordinal
-
-from supervised_benchmarks.dataset_protocols import DataContentContra, DataContent
+from supervised_benchmarks.dataset_protocols import DataArray
+from variable_protocols.variables import Variable
 
 PairMetricType = Literal['mean_acc', 'categorical_acc']
 
-ResultContentCov = TypeVar('ResultContentCov', covariant=True)
-ResultContent = TypeVar('ResultContent')
 VarParam = TypeVar('VarParam', bound=Tuple)
 
 
-class Measure(Protocol[DataContentContra]):
-    def __call__(self, output: DataContentContra, target: DataContentContra) -> MetricResult: ...
-
-
-class PairMetric(Protocol[DataContentContra]):
+class PairMetric(Protocol):
     @property
     @abstractmethod
     def protocol(self) -> Variable: ...
@@ -30,7 +22,7 @@ class PairMetric(Protocol[DataContentContra]):
 
     @property
     @abstractmethod
-    def measure(self) -> Measure[DataContentContra]: ...
+    def measure(self) -> Measure: ...
 
 
 class MeanAccResult(NamedTuple):
@@ -43,14 +35,15 @@ class CategoricalAccResult(NamedTuple):
     result_type: Literal['categorical_acc'] = 'categorical_acc'
 
 
-@dataclass(frozen=True)
-class PairMetricImp(Generic[DataContentContra]):
-    protocol: Variable
-    type: PairMetricType
-    measure: Measure[DataContentContra]
-
-
 class MetricResult(NamedTuple):
     content: Any
     result_type: PairMetricType
 
+
+Measure = Callable[[DataArray, DataArray], MetricResult]
+
+
+class PairMetricImp(NamedTuple):
+    protocol: Variable
+    type: PairMetricType
+    measure: Measure

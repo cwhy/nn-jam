@@ -8,7 +8,7 @@ import numpy.typing as npt
 from tqdm import trange
 from variable_protocols.variables import Variable, ordinal, dim, var_scalar, var_tensor, var_group
 
-from supervised_benchmarks.dataset_protocols import Subset, DataQuery, Data, DataPortMap, FixedSubset
+from supervised_benchmarks.dataset_protocols import Subset, DataQuery, DataSubset, DataPortMap, FixedSubset
 from supervised_benchmarks.ports import Port, Input, Output, Context, OutputOptions
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
 from supervised_benchmarks.download_utils import check_integrity
@@ -42,7 +42,7 @@ class IravenDataPool(NamedTuple):
     src_var: Variable
     tgt_var: Variable
 
-    def subset(self, subset: Subset) -> Data[npt.NDArray]:
+    def subset(self, subset: Subset) -> DataSubset[npt.NDArray]:
         assert self.src_var == self.tgt_var
         if self.port is OutputOptions:
             data_array = self.array_dict['images'][subset.indices, 8:, :, :]

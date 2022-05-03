@@ -1,42 +1,33 @@
 from __future__ import annotations
 
-import json
-import pickle
 import time
 from abc import abstractmethod
 from dataclasses import dataclass
-from functools import partial
-from threading import Thread
-from typing import List, Mapping, Generic, Protocol, FrozenSet, Callable, Literal, Dict, Optional
+from typing import List, Protocol, FrozenSet, Callable, Literal, Dict
 
-import numpy as np
-from pynng import Pair0
+from numpy.typing import NDArray
 
-from jax_make.components.positional_encoding import dot_product_encode
-from stage.protocol import Stage
 from supervised_benchmarks.benchmark import Benchmark, BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import Subset, DataPool, DataContent, DataConfig
+from supervised_benchmarks.dataset_protocols import Subset, DataPool, DataConfig, DataUnit
 from supervised_benchmarks.ports import Port
-from supervised_benchmarks.dataset_utils import subset_all
 from supervised_benchmarks.protocols import ModelConfig
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, MiniBatchSampler
-
 
 Probes = Literal['before_epoch_', 'after_epoch_']
 
 
 @dataclass(frozen=True)
-class Train(Generic[DataContent]):
+class Train:
     num_epochs: int
     batch_size: int
     bench_configs: List[BenchmarkConfig]
-    model: TrainablePerformer[DataContent]
+    model: TrainablePerformer
     data_subset: Subset
     data_config: DataConfig
 
     def run_(self):
-        pool_dict: Mapping[Port, DataPool[DataContent]] = self.data_config.get_data()
-        train_data = subset_all(pool_dict, self.data_subset)
+        pool_dict: DataPool = self.data_config.get_data()
+        train_data = pool_dict.subset(self.data_subset)
         benchmarks: List[Benchmark] = [b.prepare(pool_dict) for b in self.bench_configs]
         train_sampler = FixedEpochSamplerConfig(self.batch_size).get_sampler(train_data)
         for epoch in range(self.num_epochs):
@@ -54,7 +45,7 @@ class Train(Generic[DataContent]):
                 self.model.probe['after_epoch_'](pool_dict)
 
 
-class TrainablePerformer(Protocol[DataContent]):
+class TrainablePerformer:
     @property
     @abstractmethod
     def model(self) -> TrainableModelConfig:
@@ -65,13 +56,13 @@ class TrainablePerformer(Protocol[DataContent]):
 
     @property
     @abstractmethod
-    def probe(self) -> Dict[Probes, Callable[[Mapping[Port, DataPool[DataContent]]], None]]: ...
+    def probe(self) -> Dict[Probes, Callable[[DataUnit], None]]: ...
 
-    def perform(self, data_src: Mapping[Port, DataContent], tgt: Port) -> DataContent: ...
+    def perform(self, data_src: DataUnit, tgt: Port) -> NDArray: ...
 
     def perform_batch(self,
-                      data_src: Mapping[Port, DataContent],
-                      tgt: FrozenSet[Port]) -> Mapping[Port, DataContent]: ...
+                      data_src: DataUnit,
+                      tgt: FrozenSet[Port]) -> DataUnit: ...
 
     def update_(self, sampler: MiniBatchSampler): ...
 

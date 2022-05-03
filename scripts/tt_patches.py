@@ -13,7 +13,7 @@ from einops import rearrange
 from jax import tree_map, vmap
 from jax._src.random import PRNGKey
 
-from supervised_benchmarks.dataset_protocols import Data
+from supervised_benchmarks.dataset_protocols import DataSubset
 from supervised_benchmarks.ports import Input, Output
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, Mnist, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
@@ -27,7 +27,7 @@ data_config_ = MnistDataConfig(
         Input: MnistConfigIn(is_float=True, is_flat=False).get_var(),
         Output: MnistConfigOut(is_1hot=True).get_var()
     })
-td: Data = data_config_.get_data()[Input].subset(FixedTest)
+td: DataSubset = data_config_.get_data()[Input].subset(FixedTest)
 print(td.content[0:10].shape)  # 10, 28, 28
 r = xp.moveaxis(xp.stack((td.content[0:10], td.content[1:11], td.content[2:12], xp.ones((10, 28, 28)))), 0, -1)
 print(r.shape)  # 10, 28, 28, 4

@@ -7,7 +7,7 @@ import jax.numpy as xp
 from jax import tree_map, jit, vmap
 from jax._src.random import PRNGKey
 
-from supervised_benchmarks.dataset_protocols import Data
+from supervised_benchmarks.dataset_protocols import DataSubset
 from supervised_benchmarks.ports import Input, Output
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
@@ -37,7 +37,7 @@ data_config_ = MnistDataConfig(
         Input: MnistConfigIn(is_float=True, is_flat=False).get_var(),
         Output: MnistConfigOut(is_1hot=True).get_var()
     })
-td: Data = data_config_.get_data()[Input].subset(FixedTest)
+td: DataSubset = data_config_.get_data()[Input].subset(FixedTest)
 print(td.content[0:10].shape)  # 10, 28, 28
 
 inputs = xp.expand_dims(td.content[0:10], -1)

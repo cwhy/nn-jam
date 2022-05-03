@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from variable_protocols.variables import Variable
 
-from supervised_benchmarks.dataset_protocols import Subset, DataQuery, FixedSubset, Data, DataPortMap
+from supervised_benchmarks.dataset_protocols import Subset, DataQuery, FixedSubset, DataSubset, DataPortMap
 from supervised_benchmarks.ports import Port, Input, Output
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
 from supervised_benchmarks.mnist.mnist_utils import read_sn3_pascalvincent_ndarray
@@ -67,7 +67,7 @@ class MnistDataPool(NamedTuple):
     src_var: Variable
     tgt_var: Variable
 
-    def subset(self, subset: Subset) -> Data[npt.NDArray]:
+    def subset(self, subset: Subset) -> DataSubset[npt.NDArray]:
         transform = get_transformations((self.src_var, self.tgt_var))
         port_tag = 'images' if self.port is Input else 'labels'
         target = transform(self.array_dict[f"all.{port_tag}"][subset.indices])

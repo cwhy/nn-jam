@@ -26,7 +26,7 @@ from jax_make.params import ArrayTree, RNGKey, make_weights
 from jax_make.vit import VitReconstruct
 from stage.protocol import Stage
 from supervised_benchmarks.benchmark import BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import DataConfig, DataPool, DataContent
+from supervised_benchmarks.dataset_protocols import DataConfig, DataPool, DataArray
 from supervised_benchmarks.ports import Port, Input, Output
 from supervised_benchmarks.dataset_utils import subset_all
 from supervised_benchmarks.metrics import get_pair_metric
@@ -168,7 +168,7 @@ class MlpModel:
     train_stage: Stage
 
     @property
-    def probe(self) -> Dict[Probes, Callable[[Mapping[Port, DataPool[DataContent]]], None]]:
+    def probe(self) -> Dict[Probes, Callable[[Mapping[Port, DataPool[DataArray]]], None]]:
         def debug(pool):
             cfg = FullBatchSamplerConfig()
             sp1 = cfg.get_sampler(subset_all(pool, FixedTrain)).full_batch

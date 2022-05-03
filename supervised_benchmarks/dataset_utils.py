@@ -1,22 +1,11 @@
 from pathlib import Path
-from typing import List, Tuple, Literal, Mapping, Mapping, Optional, Sequence
+from typing import List, Tuple, Literal, Optional, Sequence
 from urllib.error import URLError
 
-import numpy as np
-from numpy.typing import NDArray
-
 from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity
-from supervised_benchmarks.dataset_protocols import SupportedDatasetNames, DataPool, Subset, DataContentCov, Data, \
-    DataContent
-from supervised_benchmarks.ports import Port
 
 DataPath = Literal['processed', 'cache', 'raw']
 StorageType = Literal['array_dict']
-
-
-def subset_all(pool_dict: Mapping[Port, DataPool[DataContentCov]],
-               subset: Subset) -> Mapping[Port, Data[DataContentCov]]:
-    return {port: pool.subset(subset) for port, pool in pool_dict.items()}
 
 
 def get_data_dir(base_path: Path, data_name: str, sub_path: DataPath) -> Path:
@@ -28,10 +17,10 @@ def get_data_dir(base_path: Path, data_name: str, sub_path: DataPath) -> Path:
 
 
 def download_resources(base_path: Path,
-                       name: SupportedDatasetNames,
+                       name: str,
                        resources: Sequence[Tuple[str, Optional[str]]],
                        mirrors: List[str],
-                       version_name: Optional[str]=None) -> None:
+                       version_name: Optional[str] = None) -> None:
     raw_path = get_data_dir(base_path, name, 'raw')
     if version_name is not None:
         download_path = raw_path.joinpath(version_name)
@@ -71,5 +60,3 @@ def download_resources(base_path: Path,
             raise RuntimeError("Error downloading {}".format(filename))
 
 
-def merge_vec(xs: List[DataContent]) -> DataContent:
-    return np.concatenate(xs)
