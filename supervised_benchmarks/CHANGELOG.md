@@ -10,3 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Port] Refactored port, and used generic Port, Input/Output are no longer strings, but port types
 - Use Python 3.8 style type annotation by default from now on
 - Ditch Pycharm typing hints, use mypy instead from now on
+- Not runnable
+- Before refactoring
+    - [Data] content is a map instead of DataContent
+    - [DataContents] remove all the variants of generics, abstract it out
+    - [DataContents] now a wrapper container of arrays
