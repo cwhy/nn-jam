@@ -5,6 +5,7 @@ from pprint import pprint
 from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
 
 import numpy.typing as npt
+from numpy.typing import NDArray
 
 from supervised_benchmarks.dataset_protocols import Subset, DataQuery, DataSubset, FixedSubset, FixedSubsetType, \
     FixedTrain, FixedTest
@@ -23,13 +24,10 @@ name: Literal["UciIncome"] = "UciIncome"
 class UciIncomeDataPool(NamedTuple):
     data_info: TabularDataInfo
     array_dict: Mapping[str, npt.NDArray]
-    fixed_datasets: Mapping[FixedSubsetType, DataSubset]
-    port: Port
-    src_var: Variable
-    tgt_var: Variable
+    fixed_subsets: Mapping[FixedSubsetType, DataSubset]
+    query: DataQuery
 
     def subset(self, subset: Subset) -> DataSubset:
-        assert self.src_var == self.tgt_var
         raise NotImplementedError
 
         # return UciIncomeData(self.port, self.tgt_var, subset, data_array)
@@ -44,7 +42,7 @@ uci_income_out_anynet_discrete = get_anynet_feature(dict_size, 1, continuous=Fal
 
 class UciIncome:
     @property
-    def ports(self) -> FrozenSet[Port]:
+    def exports(self) -> FrozenSet[Port]:
         return frozenset({AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut})
 
     def __init__(self, base_path: Path) -> None:
@@ -77,43 +75,47 @@ class UciIncome:
     def name(self) -> Literal['UciIncome']:
         return name
 
-    def get_fixed_datasets(self, variable: Variable) -> Mapping[FixedSubsetType, DataSubset]:
+    def get_fixed_datasets(self, query: DataQuery) -> Mapping[FixedSubsetType, DataSubset]:
+        assert set(query.keys()).issubset(self.exports)
         n_samples_tr = self.data_info.n_rows_tr
         n_samples_tst = self.data_info.n_rows_tst
 
+        def get_data(port: Port, is_train: bool) -> NDArray:
+            # TODO test, may not right
+            prefix = 'tr' if is_train else 'tst'
+            if port is AnyNetDiscrete:
+                return self.array_dict[f'{prefix}_symbol'][:-1]
+            elif port is AnyNetContinuous:
+                return self.array_dict[f'{prefix}_value']
+            elif port is AnyNetDiscreteOut:
+                return self.array_dict[f'{prefix}_symbol'][-1, :]
+            else:
+                raise ValueError(f'Unknown port {port}')
+
         fixed_datasets: Dict[FixedSubsetType, DataSubset] = {
-            FixedTrain: DataSubset(variable,
+            FixedTrain: DataSubset(query,
                                    FixedSubset(FixedTrain, n_samples_tr),
-                                   {
-                                       AnyNetDiscrete: self.array_dict['tr_symbol'][:-1],
-                                       AnyNetContinuous: self.array_dict['tr_value'],
-                                       AnyNetDiscreteOut: self.array_dict['tr_value'][-1, :]
-                                   }),
-            FixedTest: DataSubset(variable,
+                                   {port: get_data(port, is_train=True) for port in query}),
+            FixedTest: DataSubset(query,
                                   FixedSubset(FixedTest, n_samples_tst),
-                                  {
-                                      AnyNetDiscrete: self.array_dict['tr_symbol'][:-1],
-                                      AnyNetContinuous: self.array_dict['tr_value'],
-                                      AnyNetDiscreteOut: self.array_dict['tr_value'][-1, :]
-                                  })
+                                  {port: get_data(port, is_train=False) for port in query})
         }
         return fixed_datasets
 
     def retrieve(self, query: DataQuery) -> UciIncomeDataPool:
-        assert all(port in self.ports for port in query)
+        assert all(port in self.exports for port in query)
 
         return UciIncomeDataPool(
-                array_dict=self.array_dict,
-                data_info=self.data_info,
-                fixed_datasets=self.get_fixed_datasets(variable_protocol),
-                src_var=self.protocols[port],
-                tgt_var=variable_protocol)
+            array_dict=self.array_dict,
+            data_info=self.data_info,
+            fixed_subsets=self.get_fixed_datasets(query),
+            query=query)
 
 
 class UciIncomeDataConfig(NamedTuple):
     base_path: Path
-    port_vars: DataQuery
+    query: DataQuery
     type: Literal['DataConfig'] = 'DataConfig'
 
     def get_data(self) -> UciIncomeDataPool:
-        return UciIncome(self.base_path).retrieve(self.port_vars)
+        return UciIncome(self.base_path).retrieve(self.query)

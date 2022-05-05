@@ -7,7 +7,7 @@ from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, uci
 
 def test_get_data():
     data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
-                                      port_vars={AnyNetDiscrete: uci_income_in_anynet_discrete})
+                                      query={AnyNetDiscrete: uci_income_in_anynet_discrete})
     data_pool = data_config.get_data()
     assert data_pool.src_var == data_pool.tgt_var == uci_income_in_anynet_discrete
     tr = data_pool.fixed_datasets[FixedTrain]

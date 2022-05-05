@@ -54,7 +54,7 @@ class SampledSubset(NamedTuple):
 
 
 class DataSubset(NamedTuple):
-    protocol: Variable
+    query: DataQuery
     subset: Subset
     content_map: DataUnit
 
@@ -62,11 +62,7 @@ class DataSubset(NamedTuple):
 class DataPool(Protocol):
     @property
     @abstractmethod
-    def src_var(self) -> Variable: ...
-
-    @property
-    @abstractmethod
-    def tgt_var(self) -> Variable: ...
+    def query(self) -> DataQuery: ...
 
     @property
     @abstractmethod
@@ -78,7 +74,7 @@ class DataPool(Protocol):
 class DataConfig(Protocol):
     @property
     @abstractmethod
-    def port_vars(self) -> DataQuery: ...
+    def query(self) -> DataQuery: ...
 
     @property
     @abstractmethod
@@ -90,7 +86,7 @@ class DataConfig(Protocol):
 class Dataset(Protocol):
     @property
     @abstractmethod
-    def ports(self) -> FrozenSet[Port]: ...
+    def exports(self) -> FrozenSet[Port]: ...
 
     @property
     @abstractmethod
