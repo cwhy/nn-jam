@@ -9,8 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## TODO : Get UCI working
 - new ver
-- Add sklearn dummy model
+- Add xgboost dummy model
 - add modeltesting utility
+  
+## [0.0.3] - 2022-05-06
+- [Model]: Added sample model
 
 ## [0.0.2] - 2022-05-06
 - [DataSubset] Renamed to [DataSubset]

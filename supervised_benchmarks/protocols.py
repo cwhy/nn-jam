@@ -17,14 +17,6 @@ class ModelConfig(Protocol):
 
     @property
     @abstractmethod
-    def repertoire(self) -> FrozenSet[Port]:
-        """
-        Output ports
-        """
-        ...
-
-    @property
-    @abstractmethod
     def ports(self) -> Mapping[Port, Variable]:
         """
         Variable Protocol of different ports
@@ -41,9 +33,9 @@ class ModelConfig(Protocol):
 class Performer(Protocol):
     @property
     @abstractmethod
-    def model(self) -> ModelConfig:
+    def repertoire(self) -> FrozenSet[Port]:
         """
-        The model that the performer based on
+        Output ports
         """
         ...
 

@@ -3,14 +3,11 @@ from __future__ import annotations
 import time
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import List, Protocol, FrozenSet, Callable, Literal, Dict
-
-from numpy.typing import NDArray
+from typing import List, Protocol, Callable, Literal, Dict
 
 from supervised_benchmarks.benchmark import Benchmark, BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Subset, DataPool, DataConfig, DataUnit
-from supervised_benchmarks.ports import Port
-from supervised_benchmarks.protocols import ModelConfig
+from supervised_benchmarks.protocols import ModelConfig, Performer
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, MiniBatchSampler
 
 Probes = Literal['before_epoch_', 'after_epoch_']
@@ -45,24 +42,10 @@ class Train:
                 self.model.probe['after_epoch_'](pool_dict)
 
 
-class TrainablePerformer:
-    @property
-    @abstractmethod
-    def model(self) -> TrainableModelConfig:
-        """
-        The model that the performer based on
-        """
-        ...
-
+class TrainablePerformer(Performer, Protocol):
     @property
     @abstractmethod
     def probe(self) -> Dict[Probes, Callable[[DataUnit], None]]: ...
-
-    def perform(self, data_src: DataUnit, tgt: Port) -> NDArray: ...
-
-    def perform_batch(self,
-                      data_src: DataUnit,
-                      tgt: FrozenSet[Port]) -> DataUnit: ...
 
     def update_(self, sampler: MiniBatchSampler): ...
 

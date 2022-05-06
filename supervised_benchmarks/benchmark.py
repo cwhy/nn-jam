@@ -38,7 +38,7 @@ class Benchmark(NamedTuple):
     def measure(self, performer: Performer) -> List[MetricResult]:
         sampler: Sampler = self.sampler
         metrics = self.config.metrics
-        assert all((k in performer.model.repertoire) for k in metrics)
+        assert all((k in performer.repertoire) for k in metrics)
 
         if sampler.tag == 'FullBatchSampler':
             assert isinstance(sampler, FullBatchSampler)
