@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from pprint import pprint
 from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
 
 import numpy.typing as npt
@@ -10,7 +9,8 @@ from numpy.typing import NDArray
 from supervised_benchmarks.dataset_protocols import Subset, DataQuery, DataSubset, FixedSubset, FixedSubsetType, \
     FixedTrain, FixedTest
 from supervised_benchmarks.ports import Port, Input, Output
-from supervised_benchmarks.uci_income.consts import row_width, TabularDataInfo, get_anynet_feature, AnyNetDiscrete, \
+from supervised_benchmarks.uci_income.consts import row_width, n_tokens, TabularDataInfo, get_anynet_feature, \
+    AnyNetDiscrete, \
     AnyNetContinuous, AnyNetDiscreteOut
 from supervised_benchmarks.uci_income.utils import analyze_data, load_data
 from variable_protocols.variables import Variable
@@ -33,11 +33,9 @@ class UciIncomeDataPool(NamedTuple):
         # return UciIncomeData(self.port, self.tgt_var, subset, data_array)
 
 
-dict_size = 10
-
-uci_income_in_anynet_discrete = get_anynet_feature(dict_size, row_width - 1, continuous=False)
-uci_income_in_anynet_continuous = get_anynet_feature(dict_size, row_width - 1, continuous=True)
-uci_income_out_anynet_discrete = get_anynet_feature(dict_size, 1, continuous=False)
+uci_income_in_anynet_discrete = get_anynet_feature(n_tokens, row_width - 1, continuous=False)
+uci_income_in_anynet_continuous = get_anynet_feature(n_tokens, row_width - 1, continuous=True)
+uci_income_out_anynet_discrete = get_anynet_feature(n_tokens, 1, continuous=False)
 
 
 class UciIncome:
@@ -47,11 +45,10 @@ class UciIncome:
 
     def __init__(self, base_path: Path) -> None:
         # TODO implement download logic
+        # TODO implement checkvar logic after VarProtocols are revamped
         self.data_info = analyze_data(base_path)
-        pprint(self.data_info.common_values)
-        pprint(self.data_info.symbol_id_table)
 
-        # dict_size = len(data_info.symbol_id_table) + 3
+        dict_size = len(self.data_info.symbol_id_table) + 3
 
         symbol_table_tr, value_table_tr = load_data(self.data_info, is_train=True)
         symbol_table_tst, value_table_tst = load_data(self.data_info, is_train=False)
@@ -63,8 +60,6 @@ class UciIncome:
             'tst_value': value_table_tst
         }
 
-        # noinspection PyTypeChecker
-        # because pyCharm sucks
         self.protocols: Mapping[Port, Variable] = {
             AnyNetDiscrete: uci_income_in_anynet_discrete,
             AnyNetContinuous: uci_income_in_anynet_continuous,

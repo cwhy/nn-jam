@@ -5,15 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## Long Term TODO
 - Variable protocol DSL
+- Enable Generics in Variable Protocol
 
 ## TODO : Get UCI working
-- fixed datasets query design
-- get no type errors
-- test working on fixed datasets
-- test sampling on fixed datasets
-- set up default ports
+- new ver
+- Add sklearn dummy model
+- add modeltesting utility
 
-## [0.0.2] - 2022-05-03
+## [0.0.2] - 2022-05-06
 - [DataSubset] Renamed to [DataSubset]
 - [DataSubset] .content becomes .content_map and returns a map of port:array
 - [DataSubset] removed `.variable` since variable is now tied to Ports
@@ -24,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Port] Fixed wrong implementation of ports
 - [DataSet] Changed `.port` to `.export`
 - [DataConfig] Renamed `.port_vars` to `.query`
+- Discard Variable Protocol details first
 
 ## [0.0.1] - 2022-05-02
 - [Subset] Removed index requirement for Subset

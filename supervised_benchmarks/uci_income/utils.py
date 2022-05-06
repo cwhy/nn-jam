@@ -49,7 +49,7 @@ def analyze_data(base_path: Path) -> TabularDataInfo:
         if is_digits[i]:
             common_val = max(s.values())
             if common_val > sum(sorted(s.values())[-5:-1]):
-                common_values[f"{variable_names[i]}_offset_{int(common_val)}"] = common_val
+                common_values[f"{variable_names[i]}_offset_{int(common_val)}"] = float(common_val)
                 symbol_id_table[f"{variable_names[i]}_offset_{int(common_val)}"] = len(symbol_id_table)
 
     with tst_path.open('r') as f:

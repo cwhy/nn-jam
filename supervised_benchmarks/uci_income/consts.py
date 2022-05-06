@@ -24,6 +24,7 @@ variable_names = [
     "income"
 ]
 row_width = len(variable_names)
+n_tokens = 108
 
 
 class TabularDataInfo(NamedTuple):
