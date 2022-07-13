@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Variable protocol DSL
 - Enable Generics in Variable Protocol
 
+## Mid Term TODO : 
+- Fix mnist
+- Fix iraven
+- add modeltesting utility
+
 ## TODO : Get UCI working
 - new ver
-- Add xgboost dummy model
-- add modeltesting utility
-  
+- Test UCI with benchmark and metrics
+
+## [0.0.4] - 2022-07-04
+- [UCI_INCOME] 
+  - Fixed tests
+  - added tests using catboost
+
 ## [0.0.3] - 2022-05-06
 - [Model]: Added sample model
 

@@ -1,6 +1,9 @@
 from pathlib import Path
 from typing import NamedTuple, FrozenSet, Mapping, Literal
 
+import numpy as np
+from catboost import CatBoostClassifier
+
 from numpy.typing import NDArray
 
 from supervised_benchmarks.dataset_protocols import FixedTrain, FixedTest, DataUnit
@@ -13,21 +16,32 @@ from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, uci
 from variable_protocols.protocols import Variable
 
 
-class XGBoostModelConfig(NamedTuple):
-    repertoire: FrozenSet[Port]
-
+class BoostModelConfig(NamedTuple):
     ports: Mapping[Port, Variable]
 
     type: Literal['ModelConfig'] = 'ModelConfig'
 
-    def prepare(self) -> Performer: ...
+    def prepare(self) -> Performer:
+        query = {AnyNetDiscrete: uci_income_in_anynet_discrete,
+                 AnyNetDiscreteOut: uci_income_out_anynet_discrete}
+        data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'), query=query)
+        data_pool = data_config.get_data()
+        tr = data_pool.fixed_subsets[FixedTrain]
+        clf = CatBoostClassifier()
+        print(tr.content_map[AnyNetDiscreteOut])
+        clf.fit(tr.content_map[AnyNetDiscrete], tr.content_map[AnyNetDiscreteOut])
+
+        return BoostPerformer(classifier=clf, repertoire={AnyNetDiscreteOut})
 
 
-class XGBoostPerformer(NamedTuple):
-    def model(self) -> XGBoostModelConfig:
-        pass
+class BoostPerformer(NamedTuple):
+    classifier: CatBoostClassifier
+    repertoire: FrozenSet[Port]
 
-    def perform(self, data_src: DataUnit, tgt: Port) -> NDArray: ...
+    def perform(self, data_src: DataUnit, tgt: Port) -> NDArray:
+        print(data_src[AnyNetDiscrete])
+        arr = self.classifier.predict(data_src[AnyNetDiscrete])
+        return np.array(arr)
 
     def perform_batch(self,
                       data_src: DataUnit,
@@ -35,29 +49,49 @@ class XGBoostPerformer(NamedTuple):
 
 
 def test_get_data():
-    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
-                                      query={AnyNetDiscrete: uci_income_in_anynet_discrete,
-                                             AnyNetDiscreteOut: uci_income_out_anynet_discrete})
+    query = {AnyNetDiscrete: uci_income_in_anynet_discrete,
+             AnyNetDiscreteOut: uci_income_out_anynet_discrete}
+    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'), query=query)
     data_pool = data_config.get_data()
     tr = data_pool.fixed_subsets[FixedTrain]
     tst = data_pool.fixed_subsets[FixedTest]
     assert AnyNetDiscrete in tr.content_map
     assert AnyNetDiscrete in tst.content_map
-    assert tr.query == tst.query == {AnyNetDiscrete: uci_income_in_anynet_discrete}
+    assert tr.query == tst.query == query
     print(tr.content_map[AnyNetDiscrete].shape)
     print(tst.content_map[AnyNetDiscrete].shape)
-    assert tr.content_map[AnyNetDiscrete].shape == (32560, 15)
-    assert tst.content_map[AnyNetDiscrete].shape == (16280, 15)
+    assert tr.content_map[AnyNetDiscrete].shape == (32561, 14)
+    assert tst.content_map[AnyNetDiscrete].shape == (16281, 14)
+    print(tr.content_map[AnyNetDiscreteOut].shape)
+    assert tr.content_map[AnyNetDiscreteOut].shape == (32561,)
     sampler_config = FixedEpochSamplerConfig(512)
     sampler = sampler_config.get_sampler(tr)
+
     mini_batch = next(sampler.iter)
     assert AnyNetDiscrete in mini_batch
-    assert mini_batch[AnyNetDiscrete].shape == (512, 15)
+    assert mini_batch[AnyNetDiscrete].shape == (512, 14)
     test_sampler = FullBatchSamplerConfig().get_sampler(tst)
     full_test = test_sampler.full_batch
     assert AnyNetDiscrete in full_test
-    assert full_test[AnyNetDiscrete].shape == (16280, 15)
+    assert full_test[AnyNetDiscrete].shape == (16281, 14)
     # bench = BenchmarkConfig(metrics={AnyNetDiscreteOut: get_pair_metric('mean_acc', var_scalar(ordinal(n_tokens)))},
     #                         on=FixedTrain).bench(data_config)
 
     assert True
+
+
+def test_boost_init():
+    query = {AnyNetDiscrete: uci_income_in_anynet_discrete,
+             AnyNetDiscreteOut: uci_income_out_anynet_discrete}
+    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'), query=query)
+    data_pool = data_config.get_data()
+    tr = data_pool.fixed_subsets[FixedTrain]
+    sampler_config = FixedEpochSamplerConfig(512)
+    sampler = sampler_config.get_sampler(tr)
+
+    mini_batch = next(sampler.iter)
+    config = BoostModelConfig(
+        ports={AnyNetDiscreteOut: uci_income_out_anynet_discrete, AnyNetDiscrete: uci_income_in_anynet_discrete})
+    performer = config.prepare()
+    result = performer.perform(data_src=mini_batch, tgt=AnyNetDiscreteOut)
+    print((result == mini_batch[AnyNetDiscreteOut]).mean())

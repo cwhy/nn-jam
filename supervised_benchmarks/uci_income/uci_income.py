@@ -79,11 +79,11 @@ class UciIncome:
             # TODO test, may not right
             prefix = 'tr' if is_train else 'tst'
             if port is AnyNetDiscrete:
-                return self.array_dict[f'{prefix}_symbol'][:-1]
+                return self.array_dict[f'{prefix}_symbol'][:, :-1]
             elif port is AnyNetContinuous:
                 return self.array_dict[f'{prefix}_value']
             elif port is AnyNetDiscreteOut:
-                return self.array_dict[f'{prefix}_symbol'][-1, :]
+                return self.array_dict[f'{prefix}_symbol'][:, -1]
             else:
                 raise ValueError(f'Unknown port {port}')
 
