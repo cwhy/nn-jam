@@ -3,9 +3,9 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Mapping, List, Literal, NamedTuple
 
-from supervised_benchmarks.dataset_protocols import DataPool, Subset, DataConfig
-from supervised_benchmarks.numpy_utils import merge_vec
+from supervised_benchmarks.dataset_protocols import DataPool, DataConfig, FixedSubsetType
 from supervised_benchmarks.metric_protocols import PairMetric, MetricResult
+from supervised_benchmarks.numpy_utils import merge_vec
 from supervised_benchmarks.ports import Port
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import FullBatchSampler, FullBatchSamplerConfig, Sampler, SamplerConfig, \
@@ -14,12 +14,12 @@ from supervised_benchmarks.sampler import FullBatchSampler, FullBatchSamplerConf
 
 class BenchmarkConfig(NamedTuple):
     metrics: Mapping[Port, PairMetric]
-    on: Subset
+    on: FixedSubsetType
     sampler_config: SamplerConfig = FullBatchSamplerConfig()
     type: Literal['BenchmarkConfig'] = 'BenchmarkConfig'
 
     def prepare(self, data_pool: DataPool) -> Benchmark:
-        bench_data = data_pool.subset(self.on)
+        bench_data = data_pool.fixed_subsets[self.on]
         return Benchmark(
             sampler=self.sampler_config.get_sampler(bench_data),
             config=self

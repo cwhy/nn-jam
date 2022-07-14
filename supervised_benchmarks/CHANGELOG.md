@@ -14,9 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## TODO : Get UCI working
 - new ver
-- Test UCI with benchmark and metrics
+  
+## [0.0.5] - 2022-07-15
+- [UCI_INCOME] 
+  - Test UCI with benchmark and metrics
+- [Benchmark]
+  - Now using `FixSubsetType` Instead of `Subset` for subset options
 
-## [0.0.4] - 2022-07-04
+## [0.0.4] - 2022-07-13
 - [UCI_INCOME] 
   - Fixed tests
   - added tests using catboost
