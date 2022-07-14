@@ -8,11 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enable Generics in Variable Protocol
 
 ## Mid Term TODO : 
-- Fix mnist
 - Fix iraven
 - add modeltesting utility
 
-## TODO : Get UCI working
+## TODO : Get Mnist back at work
+- Fix mnist
+- Have a similar test for mnist like uci income
 - new ver
   
 ## [0.0.5] - 2022-07-15
