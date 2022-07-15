@@ -10,7 +10,7 @@ from variable_protocols.protocols import fmt
 from supervised_benchmarks.dataset_protocols import DataPool
 from supervised_benchmarks.ports import Input, Output
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, Mnist, \
-    FixedTrain, FixedTest, mnist_in_raw, mnist_out_raw
+    FixedTrain, FixedTest, mnist_in_raw, mnist_out_raw, MnistDataPool
 from supervised_benchmarks.mnist.mnist_variations import transformations, MnistConfigIn
 from supervised_benchmarks.visualize_utils import view_2d_mono
 
@@ -31,10 +31,10 @@ print(k.array_dict['all.images'].dtype)
 print(tr2(tr1(k.array_dict['all.images'])).dtype)
 assert np.all(k.array_dict['all.images'] == tr2(tr1(k.array_dict['all.images'])))
 
-pool_dict = k.retrieve({Input: mnist_in_flattened})
+pool: MnistDataPool = k.retrieve({Input: mnist_in_flattened})
 # print(k.data)
-pool = pool_dict[Input]
-tri = pool.subset(FixedTrain)
+
+tri = pool.fixed_subsets[FixedTrain]
 print(tri)
 
 pool_dict = k.retrieve({Input: mnist_in_raw, Output: mnist_out_raw})

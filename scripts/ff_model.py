@@ -14,7 +14,7 @@ from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import DataQuery, DataConfig
+from supervised_benchmarks.dataset_protocols import PortSpecs, DataConfig
 from supervised_benchmarks.ports import Port, Input, Output
 from supervised_benchmarks.metrics import get_mean_acc, get_pair_metric
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest

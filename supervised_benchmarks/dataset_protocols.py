@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Literal, Protocol, NamedTuple, Mapping, FrozenSet
+from typing import Literal, Protocol, NamedTuple, Mapping, FrozenSet, Callable
 
 from numpy.typing import NDArray
 
@@ -13,7 +13,7 @@ from supervised_benchmarks.ports import Port
 from variable_protocols.variables import Variable
 
 SupportedDatasetNames = Literal['MNIST', 'IRaven']
-DataQuery = Mapping[Port, Variable]
+PortSpecs = Mapping[Port, Variable]
 
 
 FixedTrain: Literal['FixedTrain'] = 'FixedTrain'
@@ -54,7 +54,7 @@ class SampledSubset(NamedTuple):
 
 
 class DataSubset(NamedTuple):
-    query: DataQuery
+    pipes: Mapping[Port, Callable[[NDArray], NDArray]]
     subset: Subset
     content_map: DataUnit
 
@@ -62,7 +62,7 @@ class DataSubset(NamedTuple):
 class DataPool(Protocol):
     @property
     @abstractmethod
-    def query(self) -> DataQuery: ...
+    def pipes(self) -> PortSpecs: ...
 
     @property
     @abstractmethod
@@ -74,7 +74,7 @@ class DataPool(Protocol):
 class DataConfig(Protocol):
     @property
     @abstractmethod
-    def query(self) -> DataQuery: ...
+    def query(self) -> PortSpecs: ...
 
     @property
     @abstractmethod
@@ -92,4 +92,4 @@ class Dataset(Protocol):
     @abstractmethod
     def name(self) -> str: ...
 
-    def retrieve(self, query: DataQuery) -> DataPool: ...
+    def retrieve(self, query: PortSpecs) -> DataPool: ...

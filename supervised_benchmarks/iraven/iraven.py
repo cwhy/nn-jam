@@ -8,7 +8,7 @@ import numpy.typing as npt
 from tqdm import trange
 from variable_protocols.variables import Variable, ordinal, dim, var_scalar, var_tensor, var_group
 
-from supervised_benchmarks.dataset_protocols import Subset, DataQuery, DataSubset, DataPortMap, FixedSubset
+from supervised_benchmarks.dataset_protocols import Subset, PortSpecs, DataSubset, DataPortMap, FixedSubset
 from supervised_benchmarks.ports import Port, Input, Output, Context, OutputOptions
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
 from supervised_benchmarks.download_utils import check_integrity
@@ -138,7 +138,7 @@ class Iraven:
     def name(self) -> Literal['IRaven']:
         return name
 
-    def retrieve(self, query: DataQuery) -> Mapping[Port, IravenDataPool]:
+    def retrieve(self, query: PortSpecs) -> Mapping[Port, IravenDataPool]:
         assert all(port in self.ports for port in query)
         return {
             port: IravenDataPool(
@@ -157,7 +157,7 @@ class IravenDataConfig(NamedTuple):
     base_path: Path
     version: str
     size: int
-    port_vars: DataQuery
+    port_vars: PortSpecs
     type: Literal['DataConfig'] = 'DataConfig'
 
     def get_data(self) -> DataPortMap:

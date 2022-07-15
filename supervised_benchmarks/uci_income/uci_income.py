@@ -3,10 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
 
-import numpy.typing as npt
 from numpy.typing import NDArray
 
-from supervised_benchmarks.dataset_protocols import Subset, DataQuery, DataSubset, FixedSubset, FixedSubsetType, \
+from supervised_benchmarks.dataset_protocols import Subset, PortSpecs, DataSubset, FixedSubset, FixedSubsetType, \
     FixedTrain, FixedTest
 from supervised_benchmarks.ports import Port, Input, Output
 from supervised_benchmarks.uci_income.consts import row_width, n_tokens, TabularDataInfo, get_anynet_feature, \
@@ -23,9 +22,9 @@ name: Literal["UciIncome"] = "UciIncome"
 
 class UciIncomeDataPool(NamedTuple):
     data_info: TabularDataInfo
-    array_dict: Mapping[str, npt.NDArray]
+    array_dict: Mapping[str, NDArray]
     fixed_subsets: Mapping[FixedSubsetType, DataSubset]
-    query: DataQuery
+    query: PortSpecs
 
     def subset(self, subset: Subset) -> DataSubset:
         raise NotImplementedError
@@ -53,7 +52,7 @@ class UciIncome:
         symbol_table_tr, value_table_tr = load_data(self.data_info, is_train=True)
         symbol_table_tst, value_table_tst = load_data(self.data_info, is_train=False)
 
-        self.array_dict: Dict[str, npt.NDArray] = {
+        self.array_dict: Dict[str, NDArray] = {
             'tr_symbol': symbol_table_tr,
             'tr_value': value_table_tr,
             'tst_symbol': symbol_table_tst,
@@ -70,7 +69,7 @@ class UciIncome:
     def name(self) -> Literal['UciIncome']:
         return name
 
-    def get_fixed_datasets(self, query: DataQuery) -> Mapping[FixedSubsetType, DataSubset]:
+    def get_fixed_datasets(self, query: PortSpecs) -> Mapping[FixedSubsetType, DataSubset]:
         assert set(query.keys()).issubset(self.exports)
         n_samples_tr = self.data_info.n_rows_tr
         n_samples_tst = self.data_info.n_rows_tst
@@ -97,7 +96,7 @@ class UciIncome:
         }
         return fixed_datasets
 
-    def retrieve(self, query: DataQuery) -> UciIncomeDataPool:
+    def retrieve(self, query: PortSpecs) -> UciIncomeDataPool:
         assert all(port in self.exports for port in query)
 
         return UciIncomeDataPool(
@@ -109,7 +108,7 @@ class UciIncome:
 
 class UciIncomeDataConfig(NamedTuple):
     base_path: Path
-    query: DataQuery
+    query: PortSpecs
     type: Literal['DataConfig'] = 'DataConfig'
 
     def get_data(self) -> UciIncomeDataPool:

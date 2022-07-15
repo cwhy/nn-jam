@@ -18,7 +18,7 @@ from variable_protocols.protocols import Variable
 from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import DataQuery, DataConfig
+from supervised_benchmarks.dataset_protocols import PortSpecs, DataConfig
 from supervised_benchmarks.ports import Port, Input, Output
 from supervised_benchmarks.metrics import get_mean_acc
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
@@ -179,7 +179,7 @@ class MlpModel:
 # Because Pycharm sucks
 mnist_in_flattened = MnistConfigIn(is_float=True, is_flat=True).get_var()
 mnist_out_1hot = MnistConfigOut(is_1hot=True).get_var()
-port_query: DataQuery = {Input: mnist_in_flattened, Output: mnist_out_1hot}
+port_query: PortSpecs = {Input: mnist_in_flattened, Output: mnist_out_1hot}
 data_config_ = MnistDataConfig(base_path=Path('/Data/torchvision/'), port_vars=port_query)
 benchmark_config_ = BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))}, on=FixedTest)
 # noinspection PyTypeChecker
