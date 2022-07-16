@@ -41,7 +41,6 @@ Every other projects may refer to the protocols defined here.
 
 This project is not here yet, but currently I met a major design obstacle
 and it is in a minimal usable state.
-After that when I have the necessity to bring it here to jam with other projects.
 
 ### Model Audition 🕵 ️(old name Supervised Benchmarks)
 This project is to provide good interfaces to test models with benchmarks.

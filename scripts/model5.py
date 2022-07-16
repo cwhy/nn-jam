@@ -18,8 +18,8 @@ from numpy.typing import NDArray
 from optax._src.alias import adamw
 from optax._src.base import OptState
 from pynng import Pub0
-from variable_protocols.protocols import Variable
-from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar, ordinal
+from variable_protocols.bak.protocols import Variable
+from variable_protocols.bak.variables import one_hot, var_tensor, gaussian, dim, var_scalar, ordinal
 
 from jax_make.component_protocol import make_ports
 from jax_make.params import ArrayTree, RNGKey, make_weights

@@ -7,12 +7,12 @@ from numpy.typing import NDArray
 
 from supervised_benchmarks.dataset_protocols import Subset, PortSpecs, DataSubset, FixedSubset, FixedSubsetType, \
     FixedTrain, FixedTest
-from supervised_benchmarks.ports import Port, Input, Output
+from supervised_benchmarks.ports import Port
 from supervised_benchmarks.uci_income.consts import row_width, n_tokens, TabularDataInfo, get_anynet_feature, \
     AnyNetDiscrete, \
     AnyNetContinuous, AnyNetDiscreteOut
 from supervised_benchmarks.uci_income.utils import analyze_data, load_data
-from variable_protocols.variables import Variable
+from variable_protocols.bak.variables import Variable
 
 name: Literal["UciIncome"] = "UciIncome"
 

@@ -5,14 +5,14 @@ from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
 
 import numpy as np
 from numpy.typing import NDArray
-from variable_protocols.variables import Variable
+from variable_protocols.bak.variables import Variable
 
 from supervised_benchmarks.dataset_protocols import Subset, PortSpecs, FixedSubset, DataSubset, FixedSubsetType, \
     FixedTrain, FixedTest
 from supervised_benchmarks.ports import Port, Input, Output
 from supervised_benchmarks.dataset_utils import download_resources, get_data_dir
 from supervised_benchmarks.mnist.mnist_utils import read_sn3_pascalvincent_ndarray
-from supervised_benchmarks.mnist.mnist_variations import get_transformations, MnistConfigIn, MnistConfigOut
+from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 
 classes = ['0 - zero', '1 - one', '2 - two', '3 - three', '4 - four',
            '5 - five', '6 - six', '7 - seven', '8 - eight', '9 - nine']

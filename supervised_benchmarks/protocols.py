@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 
 from supervised_benchmarks.dataset_protocols import DataUnit
 from supervised_benchmarks.ports import Port
-from variable_protocols.protocols import Variable
+from variable_protocols.bak.protocols import Variable
 
 
 class ModelConfig(Protocol):

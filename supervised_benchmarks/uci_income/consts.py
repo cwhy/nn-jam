@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import NamedTuple, Dict, List
 
 from supervised_benchmarks.ports import Port
-from variable_protocols.variables import Variable, ordinal, dim, var_tensor, gaussian
+from variable_protocols.bak.variables import Variable, ordinal, dim, var_tensor, gaussian
 
 FLOAT_OFFSET = -2
 VALUE_SYMBOL = 0

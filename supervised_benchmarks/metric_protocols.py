@@ -4,7 +4,7 @@ from abc import abstractmethod
 from typing import Literal, Protocol, NamedTuple, List, TypeVar, Tuple, Any, Callable
 
 from numpy.typing import NDArray
-from variable_protocols.variables import Variable
+from variable_protocols.bak.variables import Variable
 
 PairMetricType = Literal['mean_acc', 'categorical_acc']
 

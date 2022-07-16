@@ -17,15 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - new ver
 
 ## [0.0.6] - 2022-07-16
-- [DataPool] Change `DataQuery` to `PortSpecs`
-- [DataPool] Add `pipes` to `DataPool` to allow delayed transformation
-- [DataSubset] Propagate `pipes` to `DataSubset` to allow delayed transformation
-- [Ports] From the original concept as a full spec of variable protocol,
-          now `Port` will only support things that can be represented one NDArray.
-          complex variable structures will be combination of `Port`s
-          This departs this projects from variable protocol,
-          which attempt to capture a flexible variable specs and support variable labels.
-          For easier benchmarking, we will only view a variable in the angle of dict of tensors(series of `Port`s)
+- [Supervised Benchmarks] Last minute port matching
+    - [DataPool] Change `DataQuery` to `PortSpecs`
+    - [DataSubset] Propagate `pipes` to `DataSubset` to allow delayed transformation
+    - [Ports] From the original concept as a full spec of variable protocol,
+              now `Port` will only support things that can be represented one NDArray.
+              complex variable structures will be combination of `Port`s
+              This departs this projects from variable protocol,
+              which attempt to capture a flexible variable specs and support variable labels.
+              For easier benchmarking, we will only view a variable in the angle of dict of tensors(series of `Port`s)
+    - [Ports] now port is just a named variable-spec, remove common `Input` and `Output` as port, 
+    - [PortType] remove port type for custom port matching
+    - [Adapters] transforms one port to another
+    - [DataPool] Add `adapters` to `DataPool` to allow delayed transformation
   
 ## [0.0.5] - 2022-07-15
 - [UCI_INCOME] 

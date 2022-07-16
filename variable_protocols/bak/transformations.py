@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Protocol, List, Optional, NamedTuple
 
-from variable_protocols.protocols import Variable, struct_check, fmt
+from variable_protocols.bak.protocols import Variable, struct_check, fmt
 
 
 # TODO: Hole oriented design

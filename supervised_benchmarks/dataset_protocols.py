@@ -10,7 +10,7 @@ from typing import Literal, Protocol, NamedTuple, Mapping, FrozenSet, Callable
 from numpy.typing import NDArray
 
 from supervised_benchmarks.ports import Port
-from variable_protocols.variables import Variable
+from variable_protocols.bak.variables import Variable
 
 SupportedDatasetNames = Literal['MNIST', 'IRaven']
 PortSpecs = Mapping[Port, Variable]
@@ -23,6 +23,7 @@ All: Literal['All'] = 'All'
 FixedSubsetType = Literal['FixedTrain', 'FixedTest', 'FixedValidation', 'All']
 
 DataUnit = Mapping[Port, NDArray]
+Adapters = Mapping[Port, Callable[[NDArray], NDArray]]
 
 
 class Subset(Protocol):
@@ -54,7 +55,7 @@ class SampledSubset(NamedTuple):
 
 
 class DataSubset(NamedTuple):
-    pipes: Mapping[Port, Callable[[NDArray], NDArray]]
+    adapters: Adapters
     subset: Subset
     content_map: DataUnit
 
@@ -62,7 +63,7 @@ class DataSubset(NamedTuple):
 class DataPool(Protocol):
     @property
     @abstractmethod
-    def pipes(self) -> PortSpecs: ...
+    def adapters(self) -> Adapters: ...
 
     @property
     @abstractmethod

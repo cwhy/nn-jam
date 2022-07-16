@@ -15,7 +15,7 @@ from supervised_benchmarks.sampler import FixedEpochSamplerConfig, FullBatchSamp
 from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut
 from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, uci_income_in_anynet_discrete, \
     uci_income_out_anynet_discrete
-from variable_protocols.protocols import Variable
+from variable_protocols.bak.protocols import Variable
 
 
 class BoostModelConfig(NamedTuple):

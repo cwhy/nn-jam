@@ -11,13 +11,12 @@ from jax.random import PRNGKey
 from jax.scipy.special import logsumexp
 from numpy import typing as npt
 from numpy.typing import NDArray
-from variable_protocols.protocols import Variable
-from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar
+from variable_protocols.bak.protocols import Variable
+from variable_protocols.bak.variables import one_hot, var_tensor, gaussian, dim, var_scalar
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import DataConfig
 from supervised_benchmarks.ports import Port, Input, Output
-from supervised_benchmarks.metrics import get_mean_acc
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
 from supervised_benchmarks.model_utils import Train, Probes

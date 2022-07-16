@@ -2,8 +2,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from supervised_benchmarks.metric_protocols import MetricResult, PairMetricImp, PairMetricType
-from variable_protocols.base_variables import BaseVariable
-from variable_protocols.protocols import VariableTensor, Variable
+from variable_protocols.bak.base_variables import BaseVariable
+from variable_protocols.bak.protocols import VariableTensor, Variable
 
 
 def get_pair_metric(metric_type: PairMetricType, protocol: Variable):

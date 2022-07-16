@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import List, Dict, Set, Literal, Iterable, Optional
 
-from variable_protocols.base_variables import BaseVariable, \
+from variable_protocols.bak.base_variables import BaseVariable, \
     OneSideSupported, Gamma, Bounded, OneHot, NamedCategorical, \
     CategoryIds, Ordinal, CategoricalVector, Gaussian
-from variable_protocols.protocols import VariableTensor, Variable, \
+from variable_protocols.bak.protocols import VariableTensor, Variable, \
     VariableGroup, DimensionFamily, TensorBase
 
 

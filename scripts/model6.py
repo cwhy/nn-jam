@@ -5,26 +5,23 @@ import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
 from pprint import pprint
-from random import randint
 from typing import Tuple, Mapping, FrozenSet, Literal, Callable, Any, Dict
 
 import optax as optax
 from jax import jit, grad, tree_map, vmap, random, tree_leaves
 from jax import numpy as xp
 from jax.random import PRNGKey
-from jax.scipy.special import logsumexp
 from numpy import typing as npt
 from numpy.typing import NDArray
 from optax._src.alias import adamw
 from optax._src.base import OptState
 from pynng import Pub0
-from variable_protocols.protocols import Variable
-from variable_protocols.variables import one_hot, var_tensor, gaussian, dim, var_scalar, ordinal
+from variable_protocols.bak.protocols import Variable
+from variable_protocols.bak.variables import one_hot, var_tensor, gaussian, dim, var_scalar, ordinal
 
 from jax_make.anynet import AnyNet, inference_ports, QUERY_SYMBOL_MASK, FLOAT_OFFSET, VALUE_SYMBOL, QUERY_VALUE
 from jax_make.component_protocol import make_ports
 from jax_make.params import ArrayTree, RNGKey, make_weights
-from jax_make.vit import VitReconstruct
 from stage.protocol import Stage
 from supervised_benchmarks.benchmark import BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import DataConfig, DataPool, DataArray

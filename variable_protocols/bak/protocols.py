@@ -1,7 +1,7 @@
 from __future__ import annotations
 import abc
 from typing import Literal, Protocol, NamedTuple, FrozenSet, Optional
-from variable_protocols.base_variables import BaseVariable, struct_hash_base_variable
+from variable_protocols.bak.base_variables import BaseVariable, struct_hash_base_variable
 
 VariableType = Literal['VariableGroup',
                        'VariableTensor']

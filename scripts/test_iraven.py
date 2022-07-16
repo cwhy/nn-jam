@@ -3,12 +3,12 @@ from pathlib import Path
 import matplotlib.gridspec as gridspec
 import numpy.typing as npt
 from matplotlib import pyplot as plt
-from variable_protocols.variables import var_scalar, one_hot
+from variable_protocols.bak.variables import var_scalar, one_hot
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
 from supervised_benchmarks.ports import Input, Output
 from supervised_benchmarks.iraven.iraven import get_iraven_, IravenDataConfig, iraven_in_raw, iraven_out_raw, FixedTest
-from supervised_benchmarks.metrics import get_mean_acc, get_pair_metric
+from supervised_benchmarks.metrics import get_pair_metric
 from supervised_benchmarks.sampler import FullBatchSampler
 
 

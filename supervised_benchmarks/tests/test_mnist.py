@@ -5,7 +5,7 @@ import numpy as np
 from bokeh.io import show
 from bokeh.layouts import row, column
 from numpy.typing import NDArray
-from variable_protocols.protocols import fmt
+from variable_protocols.bak.protocols import fmt
 
 from supervised_benchmarks.dataset_protocols import DataPool
 from supervised_benchmarks.ports import Input, Output

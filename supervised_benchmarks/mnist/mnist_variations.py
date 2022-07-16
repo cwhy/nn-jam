@@ -6,9 +6,9 @@ from typing import Mapping, Tuple, Callable, NamedTuple, Literal, Set, Dict
 import numpy as np
 import numpy.typing as npt
 from einops import rearrange
-from variable_protocols.base_variables import BaseVariable
-from variable_protocols.variables import Variable, ordinal, bounded_float, var_scalar, one_hot
-from variable_protocols.variables import dim, var_tensor
+from variable_protocols.bak.base_variables import BaseVariable
+from variable_protocols.bak.variables import Variable, ordinal, bounded_float, var_scalar, one_hot
+from variable_protocols.bak.variables import dim, var_tensor
 from supervised_benchmarks.numpy_utils import ordinal_from_1hot, ordinal_to_1hot
 
 

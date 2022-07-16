@@ -69,9 +69,9 @@ class Benchmark(NamedTuple):
             raise NotImplementedError
 
     def make_msg(self, results: List[MetricResult]) -> str:
-        return f"{self.config.on.tag} result {results}"
+        return f"{self.config.on} result {results}"
 
     def log_measure_(self, performer: Performer) -> List[MetricResult]:
         results = self.measure(performer)
-        print(f"{self.config.on.tag} result {results}")
+        print(f"{self.config.on} result {results}")
         return results

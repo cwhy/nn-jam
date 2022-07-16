@@ -6,7 +6,7 @@ from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
 import numpy as np
 import numpy.typing as npt
 from tqdm import trange
-from variable_protocols.variables import Variable, ordinal, dim, var_scalar, var_tensor, var_group
+from variable_protocols.bak.variables import Variable, ordinal, dim, var_scalar, var_tensor, var_group
 
 from supervised_benchmarks.dataset_protocols import Subset, PortSpecs, DataSubset, DataPortMap, FixedSubset
 from supervised_benchmarks.ports import Port, Input, Output, Context, OutputOptions

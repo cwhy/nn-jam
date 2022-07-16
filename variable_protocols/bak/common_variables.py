@@ -1,5 +1,5 @@
-from variable_protocols.protocols import Variable
-from variable_protocols.variables import var_tensor, dim, bounded_float, ordinal, one_hot, \
+from variable_protocols.bak.protocols import Variable
+from variable_protocols.bak.variables import var_tensor, dim, bounded_float, ordinal, one_hot, \
     cat_ids, cat_vec
 
 
