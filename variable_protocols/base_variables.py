@@ -1,3 +1,4 @@
+from __future__ import annotations
 import abc
 from typing import NamedTuple, Literal, FrozenSet, Protocol, Optional
 
@@ -15,7 +16,6 @@ class BaseVariable(Protocol):
     @abc.abstractmethod
     def type(self) -> BaseVariableType: ...
 
-    @property
     @abc.abstractmethod
     def check(self) -> None: ...
 
@@ -86,8 +86,8 @@ class OneHot(NamedTuple):
 
 
 class CategoryIds(NamedTuple):
-    labels: Optional[Labels]
     max_id_len: int
+    labels: Labels = Labels.empty()
     type_name: str = 'category_ids'
     type: Literal['BaseVariable'] = 'BaseVariable'
 
@@ -104,6 +104,9 @@ class CategoryIds(NamedTuple):
             self.labels.check()
             if len(self.labels) != self.max_id_len:
                 raise ValueError(f"max_id_len({self.max_id_len}) must be equal to the number of labels({len(self.labels)})")
+
+    def clear_labels(self) -> CategoryIds:
+        return CategoryIds(self.max_id_len, Labels.empty())
 
 
 class Ordinal(NamedTuple):

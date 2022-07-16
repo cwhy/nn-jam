@@ -15,14 +15,21 @@ class Labels(NamedTuple):
     def __len__(self) -> int:
         return len(self.tags)
 
+    @classmethod
+    def empty(cls):
+        return cls(frozenset())
 
-class NoLabels(Protocol):
-    labels: None
+    @classmethod
+    def from_strs(cls, *tags: str) -> Labels:
+        return cls(frozenset(tags))
+
+
+L = Labels.from_strs
 
 
 @runtime_checkable
 class WithLabels(Protocol):
-    labels: Optional[Labels]
+    labels: Labels
 
-    def clear(self) -> NoLabels:
+    def clear_labels(self) -> WithLabels:
         ...

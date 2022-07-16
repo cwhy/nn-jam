@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Have a similar test for mnist like uci income
 - new ver
 
-## [0.0.6] - 2022-07-16
+## [0.0.6] - 2022-07- Unfinished/pending
 - [Supervised Benchmarks] Last minute port matching
     - [DataPool] Change `DataQuery` to `PortSpecs`
     - [DataSubset] Propagate `pipes` to `DataSubset` to allow delayed transformation
