@@ -10,10 +10,9 @@ from typing import Literal, Protocol, NamedTuple, Mapping, FrozenSet, Callable
 from numpy.typing import NDArray
 
 from supervised_benchmarks.ports import Port
-from variable_protocols.bak.variables import Variable
+from variable_protocols.tensorhub import TensorHub
 
-SupportedDatasetNames = Literal['MNIST', 'IRaven']
-PortSpecs = Mapping[Port, Variable]
+PortSpecs = Mapping[Port, TensorHub]
 
 
 FixedTrain: Literal['FixedTrain'] = 'FixedTrain'
@@ -55,7 +54,6 @@ class SampledSubset(NamedTuple):
 
 
 class DataSubset(NamedTuple):
-    adapters: Adapters
     subset: Subset
     content_map: DataUnit
 

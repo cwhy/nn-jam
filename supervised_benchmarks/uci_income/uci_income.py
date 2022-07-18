@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
 
@@ -8,11 +9,11 @@ from numpy.typing import NDArray
 from supervised_benchmarks.dataset_protocols import Subset, PortSpecs, DataSubset, FixedSubset, FixedSubsetType, \
     FixedTrain, FixedTest
 from supervised_benchmarks.ports import Port
-from supervised_benchmarks.uci_income.consts import row_width, n_tokens, TabularDataInfo, get_anynet_feature, \
-    AnyNetDiscrete, \
+from supervised_benchmarks.uci_income.consts import TabularDataInfo, AnyNetDiscrete, \
     AnyNetContinuous, AnyNetDiscreteOut
 from supervised_benchmarks.uci_income.utils import analyze_data, load_data
-from variable_protocols.bak.variables import Variable
+from variable_protocols.labels import Labels
+from variable_protocols.tensorhub import TensorHub
 
 name: Literal["UciIncome"] = "UciIncome"
 
@@ -32,11 +33,6 @@ class UciIncomeDataPool(NamedTuple):
         # return UciIncomeData(self.port, self.tgt_var, subset, data_array)
 
 
-uci_income_in_anynet_discrete = get_anynet_feature(n_tokens, row_width - 1, continuous=False)
-uci_income_in_anynet_continuous = get_anynet_feature(n_tokens, row_width - 1, continuous=True)
-uci_income_out_anynet_discrete = get_anynet_feature(n_tokens, 1, continuous=False)
-
-
 class UciIncome:
     @property
     def exports(self) -> FrozenSet[Port]:
@@ -46,8 +42,7 @@ class UciIncome:
         # TODO implement download logic
         # TODO implement checkvar logic after VarProtocols are revamped
         self.data_info = analyze_data(base_path)
-
-        dict_size = len(self.data_info.symbol_id_table) + 3
+        print(self.data_info)
 
         symbol_table_tr, value_table_tr = load_data(self.data_info, is_train=True)
         symbol_table_tst, value_table_tst = load_data(self.data_info, is_train=False)
@@ -57,12 +52,6 @@ class UciIncome:
             'tr_value': value_table_tr,
             'tst_symbol': symbol_table_tst,
             'tst_value': value_table_tst
-        }
-
-        self.protocols: Mapping[Port, Variable] = {
-            AnyNetDiscrete: uci_income_in_anynet_discrete,
-            AnyNetContinuous: uci_income_in_anynet_continuous,
-            AnyNetDiscreteOut: uci_income_out_anynet_discrete
         }
 
     @property
@@ -87,11 +76,9 @@ class UciIncome:
                 raise ValueError(f'Unknown port {port}')
 
         fixed_datasets: Dict[FixedSubsetType, DataSubset] = {
-            FixedTrain: DataSubset(query,
-                                   FixedSubset(FixedTrain, n_samples_tr),
+            FixedTrain: DataSubset(FixedSubset(FixedTrain, n_samples_tr),
                                    {port: get_data(port, is_train=True) for port in query}),
-            FixedTest: DataSubset(query,
-                                  FixedSubset(FixedTest, n_samples_tst),
+            FixedTest: DataSubset(FixedSubset(FixedTest, n_samples_tst),
                                   {port: get_data(port, is_train=False) for port in query})
         }
         return fixed_datasets
@@ -108,8 +95,15 @@ class UciIncome:
 
 class UciIncomeDataConfig(NamedTuple):
     base_path: Path
-    query: PortSpecs
+    port_allocation: Mapping[Labels, Port]
     type: Literal['DataConfig'] = 'DataConfig'
+
+    @property
+    def query(self) -> PortSpecs:
+        query: dict[Port, TensorHub] = {}
+        for feature, port in self.port_allocation.items():
+            query[port] = query.get(port, TensorHub.empty()) + feature
+        return query
 
     def get_data(self) -> UciIncomeDataPool:
         return UciIncome(self.base_path).retrieve(self.query)

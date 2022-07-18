@@ -85,41 +85,42 @@ class OneHot(NamedTuple):
             raise ValueError(f"n_category must be positive, not {self.n_category}")
 
 
-class CategoryIds(NamedTuple):
-    max_id_len: int
-    labels: Labels = Labels.empty()
-    type_name: str = 'category_ids'
+class IDs(NamedTuple):
+    id_type: Literal['int', 'str']
+    type_name: str = 'ids'
     type: Literal['BaseVariable'] = 'BaseVariable'
 
-    def fmt(self) -> str:
-        if self.labels is None:
-            return f"CategoryIds(max_id_len={self.max_id_len})"
-        else:
-            return f"CategoryIds({self.labels.fmt()})"
-
     def check(self) -> None:
-        if self.max_id_len <= 0:
-            raise ValueError(f"max_id_len must be positive, not {self.max_id_len}")
-        if self.labels is not None:
-            self.labels.check()
-            if len(self.labels) != self.max_id_len:
-                raise ValueError(f"max_id_len({self.max_id_len}) must be equal to the number of labels({len(self.labels)})")
+        if self.id_type not in ['int', 'str']:
+            raise ValueError(f"id_type must be 'int' or 'str', not {self.id_type}")
 
-    def clear_labels(self) -> CategoryIds:
-        return CategoryIds(self.max_id_len, Labels.empty())
+    def fmt(self) -> str:
+        return f"IDs({self.id_type})"
 
 
 class Ordinal(NamedTuple):
     n_category: int
+    labels: Labels = Labels.empty()
     type_name: str = 'ordinal'
     type: Literal['BaseVariable'] = 'BaseVariable'
 
     def fmt(self) -> str:
-        return f"Ordinal({self.n_category})"
+        if self.labels is None:
+            return f"Ordinal({self.n_category})"
+        else:
+            return f"Ordinal({self.labels.fmt()})"
 
     def check(self) -> None:
         if self.n_category <= 0:
             raise ValueError(f"n_category must be positive, not {self.n_category}")
+        if self.labels is not None:
+            self.labels.check()
+            if len(self.labels) != self.n_category:
+                raise ValueError(
+                    f"n_category({self.n_category}) must be equal to the number of labels({len(self.labels)})")
+
+    def clear_labels(self) -> Ordinal:
+        return Ordinal(self.n_category, Labels.empty())
 
 
 class CategoricalVector(NamedTuple):
@@ -150,3 +151,8 @@ class Gaussian(NamedTuple):
     def check(self) -> None:
         if self.var <= 0:
             raise ValueError(f"var must be positive, not {self.var}")
+
+
+Γ = Gamma
+N = Gaussian
+Ord = Ordinal

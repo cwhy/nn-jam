@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Protocol, Mapping, Literal, FrozenSet
+from typing import Protocol, Literal, FrozenSet
 
 from numpy.typing import NDArray
 
-from supervised_benchmarks.dataset_protocols import DataUnit
+from supervised_benchmarks.dataset_protocols import DataUnit, PortSpecs
 from supervised_benchmarks.ports import Port
-from variable_protocols.bak.protocols import Variable
 
 
 class ModelConfig(Protocol):
@@ -17,11 +16,11 @@ class ModelConfig(Protocol):
 
     @property
     @abstractmethod
-    def ports(self) -> Mapping[Port, Variable]:
-        """
-        Variable Protocol of different ports
-        """
-        ...
+    def input_ports(self) -> FrozenSet[Port]: ...
+
+    @property
+    @abstractmethod
+    def output_ports(self) -> FrozenSet[Port]: ...
 
     @property
     @abstractmethod

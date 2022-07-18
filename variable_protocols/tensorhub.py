@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import NamedTuple, Optional, Container
+from typing import NamedTuple, Optional, Container, Protocol, Literal, Iterable
 
 from variable_protocols.base_variables import BaseVariable
 from variable_protocols.labels import Labels, L
@@ -20,6 +20,7 @@ class DimensionFamily(NamedTuple):
 
 
 # For syntactic sugar
+# returns a checked tensor
 @dataclass(frozen=True)
 class Dimensions:
     dims: frozenset[DimensionFamily] = frozenset()
@@ -46,6 +47,7 @@ class Dimensions:
         return Dimensions(self.dims | {dim})
 
     def __rmul__(self, b: BaseVariable) -> Tensor:
+        b.check()
         return Tensor(b, self.dims)
 
     def __mul__(self, b: BaseVariable) -> Tensor:
@@ -70,45 +72,34 @@ class Tensor(NamedTuple):
             else:
                 return f"{header}{var_type}: {dims}"
 
-    def check(self) -> None:
-        self.base.check()
 
-
-class TensorHub(NamedTuple):
+@dataclass(frozen=True)
+class TensorHub:
     tensors: frozenset[Tensor]
+
+    def __post_init__(self) -> None:
+        try:
+            for t in self.tensors:
+                t.base.check()
+        except ValueError as e:
+            raise ValueError(f"Failed to validate TensorHub: {e}")
 
     def fmt(self, indent: int = 2, curr_indent: int = 0) -> str:
         tensors = ", ".join(t.fmt(indent, curr_indent + indent) for t in self.tensors)
         return f"TensorHub:\n{curr_indent * ' '}{tensors}"
 
-    @classmethod
-    def from_tensors(cls, *tensors: Tensor) -> TensorHub:
-        return TensorHub(frozenset(tensors))
+    def __add__(self, other: TensorHub) -> TensorHub:
+        return TensorHub(self.tensors | other.tensors)
 
-    def check(self) -> None:
-        for t in self.tensors:
-            t.check()
-
-
-class Variable(NamedTuple):
-    tensors: frozenset[Tensor]
-
-    def fmt(self, indent: int = 2, curr_indent: int = 0) -> str:
-        tensors = ", ".join(t.fmt(indent, curr_indent + indent) for t in self.tensors)
-        return f"Variables:\n{curr_indent * ' '}{tensors}"
+    def __radd__(self, other: TensorHub) -> TensorHub:
+        return self.__add__(other)
 
     @classmethod
-    def from_tensors(cls, *tensors: Tensor) -> Variable:
-        try:
-            for t in tensors:
-                t.check()
-        except ValueError as e:
-            raise ValueError(f"Failed to validate TensorHub: {e}")
-        else:
-            return Variable(frozenset(tensors))
+    def empty(cls) -> TensorHub:
+        return cls(frozenset())
 
 
-TH = TensorHub.from_tensors
 DimFam = DimensionFamily
 Dim = Dimensions.from_dict
-V = Variable.from_tensors
+FeatureDim = Dim({"Feature": None})
+V = TensorHub

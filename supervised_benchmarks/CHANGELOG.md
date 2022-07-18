@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add modeltesting utility
 
 ## TODO : Get Mnist back at work
+- Make UCI variables individual ports
 - Fix mnist
 - Have a similar test for mnist like uci income
 - new ver
@@ -19,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.0.6] - 2022-07- Unfinished/pending
 - [Supervised Benchmarks] Last minute port matching
     - [DataPool] Change `DataQuery` to `PortSpecs`
-    - [DataSubset] Propagate `pipes` to `DataSubset` to allow delayed transformation
     - [Ports] From the original concept as a full spec of variable protocol,
               now `Port` will only support things that can be represented one NDArray.
               complex variable structures will be combination of `Port`s
@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - [PortType] remove port type for custom port matching
     - [Adapters] transforms one port to another
     - [DataPool] Add `adapters` to `DataPool` to allow delayed transformation
+    - [PortSpecs] removed, now just port_allocation: `Mapping[Labels, Port]`
+    - 
   
 ## [0.0.5] - 2022-07-15
 - [UCI_INCOME] 

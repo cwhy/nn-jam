@@ -4,18 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Long Term TODO : 
-- transformation
-
-## Mid Term TODO : 
-- Refactor
-- De-label
-- generics
-
 ## TODO : Get Mnist back at work
-- Fix mnist
-- Have a similar test for mnist like uci income
-- new ver
+- Transformations:
+    - directional
+    - 2 tier
+        - Base Transformation (between vars)
+            - Anytype to anytype
+        - Tensor Transformation (reshape, squeeze)
+
+
+## [0.0.2] - 2022-07-19
+- made tensorhub validation compulsory
 
 ## [0.0.1] - 2022-07-16
 - Major refactoring
@@ -46,3 +45,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         the flattened structure is much more convenient to be dealt with than trees
 - Added sugar
   - usage details in `common_variables.py`
+  - built around `Dim`

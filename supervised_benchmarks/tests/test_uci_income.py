@@ -7,19 +7,17 @@ from catboost import CatBoostClassifier
 from numpy.typing import NDArray
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import FixedTrain, FixedTest, DataUnit
+from supervised_benchmarks.dataset_protocols import FixedTrain, FixedTest, DataUnit, PortSpecs
 from supervised_benchmarks.metrics import get_pair_metric
 from supervised_benchmarks.ports import Port
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, FullBatchSamplerConfig
 from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut
-from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, uci_income_in_anynet_discrete, \
-    uci_income_out_anynet_discrete
-from variable_protocols.bak.protocols import Variable
+from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig
 
 
 class BoostModelConfig(NamedTuple):
-    ports: Mapping[Port, Variable]
+    ports: PortSpecs
 
     type: Literal['ModelConfig'] = 'ModelConfig'
 

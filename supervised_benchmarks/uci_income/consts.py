@@ -1,8 +1,9 @@
 from pathlib import Path
 from typing import NamedTuple, Dict, List
 
-from supervised_benchmarks.ports import Port
-from variable_protocols.bak.variables import Variable, ordinal, dim, var_tensor, gaussian
+from supervised_benchmarks.ports import NewPort
+from variable_protocols.base_variables import N, IDs
+from variable_protocols.tensorhub import FeatureDim
 
 FLOAT_OFFSET = -2
 VALUE_SYMBOL = 0
@@ -38,13 +39,10 @@ class TabularDataInfo(NamedTuple):
     common_values: Dict[str, float]
 
 
-AnyNetContinuous = Port(type='Input', name='AnyNetContinuous')
-AnyNetDiscrete = Port(type='Input', name='AnyNetDiscrete')
-AnyNetDiscreteOut = Port(type='Output', name='AnyNetDiscreteOut')
-
-
-def get_anynet_feature(_dict_size: int, _n_features: int, continuous: bool) -> Variable:
-    if continuous:
-        return var_tensor(gaussian(0, 1), {dim("Feature", _n_features)})
-    else:
-        return var_tensor(ordinal(_dict_size), {dim("Feature", _n_features)})
+AnyNetContinuous = NewPort(N(0, 1) * FeatureDim,
+                           type='Input',
+                           name='AnyNetContinuous')
+AnyNetDiscrete = NewPort(IDs("int") * FeatureDim,
+                         type='Input',
+                         name='AnyNetDiscrete')
+AnyNetDiscreteOut = NewPort(IDs("int") * FeatureDim, type='Output', name='AnyNetDiscreteOut')
