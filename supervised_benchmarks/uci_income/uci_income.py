@@ -10,7 +10,7 @@ from supervised_benchmarks.dataset_protocols import Subset, PortSpecs, DataSubse
     FixedTrain, FixedTest
 from supervised_benchmarks.ports import Port
 from supervised_benchmarks.uci_income.consts import TabularDataInfo, AnyNetDiscrete, \
-    AnyNetContinuous, AnyNetDiscreteOut
+    AnyNetContinuous, AnyNetDiscreteOut, variable_names
 from supervised_benchmarks.uci_income.utils import analyze_data, load_data
 from variable_protocols.labels import Labels
 from variable_protocols.tensorhub import TensorHub
@@ -34,15 +34,12 @@ class UciIncomeDataPool(NamedTuple):
 
 
 class UciIncome:
-    @property
-    def exports(self) -> FrozenSet[Port]:
-        return frozenset({AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut})
-
     def __init__(self, base_path: Path) -> None:
         # TODO implement download logic
-        # TODO implement checkvar logic after VarProtocols are revamped
         self.data_info = analyze_data(base_path)
         print(self.data_info)
+
+        #      self._format =
 
         symbol_table_tr, value_table_tr = load_data(self.data_info, is_train=True)
         symbol_table_tst, value_table_tst = load_data(self.data_info, is_train=False)
@@ -53,6 +50,10 @@ class UciIncome:
             'tst_symbol': symbol_table_tst,
             'tst_value': value_table_tst
         }
+
+    @property
+    def data_format(self) -> Literal['UciIncome']:
+        return self._format
 
     @property
     def name(self) -> Literal['UciIncome']:
@@ -98,12 +99,10 @@ class UciIncomeDataConfig(NamedTuple):
     port_allocation: Mapping[Labels, Port]
     type: Literal['DataConfig'] = 'DataConfig'
 
-    @property
-    def query(self) -> PortSpecs:
+    def get_data(self) -> UciIncomeDataPool:
+        data_class = UciIncome(self.base_path)
         query: dict[Port, TensorHub] = {}
+        data_class.data_info
         for feature, port in self.port_allocation.items():
             query[port] = query.get(port, TensorHub.empty()) + feature
-        return query
-
-    def get_data(self) -> UciIncomeDataPool:
-        return UciIncome(self.base_path).retrieve(self.query)
+        return data_class.retrieve(query)

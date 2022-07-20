@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add modeltesting utility
 
 ## TODO : Get Mnist back at work
+- build categorial variable detector using polars
+- replace homebrew csv reader with polars
 - Make UCI variables individual ports
 - Fix mnist
 - Have a similar test for mnist like uci income

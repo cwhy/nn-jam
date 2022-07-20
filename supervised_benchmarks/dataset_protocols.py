@@ -73,10 +73,6 @@ class DataPool(Protocol):
 class DataConfig(Protocol):
     @property
     @abstractmethod
-    def query(self) -> PortSpecs: ...
-
-    @property
-    @abstractmethod
     def type(self) -> Literal['DataConfig']: ...
 
     def get_data(self) -> DataPool: ...
@@ -85,7 +81,7 @@ class DataConfig(Protocol):
 class Dataset(Protocol):
     @property
     @abstractmethod
-    def exports(self) -> FrozenSet[Port]: ...
+    def data_format(self) -> TensorHub: ...
 
     @property
     @abstractmethod

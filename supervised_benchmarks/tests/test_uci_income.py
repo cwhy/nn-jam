@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import NamedTuple, FrozenSet, Mapping, Literal
 
 import numpy as np
+import polars as pl
 from catboost import CatBoostClassifier
 
 from numpy.typing import NDArray
@@ -12,8 +13,8 @@ from supervised_benchmarks.metrics import get_pair_metric
 from supervised_benchmarks.ports import Port
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, FullBatchSamplerConfig
-from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut
-from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig
+from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut, variable_names
+from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, UciIncome
 
 
 class BoostModelConfig(NamedTuple):
@@ -46,6 +47,30 @@ class BoostPerformer(NamedTuple):
     def perform_batch(self,
                       data_src: DataUnit,
                       tgt: FrozenSet[Port]) -> DataUnit: ...
+
+
+def test_polars():
+    data = pl.read_csv('/Data/uci/adult.data', delimiter=',', has_header=False, new_columns=variable_names)
+    cols = data.get_columns()
+    print(data.describe())
+    for col in cols:
+        stats = {
+            "unique": len(col.unique()),
+            "null_count": col.null_count(),
+            "is_utf8": col.is_utf8(),
+            "unique_count": col.unique_counts().sort(reverse=True).to_list()[:5],
+        }
+        print(stats)
+
+
+def test_utils():
+    base_path = Path('/Data/uci')
+    data_class = UciIncome(base_path)
+    discrete_labels = [l for i, l in enumerate(variable_names) if data_class.data_info.is_digits[i]]
+    continuous_labels = [l for i, l in enumerate(variable_names) if not data_class.data_info.is_digits[i]]
+    print(data_class.data_info.is_digits)
+    print(discrete_labels)
+    print(continuous_labels)
 
 
 def test_get_data():

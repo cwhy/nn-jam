@@ -98,6 +98,17 @@ class IDs(NamedTuple):
         return f"IDs({self.id_type})"
 
 
+class Real(NamedTuple):
+    type_name: str = 'real'
+    type: Literal['BaseVariable'] = 'BaseVariable'
+
+    def check(self) -> None:
+        pass
+
+    def fmt(self) -> str:
+        return "Real()"
+
+
 class Ordinal(NamedTuple):
     n_category: int
     labels: Labels = Labels.empty()
