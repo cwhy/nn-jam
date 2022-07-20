@@ -13,6 +13,7 @@ from supervised_benchmarks.metrics import get_pair_metric
 from supervised_benchmarks.ports import Port
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, FullBatchSamplerConfig
+from supervised_benchmarks.tabular_utils import ColumnStats, NumStats, AnyNetStrategyConfig
 from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut, variable_names
 from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, UciIncome
 
@@ -52,15 +53,21 @@ class BoostPerformer(NamedTuple):
 def test_polars():
     data = pl.read_csv('/Data/uci/adult.data', delimiter=',', has_header=False, new_columns=variable_names)
     cols = data.get_columns()
-    print(data.describe())
+    config = AnyNetStrategyConfig()
     for col in cols:
-        stats = {
-            "unique": len(col.unique()),
-            "null_count": col.null_count(),
-            "is_utf8": col.is_utf8(),
-            "unique_count": col.unique_counts().sort(reverse=True).to_list()[:5],
-        }
-        print(stats)
+        if col.is_utf8():
+            num_stats = None
+        else:
+            num_stats = NumStats(mean=col.mean(), std=col.std(), min=col.min(), max=col.max())
+        stats = ColumnStats(
+            n=col.len(),
+            n_unique=len(col.unique()),
+            n_null=col.null_count(),
+            sorted_desc_unique_count=col.unique_counts().sort(reverse=True).to_list(),
+            num_stats=num_stats
+        )
+        base = config.classify_column(stats)
+        print(base)
 
 
 def test_utils():

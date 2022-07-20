@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## TODO : Get Mnist back at work
 - build categorial variable detector using polars
+    - construct tensorhub for UCI 
 - replace homebrew csv reader with polars
 - Make UCI variables individual ports
 - Fix mnist
