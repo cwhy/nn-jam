@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import NamedTuple, Optional, Container, Protocol, Literal, Iterable
+from typing import NamedTuple, Optional, Container, Protocol, Literal, Iterable, Union
 
 from variable_protocols.base_variables import BaseVariable
 from variable_protocols.labels import Labels, L
@@ -37,6 +37,10 @@ class Dimensions:
             dimensions.add(DimensionFamily(length, L(label), positioned, n_member))
         return Dimensions(frozenset(dimensions))
 
+    @classmethod
+    def empty(cls) -> Dimensions:
+        return cls(frozenset())
+
     def __radd__(self, other: Dimensions) -> Dimensions:
         return Dimensions(self.dims | other.dims)
 
@@ -59,12 +63,15 @@ class Tensor(NamedTuple):
     dims: frozenset[DimensionFamily] = frozenset()
     labels: Labels = Labels.empty()
 
+    def add_labels(self, labels: Union[Labels, str]) -> Tensor:
+        return Tensor(self.base, self.dims, self.labels + labels)
+
     def fmt(self, indent: int = 2, curr_indent: int = 0) -> str:
         var_type = self.base.fmt()
         if len(self.dims) == 0:
-            return curr_indent * " " + var_type
+            return f"{curr_indent * ' '}{self.labels.fmt()}#{var_type}"
         else:
-            header = "Tensor#"
+            header = f"Tensor{self.labels.fmt()}#"
             dims = ", ".join(d.fmt() for d in self.dims)
             if len(header) + len(var_type) + len(": ") + len(dims) > 70:
                 indent_spaces = (curr_indent + len(header) + indent) * ' '
@@ -97,6 +104,10 @@ class TensorHub:
     @classmethod
     def empty(cls) -> TensorHub:
         return cls(frozenset())
+
+
+def F(base: BaseVariable, *tags: str) -> TensorHub:
+    return TensorHub(frozenset({Tensor(base, Dimensions.empty().dims, L(*tags))}))
 
 
 DimFam = DimensionFamily

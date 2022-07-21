@@ -111,21 +111,22 @@ class Real(NamedTuple):
 
 class Ordinal(NamedTuple):
     n_category: int
-    labels: Labels = Labels.empty()
+    labels: tuple[Labels, ...] = ()
     type_name: str = 'ordinal'
     type: Literal['BaseVariable'] = 'BaseVariable'
 
     def fmt(self) -> str:
-        if self.labels is None:
+        if len(self.labels) == 0:
             return f"Ordinal({self.n_category})"
         else:
-            return f"Ordinal({self.labels.fmt()})"
+            return f"Ordinal({[labels.fmt() for labels in self.labels]})"
 
     def check(self) -> None:
         if self.n_category <= 0:
             raise ValueError(f"n_category must be positive, not {self.n_category}")
-        if self.labels is not None:
-            self.labels.check()
+        if len(self.labels) != 0:
+            for label in self.labels:
+                label.check()
             if len(self.labels) != self.n_category:
                 raise ValueError(
                     f"n_category({self.n_category}) must be equal to the number of labels({len(self.labels)})")

@@ -12,9 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
             - Anytype to anytype
         - Tensor Transformation (reshape, squeeze)
 
+## [0.0.3] - 2022-07-22
+- [BaseVariable] fixed a bug on ord labels
+- [Sugar] added fast scalar
 
 ## [0.0.2] - 2022-07-19
 - made tensorhub validation compulsory
+    - post_init will ensure Tensorhub checked
 
 ## [0.0.1] - 2022-07-16
 - Major refactoring

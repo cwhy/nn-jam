@@ -1,8 +1,11 @@
 from __future__ import annotations
-from typing import NamedTuple, Protocol, runtime_checkable, Optional
+
+from dataclasses import dataclass
+from typing import NamedTuple, Protocol, runtime_checkable, Optional, Union
 
 
-class Labels(NamedTuple):
+@dataclass(frozen=True)
+class Labels:
     tags: frozenset[str]
 
     def fmt(self) -> str:
@@ -14,6 +17,15 @@ class Labels(NamedTuple):
 
     def __len__(self) -> int:
         return len(self.tags)
+
+    def __add__(self, other: Union[str, Labels]) -> Labels:
+        if isinstance(other, str):
+            return Labels(tags=self.tags | {other})
+        else:
+            return Labels(tags=self.tags | other.tags)
+
+    def __radd__(self, other):
+        return self + other
 
     @classmethod
     def empty(cls):

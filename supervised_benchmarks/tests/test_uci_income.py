@@ -1,10 +1,9 @@
 from pathlib import Path
-from typing import NamedTuple, FrozenSet, Mapping, Literal
+from typing import NamedTuple, FrozenSet, Literal
 
 import numpy as np
 import polars as pl
 from catboost import CatBoostClassifier
-
 from numpy.typing import NDArray
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
@@ -16,6 +15,7 @@ from supervised_benchmarks.sampler import FixedEpochSamplerConfig, FullBatchSamp
 from supervised_benchmarks.tabular_utils import ColumnStats, NumStats, AnyNetStrategyConfig
 from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut, variable_names
 from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, UciIncome
+from variable_protocols.tensorhub import F, V
 
 
 class BoostModelConfig(NamedTuple):
@@ -54,6 +54,7 @@ def test_polars():
     data = pl.read_csv('/Data/uci/adult.data', delimiter=',', has_header=False, new_columns=variable_names)
     cols = data.get_columns()
     config = AnyNetStrategyConfig()
+    variable_protocols = V.empty()
     for col in cols:
         if col.is_utf8():
             num_stats = None
@@ -68,6 +69,9 @@ def test_polars():
         )
         base = config.classify_column(stats)
         print(base)
+        if base is not None:
+            variable_protocols += F(base, col.name)
+    print(variable_protocols.fmt())
 
 
 def test_utils():
