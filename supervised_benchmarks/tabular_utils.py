@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import abc
-from typing import NamedTuple, Protocol, Literal, Optional
+from typing import NamedTuple, Protocol, Literal, Optional, Dict
 
-from variable_protocols.base_variables import BaseVariable, Ord, Bounded
+import polars as pl  # type: ignore
+from numpy.typing import NDArray
+
+from variable_protocols.base_variables import BaseVariable, Bounded, Ordinal
+from variable_protocols.labels import L, Labels
+from variable_protocols.tensorhub import F, V, TensorHub
 
 
 class NumStats(NamedTuple):
@@ -13,7 +18,7 @@ class NumStats(NamedTuple):
     max: float
 
 
-class ColumnStats(NamedTuple):
+class ColumnInfo(NamedTuple):
     n: int
     n_unique: int
     n_null: int
@@ -29,16 +34,33 @@ class TabularColumnsConfig(Protocol):
     @abc.abstractmethod
     def strategy(self) -> StrategyType: ...
 
-    def classify_column(self, stats: ColumnStats) -> BaseVariable: ...
+    def process_polars_column(self, col: pl.Series) -> Optional[BaseVariable]: ...
 
 
 class AnyNetStrategyConfig(NamedTuple):
     number_unique: int = 1024
-    number_unique_ratio: float = 0.01
-    str_unique_ratio: float = 0.8  # throw away if there are too many categories, can save by big top classes
-    top5_unique_ratio: float = 0.2
+    number_unique_ratio: float = 0.01  # if there are less of that and less number_unique,
+    # consider it as a categorical variable
+    str_unique_ratio: float = 0.8  # if there are less of that, consider it as a categorical variable
+    top5_unique_ratio: float = 0.2  # if str_unique_ratio check failed
+    # and there are a lot of top 5 unique values, consider it as a categorical variable
+    # else throw away the variable
+    strategy: Literal["anynet"] = "anynet"
 
-    def classify_column(self, stats: ColumnStats) -> Optional[BaseVariable]:
+    def process_polars_column(self, col: pl.Series) -> Optional[BaseVariable]:
+        if col.is_utf8():
+            num_stats = None
+        else:
+            num_stats = NumStats(mean=col.mean(), std=col.std(), min=col.min(), max=col.max())
+
+        stats = ColumnInfo(
+            n=col.len(),
+            n_unique=len(col.unique()),
+            n_null=col.null_count(),
+            sorted_desc_unique_count=col.unique_counts().sort(reverse=True).to_list(),
+            num_stats=num_stats,
+        )
+
         top5_count = sum(stats.sorted_desc_unique_count[:5])
         top5_count_ratio = top5_count / stats.n
         unique_ratio = stats.n_unique / stats.n
@@ -47,14 +69,46 @@ class AnyNetStrategyConfig(NamedTuple):
         if stats.num_stats is None:
             if unique_ratio > self.str_unique_ratio:
                 if top5_count_ratio > 1 - self.str_unique_ratio:
-                    return Ord(n_category=stats.n_unique)
+                    return Ordinal(n_category=stats.n_unique, labels=tuple(L(col.name, str(val)) for val in col.unique().to_list()))
                 else:
                     return None
             else:
-                return Ord(n_category=stats.n_unique)
+                return Ordinal(n_category=stats.n_unique, labels=tuple(L(col.name, str(val)) for val in col.unique().to_list()))
         else:
             if stats.n_unique <= self.number_unique and null_ratio <= self.number_unique_ratio:
-                return Ord(n_category=stats.n_unique)
+                return Ordinal(n_category=stats.n_unique, labels=tuple(L(col.name, str(val)) for val in col.unique().to_list()))
             else:
                 # TODO logic to find distributions
                 return Bounded(max=stats.num_stats.max, min=stats.num_stats.min)
+
+
+def parse_polars(column_config: TabularColumnsConfig, df: pl.DataFrame) -> TensorHub:
+    cols = df.get_columns()
+    variable_protocols = V.empty()
+    for col in cols:
+        base = column_config.process_polars_column(col)
+        if base is not None:
+            variable_protocols += F(base, col.name)
+    return variable_protocols
+
+
+def anynet_load_polars(column_config: TabularColumnsConfig, df: pl.DataFrame) -> Dict[str, NDArray]:
+    values = []
+    symbols = []
+    cols = df.get_columns()
+    variable_protocols = V.empty()
+    for col in cols:
+        base = column_config.process_polars_column(col)
+        if base is not None:
+            variable_protocols += F(base, col.name)
+            if isinstance(base, Ordinal):
+                symbols.append(col.name)
+            elif isinstance(base, Bounded):
+                values.append(col.name)
+            else:
+                # Support for other types
+                raise ValueError("Unknown variable type")
+    value_df = df.select(values)
+    symbol_df = df.select(s.cast(pl.Utf8).cast(pl.Categorical).to_physical() for s in df.select(symbols))
+    # pass label information
+    return {"values": value_df.to_numpy(), "symbols": symbol_df.to_numpy()}

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import abc
-from typing import NamedTuple, Literal, FrozenSet, Protocol, Optional
+from typing import NamedTuple, Literal, FrozenSet, Protocol, Optional, Type
 
 from variable_protocols.labels import Labels
 

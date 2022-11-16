@@ -92,7 +92,7 @@ class TensorHub:
             raise ValueError(f"Failed to validate TensorHub: {e}")
 
     def fmt(self, indent: int = 2, curr_indent: int = 0) -> str:
-        tensors = ", ".join(t.fmt(indent, curr_indent + indent) for t in self.tensors)
+        tensors = "\n".join(t.fmt(indent, curr_indent + indent) for t in self.tensors)
         return f"TensorHub:\n{curr_indent * ' '}{tensors}"
 
     def __add__(self, other: TensorHub) -> TensorHub:

@@ -12,7 +12,8 @@ from supervised_benchmarks.metrics import get_pair_metric
 from supervised_benchmarks.ports import Port
 from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, FullBatchSamplerConfig
-from supervised_benchmarks.tabular_utils import ColumnStats, NumStats, AnyNetStrategyConfig
+from supervised_benchmarks.tabular_utils import ColumnInfo, NumStats, AnyNetStrategyConfig, parse_polars, \
+    anynet_load_polars
 from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut, variable_names
 from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, UciIncome
 from variable_protocols.tensorhub import F, V
@@ -52,26 +53,11 @@ class BoostPerformer(NamedTuple):
 
 def test_polars():
     data = pl.read_csv('/Data/uci/adult.data', delimiter=',', has_header=False, new_columns=variable_names)
-    cols = data.get_columns()
     config = AnyNetStrategyConfig()
-    variable_protocols = V.empty()
-    for col in cols:
-        if col.is_utf8():
-            num_stats = None
-        else:
-            num_stats = NumStats(mean=col.mean(), std=col.std(), min=col.min(), max=col.max())
-        stats = ColumnStats(
-            n=col.len(),
-            n_unique=len(col.unique()),
-            n_null=col.null_count(),
-            sorted_desc_unique_count=col.unique_counts().sort(reverse=True).to_list(),
-            num_stats=num_stats
-        )
-        base = config.classify_column(stats)
-        print(base)
-        if base is not None:
-            variable_protocols += F(base, col.name)
+    variable_protocols = parse_polars(config, data)
     print(variable_protocols.fmt())
+    res = anynet_load_polars(config, data)
+    print(res)
 
 
 def test_utils():
