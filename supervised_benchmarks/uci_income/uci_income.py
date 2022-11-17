@@ -4,11 +4,13 @@ from collections import defaultdict
 from pathlib import Path
 from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
 
+import polars as pl
 from numpy.typing import NDArray
 
 from supervised_benchmarks.dataset_protocols import Subset, PortSpecs, DataSubset, FixedSubset, FixedSubsetType, \
     FixedTrain, FixedTest
 from supervised_benchmarks.ports import Port
+from supervised_benchmarks.tabular_utils import anynet_load_polars, AnyNetStrategyConfig
 from supervised_benchmarks.uci_income.consts import TabularDataInfo, AnyNetDiscrete, \
     AnyNetContinuous, AnyNetDiscreteOut, variable_names
 from supervised_benchmarks.uci_income.utils import analyze_data, load_data
@@ -39,17 +41,21 @@ class UciIncome:
         self.data_info = analyze_data(base_path)
         print(self.data_info)
 
-        #      self._format =
-
-        symbol_table_tr, value_table_tr = load_data(self.data_info, is_train=True)
-        symbol_table_tst, value_table_tst = load_data(self.data_info, is_train=False)
+        config = AnyNetStrategyConfig()
+        tr_data_polars = pl.read_csv(self.data_info.tr_path, delimiter=',', has_header=False,
+                                     new_columns=variable_names)
+        tr_data_dict = anynet_load_polars(config, tr_data_polars)
+        tst_data_polars = pl.read_csv(self.data_info.tst_path, delimiter=',', has_header=False,
+                                      new_columns=variable_names)
+        tst_data_dict = anynet_load_polars(config, tst_data_polars)
 
         self.array_dict: Dict[str, NDArray] = {
-            'tr_symbol': symbol_table_tr,
-            'tr_value': value_table_tr,
-            'tst_symbol': symbol_table_tst,
-            'tst_value': value_table_tst
+            'tr_symbol': tr_data_dict['symbols'],
+            'tr_value': tr_data_dict['values'],
+            'tst_symbol': tst_data_dict['symbols'],
+            'tst_value': tst_data_dict['values']
         }
+
 
     @property
     def data_format(self) -> Literal['UciIncome']:
