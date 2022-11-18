@@ -46,7 +46,7 @@ class UciIncome:
                                      new_columns=variable_names)
         tr_data_dict = anynet_load_polars(config, tr_data_polars)
         tst_data_polars = pl.read_csv(self.data_info.tst_path, delimiter=',', has_header=False,
-                                      new_columns=variable_names)
+                                      new_columns=variable_names[:-1], skip_rows=1)
         tst_data_dict = anynet_load_polars(config, tst_data_polars)
 
         self.array_dict: Dict[str, NDArray] = {
@@ -55,7 +55,6 @@ class UciIncome:
             'tst_symbol': tst_data_dict['symbols'],
             'tst_value': tst_data_dict['values']
         }
-
 
     @property
     def data_format(self) -> Literal['UciIncome']:
