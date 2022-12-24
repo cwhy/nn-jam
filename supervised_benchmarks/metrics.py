@@ -2,20 +2,19 @@ import numpy as np
 from numpy.typing import NDArray
 
 from supervised_benchmarks.metric_protocols import MetricResult, PairMetricImp, PairMetricType
-from variable_protocols.bak.base_variables import BaseVariable
-from variable_protocols.bak.protocols import VariableTensor, Variable
+from variable_protocols.tensorhub import Tensor
 
 
-def get_pair_metric(metric_type: PairMetricType, protocol: Variable):
+def get_pair_metric(metric_type: PairMetricType, protocol: Tensor):
     if metric_type == "mean_acc":
-        assert isinstance(protocol, VariableTensor)
-        assert isinstance(protocol.var, BaseVariable)
-        if protocol.var.type_name == 'ordinal':
+        # TODO: better assertion
+        assert isinstance(protocol, Tensor)
+        if protocol.base.type_name == 'ordinal' or protocol.base.type_name == 'ids':
             def mean_acc(output: NDArray, target: NDArray) -> MetricResult:
                 return MetricResult(
                     content=np.mean(output == target).item(),
                     result_type=metric_type)
-        elif protocol.var.type_name == '1hot':
+        elif protocol.base.type_name == '1hot':
             def mean_acc(output: NDArray, target: NDArray) -> MetricResult:
                 target_class = np.argmax(target, axis=1)
                 output_class = np.argmax(output, axis=1)

@@ -12,7 +12,7 @@ optax~=0.0.9
 uvicorn~=0.15.0
 fastapi~=0.70.0
 pydantic~=1.8.2
-torch~=1.10.0
+torch==1.13.1
 ray~=1.8.0
 
 polars~=0.13.55

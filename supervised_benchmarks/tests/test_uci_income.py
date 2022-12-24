@@ -25,9 +25,11 @@ class BoostModelConfig(NamedTuple):
     type: Literal['ModelConfig'] = 'ModelConfig'
 
     def prepare(self) -> Performer:
-        query = {AnyNetDiscrete: uci_income_in_anynet_discrete,
-                 AnyNetDiscreteOut: uci_income_out_anynet_discrete}
-        data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'), query=query)
+        query = [AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut]
+        config = AnyNetStrategyConfig()
+        data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
+                                          column_config=config,
+                                          query=query)
         data_pool = data_config.get_data()
         tr = data_pool.fixed_subsets[FixedTrain]
         clf = CatBoostClassifier()
@@ -118,31 +120,35 @@ def test_data_fixed():
 
 
 def test_boost_init():
-    query = {AnyNetDiscrete: uci_income_in_anynet_discrete,
-             AnyNetDiscreteOut: uci_income_out_anynet_discrete}
-    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'), query=query)
+    query = [AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut]
+    config = AnyNetStrategyConfig()
+    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
+                                      column_config=config,
+                                      query=query)
     data_pool = data_config.get_data()
     tst = data_pool.fixed_subsets[FixedTest]
+
     sampler_config = FixedEpochSamplerConfig(512)
     sampler = sampler_config.get_sampler(tst)
 
     mini_batch = next(sampler.iter)
-    config = BoostModelConfig(
-        ports={AnyNetDiscreteOut: uci_income_out_anynet_discrete, AnyNetDiscrete: uci_income_in_anynet_discrete})
+    config = BoostModelConfig(ports=query)
     performer = config.prepare()
     result = performer.perform(data_src=mini_batch, tgt=AnyNetDiscreteOut)
     print((result == mini_batch[AnyNetDiscreteOut]).mean())
 
 
 def test_benchmark():
-    query = {AnyNetDiscrete: uci_income_in_anynet_discrete,
-             AnyNetDiscreteOut: uci_income_out_anynet_discrete}
-    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'), query=query)
+    query = [AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut]
+    config = AnyNetStrategyConfig()
+    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
+                                      column_config=config,
+                                      query=query)
     benchmark_config = BenchmarkConfig(
-        metrics={AnyNetDiscreteOut: get_pair_metric('mean_acc', data_config.query[AnyNetDiscreteOut])},
+        metrics={AnyNetDiscreteOut: get_pair_metric('mean_acc', AnyNetDiscreteOut.protocol)},
         on=FixedTest)
     model_config = BoostModelConfig(
-        ports={AnyNetDiscreteOut: uci_income_out_anynet_discrete, AnyNetDiscrete: uci_income_in_anynet_discrete})
+        ports=[AnyNetDiscreteOut, AnyNetDiscrete])
     performer = model_config.prepare()
     z = benchmark_config.bench(data_config, performer)
     print(z)

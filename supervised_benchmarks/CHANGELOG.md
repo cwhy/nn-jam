@@ -12,19 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add modeltesting utility
 
 ## TODO : Get Mnist back at work
-- Figure out variable type for UCI variables:
-  - store everything in original form
-  - make query for anynet
-- Make UCI variables individual ports
 - Fix mnist
 - Have a similar test for mnist like uci income
 - new ver
 
 ## Unreleased
-- build categorial variable detector using polars
-    - shift the feature detection test logic to uci data processing code
-- replace homebrew csv reader with polars
-- Test UCI data processing code
   
 ## [0.0.7] - 2022-12-24 Unfinished
 - [Supervised Benchmarks] 
@@ -33,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       And `PortSpecs` will be just equivalent to a list of `Port`s
     - Definition of `Ports`: since `Tensor` have multiple labels, `Ports` will 
       represent the usage of the tensor instead
+- [UCI_income]
+    - build categorial variable detector using polars
+        - shift the feature detection test logic to uci data processing code
+    - replace homebrew csv reader with polars
+    - Test UCI data processing code
+    - Figure out variable type for UCI variables:
+        - store everything in original form
+        - make query for anynet
+    - Make UCI variables individual ports
 
 
 ## [0.0.6] - 2022-07- Unfinished/pending

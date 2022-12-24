@@ -5,14 +5,14 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Literal, Protocol, NamedTuple, Mapping, FrozenSet, Callable, List
+from typing import Literal, Protocol, NamedTuple, Mapping, FrozenSet, Callable, List, Sequence
 
 from numpy.typing import NDArray
 
 from supervised_benchmarks.ports import Port
 from variable_protocols.tensorhub import TensorHub
 
-PortSpecs = List[Port]
+PortSpecs = Sequence[Port]
 
 
 FixedTrain: Literal['FixedTrain'] = 'FixedTrain'
