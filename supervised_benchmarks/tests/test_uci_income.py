@@ -14,7 +14,7 @@ from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, FullBatchSamplerConfig
 from supervised_benchmarks.tabular_utils import ColumnInfo, NumStats, AnyNetStrategyConfig, parse_polars, \
     anynet_load_polars
-from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut, variable_names
+from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut, variable_names, AnyNetContinuous
 from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, UciIncome
 from variable_protocols.tensorhub import F, V
 
@@ -62,7 +62,8 @@ def test_polars():
 
 def test_utils():
     base_path = Path('/Data/uci')
-    data_class = UciIncome(base_path)
+    config = AnyNetStrategyConfig()
+    data_class = UciIncome(base_path, config)
     discrete_labels = [l for i, l in enumerate(variable_names) if data_class.data_info.is_digits[i]]
     continuous_labels = [l for i, l in enumerate(variable_names) if not data_class.data_info.is_digits[i]]
     print(data_class.data_info.is_digits)
@@ -70,36 +71,50 @@ def test_utils():
     print(continuous_labels)
 
 
-def test_get_data():
-    query = {AnyNetDiscrete: uci_income_in_anynet_discrete,
-             AnyNetDiscreteOut: uci_income_out_anynet_discrete}
-    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'), query=query)
+def test_data_init():
+    base_path = Path('/Data/uci')
+    config = AnyNetStrategyConfig()
+    data_class = UciIncome(base_path, config)
+    print(config)
+
+
+def test_data_fixed():
+    query = [AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut]
+    config = AnyNetStrategyConfig()
+    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
+                                      column_config=config,
+                                      query=query)
     data_pool = data_config.get_data()
     tr = data_pool.fixed_subsets[FixedTrain]
     tst = data_pool.fixed_subsets[FixedTest]
+    print(tr.content_map)
+    print(tst.content_map)
     assert AnyNetDiscrete in tr.content_map
     assert AnyNetDiscrete in tst.content_map
-    assert tr.query == tst.query == query
+    assert list(tr.content_map.keys()) == list(tst.content_map.keys()) == query
     print(tr.content_map[AnyNetDiscrete].shape)
     print(tst.content_map[AnyNetDiscrete].shape)
-    assert tr.content_map[AnyNetDiscrete].shape == (32561, 14)
-    assert tst.content_map[AnyNetDiscrete].shape == (16281, 14)
+    assert tr.content_map[AnyNetDiscrete].shape == (32561, 13)
+    assert tst.content_map[AnyNetDiscrete].shape == (16281, 13)
     print(tr.content_map[AnyNetDiscreteOut].shape)
-    assert tr.content_map[AnyNetDiscreteOut].shape == (32561,)
+    assert tr.content_map[AnyNetDiscreteOut].shape == (32561, 1)
+    print(tr.content_map[AnyNetContinuous].shape)
+    assert tr.content_map[AnyNetContinuous].shape == (32561, 1)
     sampler_config = FixedEpochSamplerConfig(512)
     sampler = sampler_config.get_sampler(tr)
-
     mini_batch = next(sampler.iter)
     assert AnyNetDiscrete in mini_batch
-    assert mini_batch[AnyNetDiscrete].shape == (512, 14)
+    assert mini_batch[AnyNetDiscrete].shape == (512, 13)
     test_sampler = FullBatchSamplerConfig().get_sampler(tst)
     full_test = test_sampler.full_batch
     assert AnyNetDiscrete in full_test
-    assert full_test[AnyNetDiscrete].shape == (16281, 14)
+    assert full_test[AnyNetDiscrete].shape == (16281, 13)
+    print(mini_batch[AnyNetContinuous].shape)
+    assert mini_batch[AnyNetContinuous].shape == (512, 1)
+    assert full_test[AnyNetContinuous].shape == (16281, 1)
+
     # bench = BenchmarkConfig(metrics={AnyNetDiscreteOut: get_pair_metric('mean_acc', var_scalar(ordinal(n_tokens)))},
     #                         on=FixedTrain).bench(data_config)
-
-    assert True
 
 
 def test_boost_init():

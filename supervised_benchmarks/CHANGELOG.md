@@ -26,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace homebrew csv reader with polars
 - Test UCI data processing code
   
+## [0.0.7] - 2022-12-24 Unfinished
+- [Supervised Benchmarks] 
+    - [PortSpecs]  Since the improvement of variable_protocol (inclusion of labels),
+      `Port` can contain `Tensor` with label information.
+      And `PortSpecs` will be just equivalent to a list of `Port`s
+    - Definition of `Ports`: since `Tensor` have multiple labels, `Ports` will 
+      represent the usage of the tensor instead
+
+
 ## [0.0.6] - 2022-07- Unfinished/pending
 - [Supervised Benchmarks] Last minute port matching
     - [DataPool] Change `DataQuery` to `PortSpecs`

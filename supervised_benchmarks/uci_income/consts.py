@@ -3,7 +3,7 @@ from typing import NamedTuple, Dict, List
 
 from supervised_benchmarks.ports import NewPort
 from variable_protocols.base_variables import N, IDs
-from variable_protocols.tensorhub import FeatureDim
+from variable_protocols.tensorhub import GenericFeatureDim
 
 FLOAT_OFFSET = -2
 VALUE_SYMBOL = 0
@@ -39,10 +39,10 @@ class TabularDataInfo(NamedTuple):
     common_values: Dict[str, float]
 
 
-AnyNetContinuous = NewPort(N(0, 1) * FeatureDim,
+AnyNetContinuous = NewPort(N(0, 1) * GenericFeatureDim,
                            type='Input',
                            name='AnyNetContinuous')
-AnyNetDiscrete = NewPort(IDs("int") * FeatureDim,
+AnyNetDiscrete = NewPort(IDs("int") * GenericFeatureDim,
                          type='Input',
                          name='AnyNetDiscrete')
-AnyNetDiscreteOut = NewPort(IDs("int") * FeatureDim, type='Output', name='AnyNetDiscreteOut')
+AnyNetDiscreteOut = NewPort(IDs("int") * GenericFeatureDim, type='Output', name='AnyNetDiscreteOut')

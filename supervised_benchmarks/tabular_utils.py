@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import NamedTuple, Protocol, Literal, Optional, Dict
+from typing import NamedTuple, Protocol, Literal, Optional, Dict, List
 
 import polars as pl  # type: ignore
 from numpy.typing import NDArray
@@ -69,14 +69,17 @@ class AnyNetStrategyConfig(NamedTuple):
         if stats.num_stats is None:
             if unique_ratio > self.str_unique_ratio:
                 if top5_count_ratio > 1 - self.str_unique_ratio:
-                    return Ordinal(n_category=stats.n_unique, labels=tuple(L(col.name, str(val)) for val in col.unique().to_list()))
+                    return Ordinal(n_category=stats.n_unique,
+                                   labels=tuple(L(col.name, str(val)) for val in col.unique().to_list()))
                 else:
                     return None
             else:
-                return Ordinal(n_category=stats.n_unique, labels=tuple(L(col.name, str(val)) for val in col.unique().to_list()))
+                return Ordinal(n_category=stats.n_unique,
+                               labels=tuple(L(col.name, str(val)) for val in col.unique().to_list()))
         else:
             if stats.n_unique <= self.number_unique and null_ratio <= self.number_unique_ratio:
-                return Ordinal(n_category=stats.n_unique, labels=tuple(L(col.name, str(val)) for val in col.unique().to_list()))
+                return Ordinal(n_category=stats.n_unique,
+                               labels=tuple(L(col.name, str(val)) for val in col.unique().to_list()))
             else:
                 # TODO logic to find distributions
                 return Bounded(max=stats.num_stats.max, min=stats.num_stats.min)
@@ -92,6 +95,12 @@ def parse_polars(column_config: TabularColumnsConfig, df: pl.DataFrame) -> Tenso
     return variable_protocols
 
 
+# select and convert to numpy usable discrete
+def polar_select_discrete(df: pl.DataFrame, columns: List[str]) -> pl.DataFrame:
+    return df.select(s.cast(pl.Utf8).cast(pl.Categorical).to_physical() for s in df.select(columns))
+
+
+# Used for testing or directly used without Dataset
 def anynet_load_polars(column_config: TabularColumnsConfig, df: pl.DataFrame) -> Dict[str, NDArray]:
     values = []
     symbols = []
@@ -109,6 +118,22 @@ def anynet_load_polars(column_config: TabularColumnsConfig, df: pl.DataFrame) ->
                 # Support for other types
                 raise ValueError("Unknown variable type")
     value_df = df.select(values)
-    symbol_df = df.select(s.cast(pl.Utf8).cast(pl.Categorical).to_physical() for s in df.select(symbols))
+    symbol_df = polar_select_discrete(df, symbols)
     # pass label information
     return {"values": value_df.to_numpy(), "symbols": symbol_df.to_numpy()}
+
+
+def anynet_get_discrete(df: pl.DataFrame, original_protocol: TensorHub, exclude: List[str]) -> NDArray:
+    symbols = [col.name for col in df.get_columns()
+               if isinstance(original_protocol[L(col.name)].base, Ordinal) and col.name not in exclude]
+    if len(symbols) == 0:
+        raise ValueError("No discrete variables found")
+    return polar_select_discrete(df, symbols).to_numpy()
+
+
+def anynet_get_continuous(df: pl.DataFrame, original_protocol: TensorHub, exclude: List[str]) -> NDArray:
+    values = [col.name for col in df.get_columns()
+              if isinstance(original_protocol[L(col.name)].base, Bounded) and col.name not in exclude]
+    if len(values) == 0:
+        raise ValueError("No continuous variables found")
+    return df.select(values).to_numpy()

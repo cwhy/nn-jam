@@ -95,6 +95,12 @@ class TensorHub:
         tensors = "\n".join(t.fmt(indent, curr_indent + indent) for t in self.tensors)
         return f"TensorHub:\n{curr_indent * ' '}{tensors}"
 
+    def __getitem__(self, labels: Labels):
+        for t in self.tensors:
+            if t.labels == labels:
+                return t
+        raise KeyError(f"TensorHub does not contain tensor with label {labels}")
+
     def __add__(self, other: TensorHub) -> TensorHub:
         return TensorHub(self.tensors | other.tensors)
 
@@ -112,5 +118,5 @@ def F(base: BaseVariable, *tags: str) -> TensorHub:
 
 DimFam = DimensionFamily
 Dim = Dimensions.from_dict
-FeatureDim = Dim({"Feature": None})
+GenericFeatureDim = Dim({"Feature": None})
 V = TensorHub
