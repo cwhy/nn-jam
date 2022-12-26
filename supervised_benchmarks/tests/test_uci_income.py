@@ -1,56 +1,16 @@
 from pathlib import Path
-from typing import NamedTuple, FrozenSet, Literal
 
-import numpy as np
 import polars as pl
-from catboost import CatBoostClassifier
-from numpy.typing import NDArray
 
 from supervised_benchmarks.benchmark import BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import FixedTrain, FixedTest, DataUnit, PortSpecs
+from supervised_benchmarks.dataset_protocols import FixedTrain, FixedTest
 from supervised_benchmarks.metrics import get_pair_metric
-from supervised_benchmarks.ports import Port
-from supervised_benchmarks.protocols import Performer
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, FullBatchSamplerConfig
-from supervised_benchmarks.tabular_utils import ColumnInfo, NumStats, AnyNetStrategyConfig, parse_polars, \
+from supervised_benchmarks.tabular_utils import AnyNetStrategyConfig, parse_polars, \
     anynet_load_polars
+from supervised_benchmarks.tests.dummy_models import AnyNetBoostModelConfig
 from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut, variable_names, AnyNetContinuous
 from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, UciIncome
-from variable_protocols.tensorhub import F, V
-
-
-class BoostModelConfig(NamedTuple):
-    ports: PortSpecs
-
-    type: Literal['ModelConfig'] = 'ModelConfig'
-
-    def prepare(self) -> Performer:
-        query = [AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut]
-        config = AnyNetStrategyConfig()
-        data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
-                                          column_config=config,
-                                          query=query)
-        data_pool = data_config.get_data()
-        tr = data_pool.fixed_subsets[FixedTrain]
-        clf = CatBoostClassifier()
-        print(tr.content_map[AnyNetDiscreteOut])
-        clf.fit(tr.content_map[AnyNetDiscrete], tr.content_map[AnyNetDiscreteOut])
-
-        return BoostPerformer(classifier=clf, repertoire=frozenset({AnyNetDiscreteOut}))
-
-
-class BoostPerformer(NamedTuple):
-    classifier: CatBoostClassifier
-    repertoire: FrozenSet[Port]
-
-    def perform(self, data_src: DataUnit, tgt: Port) -> NDArray:
-        print(data_src[AnyNetDiscrete])
-        arr = self.classifier.predict(data_src[AnyNetDiscrete])
-        return np.array(arr)
-
-    def perform_batch(self,
-                      data_src: DataUnit,
-                      tgt: FrozenSet[Port]) -> DataUnit: ...
 
 
 def test_polars():
@@ -132,7 +92,7 @@ def test_boost_init():
     sampler = sampler_config.get_sampler(tst)
 
     mini_batch = next(sampler.iter)
-    config = BoostModelConfig(ports=query)
+    config = AnyNetBoostModelConfig(ports=query, train_data_config=data_config)
     performer = config.prepare()
     result = performer.perform(data_src=mini_batch, tgt=AnyNetDiscreteOut)
     print((result == mini_batch[AnyNetDiscreteOut]).mean())
@@ -147,8 +107,9 @@ def test_benchmark():
     benchmark_config = BenchmarkConfig(
         metrics={AnyNetDiscreteOut: get_pair_metric('mean_acc', AnyNetDiscreteOut.protocol)},
         on=FixedTest)
-    model_config = BoostModelConfig(
-        ports=[AnyNetDiscreteOut, AnyNetDiscrete])
+
+    model_config = AnyNetBoostModelConfig(
+        ports=[AnyNetDiscreteOut, AnyNetDiscrete], train_data_config=data_config)
     performer = model_config.prepare()
     z = benchmark_config.bench(data_config, performer)
     print(z)
