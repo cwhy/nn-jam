@@ -22,8 +22,8 @@ from supervised_benchmarks.dataset_protocols import PortSpecs, DataConfig
 from supervised_benchmarks.ports import Port, Input, Output
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
-from supervised_benchmarks.model_utils import Train
-from supervised_benchmarks.protocols import Performer
+from supervised_benchmarks.model_utils import EpochTrainConfig
+from supervised_benchmarks.performer_protocol import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler
 
 n_dups = 10
@@ -137,7 +137,7 @@ class MlpModelConfig:
         # params_sum = [(w.sum(axis=0), b.sum(axis=0)) for w, b in params_dups]
         # print([(a.shape, z.shape) for a, z in params_sum])
         model = MlpModel(self, params_dups, rng)
-        Train(
+        EpochTrainConfig(
             num_epochs=self.num_epochs,
             batch_size=self.train_batch_size,
             bench_configs=[BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))}, on=FixedTrain),

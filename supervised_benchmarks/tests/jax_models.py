@@ -1,36 +1,29 @@
-# Test anynet on randomized mnist
 from __future__ import annotations
 
 import pickle
 from dataclasses import dataclass, field
-from pathlib import Path
 from pprint import pprint
 from typing import Tuple, Mapping, FrozenSet, Literal, Callable, Any, Dict
 
-import optax as optax
 from jax import jit, grad, tree_map, vmap, random, tree_leaves
 from jax import numpy as xp
 from jax.random import PRNGKey
 from numpy import typing as npt
 from numpy.typing import NDArray
-from optax._src.alias import adamw
-from optax._src.base import OptState
+import optax
+from optax import adamw, OptState
 from pynng import Pub0
-from variable_protocols.bak.protocols import Variable
-from variable_protocols.bak.variables import one_hot, var_tensor, gaussian, dim, var_scalar, ordinal
 
 from jax_make.anynet import AnyNet, inference_ports, QUERY_SYMBOL_MASK, FLOAT_OFFSET, VALUE_SYMBOL, QUERY_VALUE
 from jax_make.component_protocol import make_ports
 from jax_make.params import ArrayTree, RNGKey, make_weights
 from stage.protocol import Stage
 from supervised_benchmarks.benchmark import BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import DataConfig, DataPool, DataArray
-from supervised_benchmarks.ports import Port, Input, Output
-from supervised_benchmarks.dataset_utils import subset_all
+from supervised_benchmarks.dataset_protocols import DataConfig, DataUnit
 from supervised_benchmarks.metrics import get_pair_metric
-from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
-from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
+from supervised_benchmarks.mnist.mnist import FixedTrain, FixedTest
 from supervised_benchmarks.model_utils import EpochTrainConfig, Probes
+from supervised_benchmarks.ports import Port
 from supervised_benchmarks.performer_protocol import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler, FixedEpochSamplerConfig, FullBatchSamplerConfig
 
@@ -43,8 +36,6 @@ class MlpModelConfig:
     train_batch_size: int
     train_data_config: DataConfig
     repertoire: FrozenSet[Port] = frozenset([Output])
-    # noinspection PyTypeChecker
-    # because pycharm sucks
     ports: Mapping[Port, Variable] = field(default_factory=lambda: {
         Output: var_scalar(one_hot(10)),
         Input: var_tensor(
@@ -53,9 +44,7 @@ class MlpModelConfig:
     })
     type: Literal['ModelConfig'] = 'ModelConfig'
 
-    # noinspection PyTypeChecker
-    # because pycharm sucks
-    def prepare(self) -> Performer[NDArray]:
+    def prepare(self) -> Performer:
         y_dim = 10
         eps = 0.00001
         weight_decay = 0.0001
@@ -95,7 +84,8 @@ class MlpModelConfig:
         float_offsets = xp.ones(len_x, dtype=int) * FLOAT_OFFSET
 
         def forward_test(params, x):
-            inputs = {Input: xp.r_[float_offsets, QUERY_SYMBOL_MASK], 'input_pos': pos_sequence_all, 'value': xp.r_[x, QUERY_VALUE]}
+            inputs = {Input: xp.r_[float_offsets, QUERY_SYMBOL_MASK], 'input_pos': pos_sequence_all,
+                      'value': xp.r_[x, QUERY_VALUE]}
             outs = net_test.processes[inference_ports](params, inputs, random.PRNGKey(0))['symbol']
             return outs[-1]  # -1, Not mask!!
 
@@ -166,7 +156,7 @@ class MlpModel:
     train_stage: Stage
 
     @property
-    def probe(self) -> Dict[Probes, Callable[[Mapping[Port, DataPool[DataArray]]], None]]:
+    def probe(self) -> Dict[Probes, Callable[[DataUnit], None]]:
         def debug(pool):
             cfg = FullBatchSamplerConfig()
             sp1 = cfg.get_sampler(subset_all(pool, FixedTrain)).full_batch
@@ -211,29 +201,3 @@ class MlpModel:
         return {Output: self.predict(data_src[Input])}
 
 
-data_config_ = MnistDataConfig(
-    base_path=Path('/Data/torchvision/'),
-    port_vars={
-        Input: MnistConfigIn(is_float=True, is_flat=True).get_var(),
-        Output: MnistConfigOut(is_1hot=False).get_var()
-    })
-
-# noinspection PyTypeChecker
-# Because Pycharm sucks
-benchmark_config_ = BenchmarkConfig(
-    metrics={Output: get_pair_metric('mean_acc', data_config_.port_vars[Output])},
-    on=FixedTest)
-
-# noinspection PyTypeChecker
-# Because Pycharm sucks
-model_ = MlpModelConfig(
-    dim_model=32,
-    step_size=0.01,
-    num_epochs=20000,
-    train_batch_size=32,
-    train_data_config=data_config_,
-).prepare()
-# noinspection PyTypeChecker
-# Because Pycharm sucks
-z = benchmark_config_.bench(data_config_, model_)
-print(z)

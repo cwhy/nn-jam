@@ -32,8 +32,8 @@ from supervised_benchmarks.dataset_utils import subset_all
 from supervised_benchmarks.metrics import get_pair_metric
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
-from supervised_benchmarks.model_utils import Train, Probes
-from supervised_benchmarks.protocols import Performer
+from supervised_benchmarks.model_utils import EpochTrainConfig, Probes
+from supervised_benchmarks.performer_protocol import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler, FixedEpochSamplerConfig, FullBatchSamplerConfig
 
 
@@ -139,7 +139,7 @@ class MlpModelConfig:
             model = MlpModel(self, weights, state,
                              vmap(jit(forward_test), (None, 0), 0), jit(update_adam), jit(forward_train),
                              train_stage=stage)
-            Train(
+            EpochTrainConfig(
                 num_epochs=self.num_epochs,
                 batch_size=self.train_batch_size,
                 bench_configs=[

@@ -80,36 +80,31 @@ def test_data_fixed():
 
 
 def test_boost_init():
-    query = [AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut]
-    config = AnyNetStrategyConfig()
     data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
-                                      column_config=config,
-                                      query=query)
-    data_pool = data_config.get_data()
+                                      column_config=AnyNetStrategyConfig())
+    model_config = AnyNetBoostModelConfig(train_data_config=data_config)
+    data_pool = data_config.get_data(model_config.get_ports())
     tst = data_pool.fixed_subsets[FixedTest]
 
     sampler_config = FixedEpochSamplerConfig(512)
     sampler = sampler_config.get_sampler(tst)
 
     mini_batch = next(sampler.iter)
-    config = AnyNetBoostModelConfig(ports=query, train_data_config=data_config)
-    performer = config.prepare()
+    performer = model_config.prepare(AnyNetDiscreteOut)
     result = performer.perform(data_src=mini_batch, tgt=AnyNetDiscreteOut)
     print((result == mini_batch[AnyNetDiscreteOut]).mean())
 
 
 def test_benchmark():
-    query = [AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut]
     config = AnyNetStrategyConfig()
     data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
-                                      column_config=config,
-                                      query=query)
-    benchmark_config = BenchmarkConfig(
-        metrics={AnyNetDiscreteOut: get_pair_metric('mean_acc', AnyNetDiscreteOut.protocol)},
-        on=FixedTest)
+                                      column_config=config)
 
-    model_config = AnyNetBoostModelConfig(
-        ports=[AnyNetDiscreteOut, AnyNetDiscrete], train_data_config=data_config)
-    performer = model_config.prepare()
-    z = benchmark_config.bench(data_config, performer)
+    model_config = AnyNetBoostModelConfig(train_data_config=data_config)
+    benchmark_config = BenchmarkConfig(
+        on_metrics={AnyNetDiscreteOut: get_pair_metric('mean_acc', AnyNetDiscreteOut.protocol)},
+        on_data=FixedTest,
+        model_config=model_config,
+        data_config=data_config)
+    z = benchmark_config.bench()
     print(z)

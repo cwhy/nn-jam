@@ -19,8 +19,8 @@ from supervised_benchmarks.dataset_protocols import DataConfig
 from supervised_benchmarks.ports import Port, Input, Output
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
-from supervised_benchmarks.model_utils import Train, Probes
-from supervised_benchmarks.protocols import Performer
+from supervised_benchmarks.model_utils import EpochTrainConfig, Probes
+from supervised_benchmarks.performer_protocol import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler
 from jax_make.utils.activations import Activation
 from jax_make.components.mlp import Mlp
@@ -88,7 +88,7 @@ class MlpModelConfig:
             return tree_map(lambda x, dx: x - step_size * dx, params, grads), rng
 
         model = MlpModel(self, weights, PRNGKey(0), forward_test, update)
-        Train(
+        EpochTrainConfig(
             num_epochs=self.num_epochs,
             batch_size=self.train_batch_size,
             bench_configs=[BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))}, on=FixedTrain),

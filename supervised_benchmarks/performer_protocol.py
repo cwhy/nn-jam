@@ -1,32 +1,12 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Protocol, Literal, FrozenSet
+from typing import Protocol, FrozenSet
 
 from numpy.typing import NDArray
 
 from supervised_benchmarks.dataset_protocols import DataUnit, PortSpecs
 from supervised_benchmarks.ports import Port
-
-
-class ModelConfig(Protocol):
-    """
-    All benchmark related configs are here
-    """
-
-    @property
-    @abstractmethod
-    def input_ports(self) -> FrozenSet[Port]: ...
-
-    @property
-    @abstractmethod
-    def output_ports(self) -> FrozenSet[Port]: ...
-
-    @property
-    @abstractmethod
-    def type(self) -> Literal['ModelConfig']: ...
-
-    def prepare(self) -> Performer: ...
 
 
 class Performer(Protocol):
@@ -43,3 +23,14 @@ class Performer(Protocol):
     def perform_batch(self,
                       data_src: DataUnit,
                       tgt: FrozenSet[Port]) -> DataUnit: ...
+
+
+class ModelConfig(Protocol):
+    """
+    All benchmark related configs are here
+    """
+
+    @staticmethod
+    def get_ports() -> PortSpecs: ...
+
+    def prepare(self, repertoire: FrozenSet[Port]) -> Performer: ...

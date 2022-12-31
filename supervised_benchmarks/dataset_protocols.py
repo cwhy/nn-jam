@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Literal, Protocol, NamedTuple, Mapping, FrozenSet, Callable, List, Sequence
+from typing import Literal, Protocol, NamedTuple, Mapping, Callable, Sequence
 
 from numpy.typing import NDArray
 
@@ -75,7 +75,7 @@ class DataConfig(Protocol):
     @abstractmethod
     def type(self) -> Literal['DataConfig']: ...
 
-    def get_data(self) -> DataPool: ...
+    def get_data(self, query: PortSpecs) -> DataPool: ...
 
 
 class Dataset(Protocol):

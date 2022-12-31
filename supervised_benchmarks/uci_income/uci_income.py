@@ -105,9 +105,8 @@ class UciIncome:
 class UciIncomeDataConfig(NamedTuple):
     base_path: Path
     column_config: TabularColumnsConfig
-    query: PortSpecs
     type: Literal['DataConfig'] = 'DataConfig'
 
-    def get_data(self) -> UciIncomeDataPool:
+    def get_data(self, query: PortSpecs) -> UciIncomeDataPool:
         data_class = UciIncome(self.base_path, column_config=self.column_config)
-        return data_class.retrieve(self.query)
+        return data_class.retrieve(query)

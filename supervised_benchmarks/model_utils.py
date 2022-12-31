@@ -7,14 +7,23 @@ from typing import List, Protocol, Callable, Literal, Dict
 
 from supervised_benchmarks.benchmark import Benchmark, BenchmarkConfig
 from supervised_benchmarks.dataset_protocols import Subset, DataPool, DataConfig, DataUnit
-from supervised_benchmarks.protocols import ModelConfig, Performer
+from supervised_benchmarks.performer_protocol import Performer, ModelConfig
 from supervised_benchmarks.sampler import FixedEpochSamplerConfig, MiniBatchSampler
 
 Probes = Literal['before_epoch_', 'after_epoch_']
 
 
+# If the model can be trained in a single epoch,
+# the stuff in this file is not recommended.
+# Just train your model and get a `Performer` yourself!
+class TrainConfig(Protocol):
+    data_config: DataConfig
+
+    def run_(self): ...
+
+
 @dataclass(frozen=True)
-class Train:
+class EpochTrainConfig:
     num_epochs: int
     batch_size: int
     bench_configs: List[BenchmarkConfig]
@@ -53,4 +62,4 @@ class TrainablePerformer(Performer, Protocol):
 class TrainableModelConfig(ModelConfig, Protocol):
     @property
     @abstractmethod
-    def train_data_config(self) -> DataConfig: ...
+    def train_config(self) -> TrainConfig: ...

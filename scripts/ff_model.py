@@ -19,8 +19,8 @@ from supervised_benchmarks.ports import Port, Input, Output
 from supervised_benchmarks.metrics import get_pair_metric
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut
-from supervised_benchmarks.model_utils import Train
-from supervised_benchmarks.protocols import Performer
+from supervised_benchmarks.model_utils import EpochTrainConfig
+from supervised_benchmarks.performer_protocol import Performer
 from supervised_benchmarks.sampler import MiniBatchSampler
 
 
@@ -74,7 +74,7 @@ class MlpModelConfig:
         params = [(param_scale * rng.standard_normal((m, n)), param_scale * rng.standard_normal(n))
                   for m, n, in zip(self.layer_sizes[:-1], self.layer_sizes[1:])]
         model = MlpModel(self, params)
-        Train(
+        EpochTrainConfig(
             num_epochs=self.num_epochs,
             batch_size=self.train_batch_size,
             bench_configs=[BenchmarkConfig(metrics={Output: get_pair_metric('mean_acc', var_scalar(one_hot(10)))}, on=FixedTrain),

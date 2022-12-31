@@ -17,7 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - new ver
 
 ## Unreleased
-  
+
+## [0.0.8] - 2022-12-29
+- [Supervised Benchmarks] 
+  - [ModelConfig] formalize `ModelConfig` to define `get_ports` in class definition and use `prepare`
+    to generate a performer
+  - [BenchmarkConfig] benchmark now takes both `ModelConfig` and `DataConfig` as input, 
+    `DataConfig` will take in the requirements from `ModelConfig` for inputs.
+    and `ModelConfig` will take the output(`repertoire`) from `on_metric` from `BenchmarkConfig`
+
 ## [0.0.7] - 2022-12-24 Unfinished
 - [Supervised Benchmarks] 
     - [PortSpecs]  Since the improvement of variable_protocol (inclusion of labels),
