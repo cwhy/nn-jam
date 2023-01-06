@@ -2,7 +2,7 @@ tqdm~=4.62.3
 numpy~=1.22.3
 einops~=0.3.2
 bokeh~=2.4.1
-jax~=0.2.24
+jax~=0.4.1
 tornado~=6.1
 matplotlib~=3.4.3
 trio-websocket

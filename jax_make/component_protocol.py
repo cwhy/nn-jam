@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 from dataclasses import dataclass
-from typing import List, TypeVar, Literal, Optional, Generic, Callable, Mapping, FrozenSet, Set, NamedTuple, Dict, Tuple
+from typing import List, TypeVar, Literal, Optional, Generic, Callable, Mapping, FrozenSet, Set, NamedTuple, Dict, \
+    Tuple, Protocol
 
+import numpy as np
 from jax import random
 from numpy.typing import NDArray
 
@@ -15,22 +18,23 @@ CompVar = TypeVar("CompVar", bound=str)
 X: Literal['X'] = 'X'
 
 
-class FixedProcess(Generic[CompVar]):
+class FixedProcess(Protocol[CompVar]):
+    @abstractmethod
     def __call__(self, weights: Mapping[CompVar, ArrayTree],
                  inputs: ArrayTreeMapping) -> ArrayTreeMapping: ...
 
 
-class Process(Generic[CompVar]):
+class Process(Protocol[CompVar]):
     def __call__(self, weights: Mapping[CompVar, ArrayTree],
                  inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping: ...
 
 
-class Pipeline(Generic[CompVar]):
+class Pipeline(Protocol[CompVar]):
     def __call__(self, weights: Mapping[CompVar, ArrayTree],
                  x: NDArray, rng: RNGKey) -> NDArray: ...
 
 
-class FixedPipeline(Generic[CompVar]):
+class FixedPipeline(Protocol[CompVar]):
     def __call__(self, weights: Mapping[CompVar, ArrayTree],
                  x: NDArray) -> NDArray: ...
 
@@ -57,26 +61,25 @@ def make_ports(inputs: str | Tuple[str, ...], outputs: str | Tuple[str, ...]) ->
                         outputs=frozenset(outputs))
 
 
-pipeline_ports = make_ports(Input, Output)
+pipeline_ports: ProcessPorts = make_ports(Input, Output)
 
 
 def pipeline2processes(pipeline: Pipeline[CompVar]) -> Dict[ProcessPorts, Process[CompVar]]:
     def _fn(weights: Mapping[CompVar, ArrayTree],
-            x: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
-        return {Output: pipeline(weights, x[Input], rng)}
+            inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+        input_array = inputs[Input]
+        assert isinstance(input_array, np.ndarray), "Process with tree inputs cannot be converted to pipelines"
+        mp: ArrayTreeMapping = {Output: pipeline(weights, input_array, rng)}
+        return mp
 
-    # noinspection PyTypeChecker
-    # Because pycharm sucks
     return {pipeline_ports: _fn}
 
 
 def fixed_pipeline2processes(pipeline: FixedPipeline[CompVar]) -> Dict[ProcessPorts, Process[CompVar]]:
     def _fn(weights: Mapping[CompVar, ArrayTree],
-            x: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
-        return {Output: pipeline(weights, x[Input])}
+            inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+        return {Output: pipeline(weights, inputs[Input])}
 
-    # noinspection PyTypeChecker
-    # Because pycharm sucks
     return {pipeline_ports: _fn}
 
 
@@ -108,8 +111,6 @@ class Component(Generic[CompVar]):
                 x: NDArray, key: RNGKey) -> NDArray:
             return process(weights, {Input: x}, key)[Output]
 
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         return _fn
 
     @property
@@ -121,11 +122,9 @@ class Component(Generic[CompVar]):
                 x: NDArray) -> NDArray:
             return process(weights, {Input: x}, None)[Output]
 
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         return _fn
 
-    def get_fixed_process(self, process_ports: ProcessPorts[CompVar]) -> Process[CompVar]:
+    def get_fixed_process(self, process_ports: ProcessPorts) -> Process[CompVar]:
         self.assert_fixed_()
 
         def _fn(weights: Mapping[CompVar, ArrayTree],
@@ -133,8 +132,6 @@ class Component(Generic[CompVar]):
             process = self.processes[process_ports]
             return process(weights, x, None)
 
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         return _fn
 
     @classmethod
@@ -153,8 +150,6 @@ class Component(Generic[CompVar]):
                 x: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
             return process(weights, x)
 
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         return cls(params, {ProcessPorts(frozenset(ports_in), frozenset(ports_out)): _fn}, is_fixed=True)
 
     @classmethod
@@ -166,13 +161,11 @@ class Component(Generic[CompVar]):
                 x: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
             return {Output: pipeline(weights, x[Input])}
 
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         return cls(params, {pipeline_ports: _fn}, is_fixed=True)
 
 
 def merge_params(
-        components: Mapping[CompVar, Component[CompVar]]
+        components: Mapping[CompVar, Component]
 ) -> Mapping[CompVar, ArrayParamTree]:
     return {k: v.weight_params for k, v in components.items()}
 
@@ -191,11 +184,7 @@ def sequential(components: Mapping[CompVar, Component[CompVar]],
             flow_: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
         rng, *keys = random.split(rng, len(sequence))
         for comp_name, key in zip(sequence, keys):
-            # noinspection PyTypeChecker
-            # Because pycharm sucks
             flow_ = pipelines[comp_name](weights[comp_name], flow_, key)
         return flow_
 
-    # noinspection PyTypeChecker
-    # Because pycharm sucks
     return _fn

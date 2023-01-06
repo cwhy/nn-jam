@@ -6,10 +6,11 @@ from einops import rearrange
 from jax import vmap
 from numpy.typing import NDArray
 
-from jax_make.utils.activations import Activation
 from jax_make.component_protocol import Component, merge_params, pipeline2processes, make_ports, Input, Output
 from jax_make.components.mlp import Mlp
-from jax_make.params import ArrayTree, RNGKey
+from jax_make.params import ArrayTree, RNGKey, ArrayTreeMapping
+import jax_make.params as p
+from jax_make.utils.activations import Activation
 
 
 class DirtyPatchesConfigs(Protocol):
@@ -52,9 +53,10 @@ class DirtyPatches(NamedTuple):
         }
 
         # [h, w, ch] -> [dim_out, n_sections_h, n_sections_w, ch]
-        def _fn(params: ArrayTree, x: NDArray, rng: RNGKey) -> NDArray:
+        def _fn(params: ArrayTreeMapping, x: NDArray, rng: RNGKey) -> NDArray:
             patches = _get_patches(x)
-            features = vmap(components['mlp'].pipeline, (None, 0, None), 0)(params['mlp'], patches, rng)
+
+            features = vmap(components['mlp'].pipeline, (None, 0, None), 0)(p.get_mapping(params, 'mlp'), patches, rng)
             return rearrange(features, '(h w c) out -> out h w c',
                              out=config.dim_out, h=config.n_sections_h, w=config.n_sections_w, c=config.ch)
 
@@ -74,16 +76,16 @@ class DirtyPatches(NamedTuple):
             return rearrange(patches, 'h w (c ph pw) -> (h w c) (ph pw)',
                              c=config.ch, ph=dim_h, pw=dim_w)
 
-        def _fn_both(params: ArrayTree, inputs: ArrayTree, rng: RNGKey) -> ArrayTree:
-            x = inputs[Input]
+        def _fn_both(params: ArrayTreeMapping, inputs: ArrayTree, rng: RNGKey) -> ArrayTree:
+            x = p.get_arr(inputs, Input)
+            mlp_params = p.get_mapping(params, 'mlp')
+
             patches = _get_patches(x)
-            features = vmap(components['mlp'].pipeline, (None, 0, None), 0)(params['mlp'], patches, rng)
+            features = vmap(components['mlp'].pipeline, (None, 0, None), 0)(mlp_params, patches, rng)
             output = rearrange(features, '(h w c) out -> out h w c',
                                out=config.dim_out, h=config.n_sections_h, w=config.n_sections_w, c=config.ch)
             return {Output: output, 'patches': patches}
 
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         processes = pipeline2processes(_fn)
         processes[make_ports(Input, ("patches", Output))] = _fn_both
         return Component(merge_params(components), processes)

@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import NamedTuple, List, Protocol
 
 from jax import random, vmap
@@ -12,11 +13,30 @@ from jax_make.params import WeightParams, ArrayTree, RNGKey
 
 
 class MlpConfigs(Protocol):
-    n_in: int
-    n_hidden: List[int]
-    n_out: int
-    activation: Activation
-    dropout_keep_rate: float
+    @property
+    @abstractmethod
+    def n_in(self) -> int:
+        ...
+
+    @property
+    @abstractmethod
+    def n_hidden(self) -> List[int]:
+        ...
+
+    @property
+    @abstractmethod
+    def n_out(self) -> int:
+        ...
+
+    @property
+    @abstractmethod
+    def activation(self) -> Activation:
+        ...
+
+    @property
+    @abstractmethod
+    def dropout_keep_rate(self) -> float:
+        ...
 
 
 class Mlp(NamedTuple):
@@ -59,8 +79,6 @@ class Mlp(NamedTuple):
             flow_ = components[output_layer].fixed_pipeline(weights[output_layer], flow_)
             return flow_
 
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         return Component.from_pipeline(merge_params(components), _fn)
 
 

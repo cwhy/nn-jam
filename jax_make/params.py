@@ -38,10 +38,30 @@ class ArrayParams(Protocol):
     def scale(self) -> float: ...
 
 
-ArrayParamMapping = RecursiveMapping[str, ArrayParams]
-ArrayParamTree = Union[RecursiveMapping[str, ArrayParams], ArrayParams]
-ArrayTreeMapping = RecursiveMapping[str, npt.NDArray]
-ArrayTree = Union[RecursiveMapping[str, npt.NDArray], npt.NDArray]
+# ArrayParamMapping = RecursiveMapping[str, ArrayParams]
+ArrayParamMapping = Mapping[str, Union[ArrayParams, 'ArrayParamMapping']]
+# ArrayParamTree = Union[RecursiveMapping[str, ArrayParams], ArrayParams]
+ArrayParamTree = Union[ArrayParamMapping, ArrayParams]
+# ArrayTreeMapping = RecursiveMapping[str, npt.NDArray]
+ArrayTreeMapping = Mapping[str, Union['ArrayTreeMapping', npt.NDArray]]
+# ArrayTree = Union[RecursiveMapping[str, npt.NDArray], npt.NDArray]
+ArrayTree = Union[ArrayTreeMapping, npt.NDArray]
+
+
+def get_arr(tree: ArrayTree, item: str) -> npt.NDArray:
+    msg = f"Trying to access array item {item} from tree {tree}"
+    assert not isinstance(tree, np.ndarray), f"{msg} but it is an array"
+    arr = tree[item]
+    assert isinstance(arr, np.ndarray), f"{msg} but the result is not an array"
+    return arr
+
+
+def get_mapping(tree: ArrayTree, item: str) -> ArrayTreeMapping:
+    msg = f"Trying to access mapping item {item} from tree {tree}"
+    assert not isinstance(tree, np.ndarray), f"{msg} but the tree is an array"
+    arr = tree[item]
+    assert not isinstance(arr, np.ndarray), f"{msg} but the result an array"
+    return arr
 
 
 class WeightParams(NamedTuple):
