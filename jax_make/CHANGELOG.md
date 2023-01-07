@@ -6,11 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Long Term TODO
 
 ## Mid Term TODO :
-- use pytree for inputs 
-  - mha refactor: add masks
+- mha refactor: add masks
 - less boilerplate 
 
 ## TODO 
 
+
+## [0.0.2] - 2023-01-07
+- Fixed typing to work with mypy
+- added weight existence check for weights and inputs
 
 ## [0.0.1] - 2022-05-02

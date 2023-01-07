@@ -26,9 +26,8 @@ from jax_make.params import ArrayTree, RNGKey, make_weights
 from jax_make.vit import VitReconstruct
 from stage.protocol import Stage
 from supervised_benchmarks.benchmark import BenchmarkConfig
-from supervised_benchmarks.dataset_protocols import DataConfig, DataPool, DataArray
-from supervised_benchmarks.ports import Port, Input, Output
-from supervised_benchmarks.dataset_utils import subset_all
+from supervised_benchmarks.dataset_protocols import DataConfig, DataPool
+from supervised_benchmarks.ports import Port
 from supervised_benchmarks.metrics import get_pair_metric
 from supervised_benchmarks.mnist.mnist import MnistDataConfig, FixedTrain, FixedTest
 from supervised_benchmarks.mnist.mnist_variations import MnistConfigIn, MnistConfigOut

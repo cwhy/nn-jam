@@ -1,10 +1,10 @@
 from __future__ import annotations
+
 from abc import abstractmethod
-from typing import Tuple, NamedTuple, Union, Literal, Mapping, Any, Protocol, Optional, TypeVar, Iterator, Collection, \
-    Dict, ItemsView, ValuesView, KeysView
+from typing import Tuple, NamedTuple, Union, Literal, Mapping, Protocol, TypeVar, ItemsView
 
 import numpy as np
-from jax import numpy as xp
+from jax import numpy as xp, Array
 from jax.interpreters.xla import DeviceArray
 from numpy import typing as npt
 
@@ -43,24 +43,24 @@ ArrayParamMapping = Mapping[str, Union[ArrayParams, 'ArrayParamMapping']]
 # ArrayParamTree = Union[RecursiveMapping[str, ArrayParams], ArrayParams]
 ArrayParamTree = Union[ArrayParamMapping, ArrayParams]
 # ArrayTreeMapping = RecursiveMapping[str, npt.NDArray]
-ArrayTreeMapping = Mapping[str, Union['ArrayTreeMapping', npt.NDArray]]
+ArrayTreeMapping = Mapping[str, Union['ArrayTreeMapping', Array]]
 # ArrayTree = Union[RecursiveMapping[str, npt.NDArray], npt.NDArray]
-ArrayTree = Union[ArrayTreeMapping, npt.NDArray]
+ArrayTree = Union[ArrayTreeMapping, Array]
 
 
-def get_arr(tree: ArrayTree, item: str) -> npt.NDArray:
+def get_arr(tree: ArrayTreeMapping, item: str) -> Array:
     msg = f"Trying to access array item {item} from tree {tree}"
-    assert not isinstance(tree, np.ndarray), f"{msg} but it is an array"
+    assert item in tree, f"{msg} but the item is not in the tree"
     arr = tree[item]
-    assert isinstance(arr, np.ndarray), f"{msg} but the result is not an array"
+    assert isinstance(arr, xp.ndarray), f"{msg} but the result is not an array"
     return arr
 
 
-def get_mapping(tree: ArrayTree, item: str) -> ArrayTreeMapping:
+def get_mapping(tree: ArrayTreeMapping, item: str) -> ArrayTreeMapping:
     msg = f"Trying to access mapping item {item} from tree {tree}"
-    assert not isinstance(tree, np.ndarray), f"{msg} but the tree is an array"
+    assert item in tree, f"{msg} but the item is not in the tree"
     arr = tree[item]
-    assert not isinstance(arr, np.ndarray), f"{msg} but the result an array"
+    assert not isinstance(arr, xp.ndarray), f"{msg} but the result an array"
     return arr
 
 

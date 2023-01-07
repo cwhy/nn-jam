@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import NamedTuple, Protocol, List
 
 import jax
@@ -14,15 +15,41 @@ from jax_make.utils.activations import Activation
 
 
 class DirtyPatchesConfigs(Protocol):
-    dim_out: int
-    n_sections_w: int
-    n_sections_h: int
-    w: int
-    h: int
-    ch: int
-    mlp_n_hidden: List[int]
-    mlp_activation: Activation
-    dropout_keep_rate: float
+    @property
+    @abstractmethod
+    def dim_out(self) -> int: ...
+
+    @property
+    @abstractmethod
+    def n_sections_w(self) -> int: ...
+
+    @property
+    @abstractmethod
+    def n_sections_h(self) -> int: ...
+
+    @property
+    @abstractmethod
+    def w(self) -> int: ...
+
+    @property
+    @abstractmethod
+    def h(self) -> int: ...
+
+    @property
+    @abstractmethod
+    def ch(self) -> int: ...
+
+    @property
+    @abstractmethod
+    def mlp_n_hidden(self) -> List[int]: ...
+
+    @property
+    @abstractmethod
+    def mlp_activation(self) -> Activation: ...
+
+    @property
+    @abstractmethod
+    def dropout_keep_rate(self) -> float: ...
 
 
 class DirtyPatches(NamedTuple):
@@ -53,10 +80,10 @@ class DirtyPatches(NamedTuple):
         }
 
         # [h, w, ch] -> [dim_out, n_sections_h, n_sections_w, ch]
-        def _fn(params: ArrayTreeMapping, x: NDArray, rng: RNGKey) -> NDArray:
+        def _fn(weights: ArrayTreeMapping, x: NDArray, rng: RNGKey) -> NDArray:
             patches = _get_patches(x)
 
-            features = vmap(components['mlp'].pipeline, (None, 0, None), 0)(p.get_mapping(params, 'mlp'), patches, rng)
+            features = vmap(components['mlp'].pipeline, (None, 0, None), 0)(p.get_mapping(weights, 'mlp'), patches, rng)
             return rearrange(features, '(h w c) out -> out h w c',
                              out=config.dim_out, h=config.n_sections_h, w=config.n_sections_w, c=config.ch)
 
@@ -76,9 +103,9 @@ class DirtyPatches(NamedTuple):
             return rearrange(patches, 'h w (c ph pw) -> (h w c) (ph pw)',
                              c=config.ch, ph=dim_h, pw=dim_w)
 
-        def _fn_both(params: ArrayTreeMapping, inputs: ArrayTree, rng: RNGKey) -> ArrayTree:
+        def _fn_both(weights: ArrayTreeMapping, inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
             x = p.get_arr(inputs, Input)
-            mlp_params = p.get_mapping(params, 'mlp')
+            mlp_params = p.get_mapping(weights, 'mlp')
 
             patches = _get_patches(x)
             features = vmap(components['mlp'].pipeline, (None, 0, None), 0)(mlp_params, patches, rng)

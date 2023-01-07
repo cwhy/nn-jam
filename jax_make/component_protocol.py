@@ -2,40 +2,41 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import List, TypeVar, Literal, Optional, Generic, Callable, Mapping, FrozenSet, Set, NamedTuple, Dict, \
+from typing import List, Literal, Optional, Mapping, FrozenSet, Set, NamedTuple, Dict, \
     Tuple, Protocol
 
 import numpy as np
 from jax import random
 from numpy.typing import NDArray
 
-from jax_make.params import ArrayTree, RNGKey, ArrayParamTree, ArrayTreeMapping
+import jax_make.params as p
+from jax_make.params import RNGKey, ArrayTreeMapping, ArrayParamMapping
 
 Input: Literal['Input'] = 'Input'
 Output: Literal['Output'] = 'Output'
 
-CompVar = TypeVar("CompVar", bound=str)
+# CompVar = TypeVar("CompVar", bound=str)
 X: Literal['X'] = 'X'
 
 
-class FixedProcess(Protocol[CompVar]):
+class FixedProcess(Protocol):
     @abstractmethod
-    def __call__(self, weights: Mapping[CompVar, ArrayTree],
+    def __call__(self, weights: ArrayTreeMapping,
                  inputs: ArrayTreeMapping) -> ArrayTreeMapping: ...
 
 
-class Process(Protocol[CompVar]):
-    def __call__(self, weights: Mapping[CompVar, ArrayTree],
+class Process(Protocol):
+    def __call__(self, weights: ArrayTreeMapping,
                  inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping: ...
 
 
-class Pipeline(Protocol[CompVar]):
-    def __call__(self, weights: Mapping[CompVar, ArrayTree],
+class Pipeline(Protocol):
+    def __call__(self, weights: ArrayTreeMapping,
                  x: NDArray, rng: RNGKey) -> NDArray: ...
 
 
-class FixedPipeline(Protocol[CompVar]):
-    def __call__(self, weights: Mapping[CompVar, ArrayTree],
+class FixedPipeline(Protocol):
+    def __call__(self, weights: ArrayTreeMapping,
                  x: NDArray) -> NDArray: ...
 
 
@@ -64,21 +65,23 @@ def make_ports(inputs: str | Tuple[str, ...], outputs: str | Tuple[str, ...]) ->
 pipeline_ports: ProcessPorts = make_ports(Input, Output)
 
 
-def pipeline2processes(pipeline: Pipeline[CompVar]) -> Dict[ProcessPorts, Process[CompVar]]:
-    def _fn(weights: Mapping[CompVar, ArrayTree],
+def pipeline2processes(pipeline: Pipeline) -> Dict[ProcessPorts, Process]:
+    def _fn(weights: ArrayTreeMapping,
             inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
-        input_array = inputs[Input]
-        assert isinstance(input_array, np.ndarray), "Process with tree inputs cannot be converted to pipelines"
+        try:
+            input_array = p.get_arr(inputs, Input)
+        except AssertionError as e:
+            raise Exception(f"Failed in converted process from pipeline:", e)
         mp: ArrayTreeMapping = {Output: pipeline(weights, input_array, rng)}
         return mp
 
     return {pipeline_ports: _fn}
 
 
-def fixed_pipeline2processes(pipeline: FixedPipeline[CompVar]) -> Dict[ProcessPorts, Process[CompVar]]:
-    def _fn(weights: Mapping[CompVar, ArrayTree],
+def fixed_pipeline2processes(pipeline: FixedPipeline) -> Dict[ProcessPorts, Process]:
+    def _fn(weights: ArrayTreeMapping,
             inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
-        return {Output: pipeline(weights, inputs[Input])}
+        return {Output: pipeline(weights, p.get_arr(inputs, Input))}
 
     return {pipeline_ports: _fn}
 
@@ -87,92 +90,93 @@ def fixed_pipeline2processes(pipeline: FixedPipeline[CompVar]) -> Dict[ProcessPo
 
 # TODO: Component based io generics InputVars, OutputVars
 # TODO: Pipeline info: check shape for pipelines
+# TODO: check_params as a function of Component to check parameters recursively
 @dataclass
-class Component(Generic[CompVar]):
-    weight_params: Mapping[CompVar, ArrayParamTree]
-    processes: Dict[ProcessPorts, Process[CompVar]]
+class Component:
+    weight_params: ArrayParamMapping
+    processes: Dict[ProcessPorts, Process]
     is_fixed: bool = False
 
     def assert_fixed_(self):
         if not self.is_fixed:
             raise NonFixedComponent("The component need to be fixed(non-random) to retrieve fixed process or pipelines")
 
-    def get_pipeline_process(self) -> Process[CompVar]:
+    def get_pipeline_process(self) -> Process:
         if pipeline_ports in self.processes.keys():
             return self.processes[pipeline_ports]
         else:
             raise NoPipelineFound("There should be a process that is a pipeline (has Input and Output ports)")
 
     @property
-    def pipeline(self) -> Pipeline[CompVar]:
+    def pipeline(self) -> Pipeline:
         process = self.get_pipeline_process()
 
-        def _fn(weights: Mapping[CompVar, ArrayTree],
-                x: NDArray, key: RNGKey) -> NDArray:
-            return process(weights, {Input: x}, key)[Output]
+        def _fn(weights: ArrayTreeMapping,
+                x: NDArray, rng: RNGKey) -> NDArray:
+            return p.get_arr(process(weights, {Input: x}, rng), Output)
 
         return _fn
 
     @property
-    def fixed_pipeline(self) -> FixedPipeline[CompVar]:
+    def fixed_pipeline(self) -> FixedPipeline:
         process = self.get_pipeline_process()
         self.assert_fixed_()
 
-        def _fn(weights: Mapping[CompVar, ArrayTree],
+        def _fn(weights: ArrayTreeMapping,
                 x: NDArray) -> NDArray:
-            return process(weights, {Input: x}, None)[Output]
+            return p.get_arr(process(weights, {Input: x}, None), Output)
 
         return _fn
 
-    def get_fixed_process(self, process_ports: ProcessPorts) -> Process[CompVar]:
+    def get_fixed_process(self, process_ports: ProcessPorts) -> FixedProcess:
         self.assert_fixed_()
 
-        def _fn(weights: Mapping[CompVar, ArrayTree],
-                x: ArrayTreeMapping) -> ArrayTreeMapping:
+        def _fn(weights: ArrayTreeMapping,
+                inputs: ArrayTreeMapping) -> ArrayTreeMapping:
             process = self.processes[process_ports]
-            return process(weights, x, None)
+            return process(weights, inputs, None)
 
         return _fn
 
     @classmethod
     def from_pipeline(cls,
-                      params: Mapping[CompVar, ArrayParamTree],
-                      pipeline: Pipeline[CompVar]) -> Component[CompVar]:
+                      params: ArrayParamMapping,
+                      pipeline: Pipeline) -> Component:
         return cls(params, pipeline2processes(pipeline))
 
     @classmethod
     def from_fixed_process(cls,
                            ports_in: Set[str],
                            ports_out: Set[str],
-                           params: Mapping[CompVar, ArrayParamTree],
-                           process: FixedProcess[CompVar]) -> Component[CompVar]:
-        def _fn(weights: Mapping[CompVar, ArrayTree],
-                x: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
-            return process(weights, x)
+                           params: ArrayParamMapping,
+                           process: FixedProcess) -> Component:
+        def _fn(weights: ArrayTreeMapping,
+                inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+            return process(weights, inputs)
 
         return cls(params, {ProcessPorts(frozenset(ports_in), frozenset(ports_out)): _fn}, is_fixed=True)
 
     @classmethod
     def from_fixed_pipeline(cls,
-                            params: Mapping[CompVar, ArrayParamTree],
-                            pipeline: FixedPipeline[CompVar]) -> Component[CompVar]:
+                            params: ArrayParamMapping,
+                            pipeline: FixedPipeline) -> Component:
 
-        def _fn(weights: Mapping[CompVar, ArrayTree],
-                x: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
-            return {Output: pipeline(weights, x[Input])}
+        def _fn(weights: ArrayTreeMapping,
+                inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+            return {Output: pipeline(weights, p.get_arr(inputs, Input))}
 
         return cls(params, {pipeline_ports: _fn}, is_fixed=True)
 
 
 def merge_params(
-        components: Mapping[CompVar, Component]
-) -> Mapping[CompVar, ArrayParamTree]:
+        components: Mapping[str, Component]
+) -> ArrayParamMapping:
     return {k: v.weight_params for k, v in components.items()}
 
 
-def sequential(components: Mapping[CompVar, Component[CompVar]],
-               sequence: List[CompVar]) -> Pipeline[CompVar]:
-    pipelines: Dict[ProcessPorts, Pipeline[CompVar]] = {}
+def sequential(components: Mapping[str, Component],
+               sequence: List[str]) -> Pipeline:
+    pipelines: Dict[str, Pipeline] = {}
     for _comp_name in sequence:
         try:
             pipelines[_comp_name] = components[_comp_name].pipeline
@@ -180,11 +184,11 @@ def sequential(components: Mapping[CompVar, Component[CompVar]],
             raise Exception(("Sequencing requires component to have pipelines "
                              f"Failed on getting pipeline from component {_comp_name}:"), e)
 
-    def _fn(weights: Mapping[CompVar, ArrayTree],
-            flow_: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+    def _fn(weights: ArrayTreeMapping,
+            x: NDArray, rng: RNGKey) -> NDArray:
         rng, *keys = random.split(rng, len(sequence))
         for comp_name, key in zip(sequence, keys):
-            flow_ = pipelines[comp_name](weights[comp_name], flow_, key)
-        return flow_
+            x = pipelines[comp_name](p.get_mapping(weights, comp_name), x, key)
+        return x
 
     return _fn

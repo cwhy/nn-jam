@@ -1,16 +1,11 @@
-from typing import TypedDict
-
 import numpy.typing as npt
+
+from jax_make.params import ArrayTreeMapping, get_arr
 
 Arr = npt.NDArray
 
 
-class LinearWeights(TypedDict):
-    w: Arr  # ab
-    b: Arr  # b
-
-
 # w:ab, b:b, a -> b
-def linear(params: LinearWeights, x: Arr) -> Arr:
-    return x @ params['w'] + params['b']
+def linear(weights: ArrayTreeMapping, x: Arr) -> Arr:
+    return x @ get_arr(weights, 'w') + get_arr(weights, 'b')
 

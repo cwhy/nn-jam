@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from math import sqrt
 from typing import NamedTuple, Protocol
 
@@ -8,16 +9,25 @@ from jax import vmap
 from jax_make.component_protocol import Component, merge_params, pipeline2processes, make_ports, Input, Output, \
     fixed_pipeline2processes
 from jax_make.utils.pipelines import linear
-from jax_make.params import ArrayTree, WeightParams
+from jax_make.params import ArrayTree, WeightParams, ArrayTreeMapping
+import jax_make.params as p
 from jax_make.utils.functions import softmax
 
 masked_mha_port = make_ports((Input, 'mask'), (Output, 'attn'))
 
 
 class SelfMultiHeadAttnConfigs(Protocol):
-    n_heads: int  # H
-    dim_model: int  # k
-    dim_input: int  # x
+    @property
+    @abstractmethod
+    def n_heads(self) -> int: ...  # H
+
+    @property
+    @abstractmethod
+    def dim_model(self) -> int: ...  # k
+
+    @property
+    @abstractmethod
+    def dim_input(self) -> int: ...  # x
 
 
 class SelfMultiHeadAttn(NamedTuple):
@@ -51,32 +61,32 @@ class SelfMultiHeadAttn(NamedTuple):
             return softmax(scores / sqrt(config.dim_model))
 
         # [C] -> [3*K] -> [3,H,W]
-        def _separate(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
+        def _separate(weights: ArrayTreeMapping, x: npt.NDArray) -> npt.NDArray:
             W = config.dim_model // config.n_heads
             return components['kqv'].fixed_pipeline(weights, x).reshape((3, config.n_heads, W))
 
         # [HW] -> [K] -> [K]
-        def _combine(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
+        def _combine(weights: ArrayTreeMapping, x: npt.NDArray) -> npt.NDArray:
             return components["out"].fixed_pipeline(weights, x.ravel())
 
         # [CT] -> [KT]
-        def _fn(weights: ArrayTree, x: npt.NDArray) -> npt.NDArray:
+        def _fn(weights: ArrayTreeMapping, x: npt.NDArray) -> npt.NDArray:
             # Split into heads ([C] -> [3*K] -> [3,H,W]) * T
-            q, k, v = vmap(_separate, (None, 1), -1)(weights['kqv'], x)
+            q, k, v = vmap(_separate, (None, 1), -1)(p.get_mapping(weights, "kqv"), x)
 
             # attention H * (3*[W,T] -> [W,T])
             values = vmap(_dot_attention, (0, 0, 0))(q, k, v)
 
             # Merge back the heads and output ([HW] -> [K] -> [K])*T
-            x = vmap(_combine, (None, -1), -1)(weights['out'], values)
+            x = vmap(_combine, (None, -1), -1)(p.get_mapping(weights, "out"), values)
             return x
 
         # [CT] -> [KT]
-        def _fn_mask(weights: ArrayTree, inputs: ArrayTree, rng=None) -> ArrayTree:
-            x, mask = inputs[Input], inputs['mask']
+        def _fn_mask(weights: ArrayTreeMapping, inputs: ArrayTreeMapping, rng=None) -> ArrayTreeMapping:
+            x, mask = p.get_arr(weights, Input), p.get_arr(weights, 'mask')
             # Split into heads ([C] -> [3*K] -> [3,H,W]) * T
             # W: latent dims
-            q, k, v = vmap(_separate, (None, 1), -1)(weights['kqv'], x)
+            q, k, v = vmap(_separate, (None, 1), -1)(p.get_mapping(weights, "kqv"), x)
 
             # attention H * (3*[W,T] -> [T,T]) first T is masked
             attn = vmap(_dot_attention_mask, (0, 0, None))(q, k, mask)
@@ -85,11 +95,9 @@ class SelfMultiHeadAttn(NamedTuple):
             values = xp.einsum('hts, hws -> hws', attn, v)
 
             # Merge back the heads and output ([HW] -> [K] -> [K])*T
-            x = vmap(_combine, (None, -1), -1)(weights['out'], values)
+            x = vmap(_combine, (None, -1), -1)(p.get_mapping(weights, "out"), values)
             return {'attn': attn, Output: x}
 
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         processes = fixed_pipeline2processes(_fn)
         processes[masked_mha_port] = _fn_mask
         return Component(merge_params(components), processes)
