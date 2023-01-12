@@ -42,6 +42,13 @@ Process:  │ ┌─────────────────────
 
 ## Components
 
+A component is a standard unit of `jax_make`, it is the output of the `make` function.
+And it is used to be trained and making inference.
+
+It consists of `weight_params`, a tree of weight configs, that is used for weight initialization,
+and `processes`, a dict of `ProcessPorts` to `Process`, which is used as functions that is passed into jax.
+
+
 ```
         Component:
                          from_pipeline, from_process, from_fixed_pipeline

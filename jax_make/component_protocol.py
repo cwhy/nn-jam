@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import List, Literal, Optional, Mapping, FrozenSet, Set, NamedTuple, Dict, \
     Tuple, Protocol
 
-import numpy as np
 from jax import random
 from numpy.typing import NDArray
 
