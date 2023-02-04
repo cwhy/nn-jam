@@ -39,6 +39,8 @@ import bz2
 import gzip
 import hashlib
 import lzma
+import os
+import shutil
 import tarfile
 import urllib.request
 from urllib.error import URLError
@@ -101,6 +103,11 @@ _FILE_TYPE_ALIASES: Mapping[str, Tuple[Optional[str], Optional[str]]] = {
 }
 
 
+class UnknownArchiveTypeException(Exception):
+    """ Raised when met unknown archive type."""
+    pass
+
+
 def _detect_file_type(path: Path) -> Tuple[str, Optional[str], Optional[str]]:
     """Detect the archive type and/or compression of a file.
     Args:
@@ -139,7 +146,8 @@ def _detect_file_type(path: Path) -> Tuple[str, Optional[str], Optional[str]]:
         return suffix, None, suffix
 
     valid_suffixes = sorted(set(_FILE_TYPE_ALIASES) | set(_ARCHIVE_EXTRACTORS) | set(_COMPRESSED_FILE_OPENERS))
-    raise RuntimeError(f"Unknown compression or archive type: '{suffix}'.\nKnown suffixes are: '{valid_suffixes}'.")
+    raise UnknownArchiveTypeException(
+        f"Unknown compression or archive type: '{suffix}'.\nKnown suffixes are: '{valid_suffixes}'.")
 
 
 def _decompress(from_path: Path, to_path: Path, remove_finished: bool = False) -> Path:
@@ -183,18 +191,23 @@ def extract_archive(from_path: Path, to_path: Optional[Path] = None, remove_fini
     if to_path is None:
         to_path = from_path.parent
 
-    suffix, archive_type, compression = _detect_file_type(from_path)
-    if not archive_type:
-        return _decompress(
-            from_path,
-            to_path.joinpath(from_path.name.replace(suffix, "")),
-            remove_finished=remove_finished,
-        )
+    try:
+        suffix, archive_type, compression = _detect_file_type(from_path)
+        if not archive_type:
+            return _decompress(
+                from_path,
+                to_path.joinpath(from_path.name.replace(suffix, "")),
+                remove_finished=remove_finished,
+            )
 
-    # We don't need to check for a missing key here, since this was already done in _detect_file_type()
-    extractor = _ARCHIVE_EXTRACTORS[archive_type]
+        # We don't need to check for a missing key here, since this was already done in _detect_file_type()
+        extractor = _ARCHIVE_EXTRACTORS[archive_type]
 
-    extractor(from_path, to_path, compression)
+        extractor(from_path, to_path, compression)
+
+    except UnknownArchiveTypeException:
+        print("Unknown archive type, link the file to the raw files.")
+        os.symlink(from_path, to_path.parent.joinpath(from_path.name))
 
     return to_path
 
@@ -203,7 +216,7 @@ def get_url_filename(url: str, filename: Optional[str] = None) -> str:
     return filename if filename else url.strip().split('/')[-1]
 
 
-def download_and_extract_archive(
+def download_and_extract_archive_if_required(
         url: str,
         download_root: Path,
         extract_root: Optional[Path] = None,

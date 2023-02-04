@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import csv
 
+from supervised_benchmarks.dataset_utils import download_resources
 from supervised_benchmarks.uci_income.consts import FLOAT_OFFSET, VALUE_SYMBOL, variable_names, row_width, \
     TabularDataInfo
 
@@ -11,12 +12,24 @@ from supervised_benchmarks.uci_income.consts import FLOAT_OFFSET, VALUE_SYMBOL, 
 # TODO common tabular data utils using polars
 
 
-def analyze_data(base_path: Path) -> TabularDataInfo:
+def download_and_analyze(base_path: Path) -> TabularDataInfo:
+    mirrors = [
+        "https://archive.ics.uci.edu/ml/machine-learning-databases/adult/"
+    ]
+
+    resources = [
+        ("adult.data", None),
+        ("adult.test", None),
+        ("adult.names", None)
+    ]
+    name = "adult"
+
+    download_resources(base_path, name, resources, mirrors)
     is_digits = [True] * row_width
     number_counts = [defaultdict(int) for _ in range(row_width)]
     string_baskets = [set() for _ in range(row_width)]
-    tr_path = base_path.joinpath('adult.data')
-    tst_path = base_path.joinpath('adult.test')
+    tr_path = base_path.joinpath(name, 'adult.data')
+    tst_path = base_path.joinpath(name, 'adult.test')
 
     with tr_path.open('r') as f:
         uci_reader = csv.reader(f, delimiter=',')

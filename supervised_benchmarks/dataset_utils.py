@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import List, Tuple, Literal, Optional, Sequence
 from urllib.error import URLError
 
-from supervised_benchmarks.download_utils import download_and_extract_archive, check_integrity
+from supervised_benchmarks.download_utils import download_and_extract_archive_if_required, check_integrity
 
 DataPath = Literal['processed', 'cache', 'raw']
 StorageType = Literal['array_dict']
@@ -43,7 +43,7 @@ def download_resources(base_path: Path,
             url = "{}{}".format(mirror, filename)
             try:
                 print("Downloading {}".format(url))
-                download_and_extract_archive(
+                download_and_extract_archive_if_required(
                     url, download_root=download_path,
                     filename=filename,
                     md5=md5

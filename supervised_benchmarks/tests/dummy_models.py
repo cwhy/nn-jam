@@ -18,6 +18,7 @@ class AnyNetBoostModelConfig(NamedTuple):
         return [AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut]
 
     def prepare(self, repertoire: FrozenSet[Port]) -> Performer:
+        print(repertoire)
         assert len(repertoire) == 1, "Only one output port (in a frozenset) is supported"
         out_port = next(iter(repertoire))
         data_pool = self.train_data_config.get_data(self.get_ports())

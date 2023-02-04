@@ -11,10 +11,19 @@ from supervised_benchmarks.tabular_utils import AnyNetStrategyConfig, parse_pola
 from supervised_benchmarks.tests.dummy_models import AnyNetBoostModelConfig
 from supervised_benchmarks.uci_income.consts import AnyNetDiscrete, AnyNetDiscreteOut, variable_names, AnyNetContinuous
 from supervised_benchmarks.uci_income.uci_income import UciIncomeDataConfig, UciIncome
+from supervised_benchmarks.uci_income.utils import download_and_analyze
+
+base_path = Path('/Data/uci')
+name = 'adult'
+full_path = base_path / name
+
+
+def test_downloading():
+    download_and_analyze(base_path)
 
 
 def test_polars():
-    data = pl.read_csv('/Data/uci/adult.data', delimiter=',', has_header=False, new_columns=variable_names)
+    data = pl.read_csv(full_path / "adult.data", sep=',', has_header=False, new_columns=variable_names)
     config = AnyNetStrategyConfig()
     variable_protocols = parse_polars(config, data)
     print(variable_protocols.fmt())
@@ -23,7 +32,6 @@ def test_polars():
 
 
 def test_utils():
-    base_path = Path('/Data/uci')
     config = AnyNetStrategyConfig()
     data_class = UciIncome(base_path, config)
     discrete_labels = [l for i, l in enumerate(variable_names) if data_class.data_info.is_digits[i]]
@@ -34,7 +42,6 @@ def test_utils():
 
 
 def test_data_init():
-    base_path = Path('/Data/uci')
     config = AnyNetStrategyConfig()
     data_class = UciIncome(base_path, config)
     print(config)
@@ -43,10 +50,9 @@ def test_data_init():
 def test_data_fixed():
     query = [AnyNetDiscrete, AnyNetContinuous, AnyNetDiscreteOut]
     config = AnyNetStrategyConfig()
-    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
-                                      column_config=config,
-                                      query=query)
-    data_pool = data_config.get_data()
+    data_config = UciIncomeDataConfig(base_path=base_path,
+                                      column_config=config)
+    data_pool = data_config.get_data(query=query)
     tr = data_pool.fixed_subsets[FixedTrain]
     tst = data_pool.fixed_subsets[FixedTest]
     print(tr.content_map)
@@ -80,7 +86,7 @@ def test_data_fixed():
 
 
 def test_boost_init():
-    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
+    data_config = UciIncomeDataConfig(base_path=base_path,
                                       column_config=AnyNetStrategyConfig())
     model_config = AnyNetBoostModelConfig(train_data_config=data_config)
     data_pool = data_config.get_data(model_config.get_ports())
@@ -90,14 +96,14 @@ def test_boost_init():
     sampler = sampler_config.get_sampler(tst)
 
     mini_batch = next(sampler.iter)
-    performer = model_config.prepare(AnyNetDiscreteOut)
+    performer = model_config.prepare(frozenset({AnyNetDiscreteOut}))
     result = performer.perform(data_src=mini_batch, tgt=AnyNetDiscreteOut)
     print((result == mini_batch[AnyNetDiscreteOut]).mean())
 
 
 def test_benchmark():
     config = AnyNetStrategyConfig()
-    data_config = UciIncomeDataConfig(base_path=Path('/Data/uci'),
+    data_config = UciIncomeDataConfig(base_path=base_path,
                                       column_config=config)
 
     model_config = AnyNetBoostModelConfig(train_data_config=data_config)

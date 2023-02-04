@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from pathlib import Path
-from typing import NamedTuple, Literal, Mapping, FrozenSet, Dict
+from typing import NamedTuple, Literal, Mapping, Dict
 
 import polars as pl
 from numpy.typing import NDArray
@@ -10,12 +9,11 @@ from numpy.typing import NDArray
 from supervised_benchmarks.dataset_protocols import Subset, PortSpecs, DataSubset, FixedSubset, FixedSubsetType, \
     FixedTrain, FixedTest
 from supervised_benchmarks.ports import Port
-from supervised_benchmarks.tabular_utils import anynet_load_polars, AnyNetStrategyConfig, TabularColumnsConfig, \
+from supervised_benchmarks.tabular_utils import AnyNetStrategyConfig, TabularColumnsConfig, \
     parse_polars, anynet_get_discrete, polar_select_discrete, anynet_get_continuous
 from supervised_benchmarks.uci_income.consts import TabularDataInfo, AnyNetDiscrete, \
     AnyNetContinuous, AnyNetDiscreteOut, variable_names
-from supervised_benchmarks.uci_income.utils import analyze_data, load_data
-from variable_protocols.labels import Labels
+from supervised_benchmarks.uci_income.utils import download_and_analyze
 from variable_protocols.tensorhub import TensorHub
 
 name: Literal["UciIncome"] = "UciIncome"
@@ -36,16 +34,15 @@ class UciIncomeDataPool(NamedTuple):
         # return UciIncomeData(self.port, self.tgt_var, subset, data_array)
 
 
-
 class UciIncome:
     def __init__(self, base_path: Path, column_config: TabularColumnsConfig) -> None:
         # TODO implement download logic
-        self.data_info = analyze_data(base_path)
+        self.data_info = download_and_analyze(base_path)
         print(self.data_info)
 
-        tr_data_polars = pl.read_csv(self.data_info.tr_path, delimiter=',', has_header=False,
+        tr_data_polars = pl.read_csv(self.data_info.tr_path, sep=',', has_header=False,
                                      new_columns=variable_names)
-        tst_data_polars = pl.read_csv(self.data_info.tst_path, delimiter=',', has_header=False,
+        tst_data_polars = pl.read_csv(self.data_info.tst_path, sep=',', has_header=False,
                                       new_columns=variable_names, skip_rows=1)
 
         self.anynet_config = AnyNetStrategyConfig()
