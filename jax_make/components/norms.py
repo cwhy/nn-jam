@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import NamedTuple, Protocol, Tuple, Union
 
 import jax.numpy as xp
-import numpy.typing as npt
+from jax import Array
 
 from jax_make.component_protocol import Component
 from jax_make.params import WeightParams, ArrayTreeMapping
@@ -32,7 +32,7 @@ class LayerNorm(NamedTuple):
             'b': WeightParams(shape=(1,))
         }
 
-        def _fn(weights: ArrayTreeMapping, x: npt.NDArray) -> npt.NDArray:
+        def _fn(weights: ArrayTreeMapping, x: Array) -> Array:
             mean = xp.mean(x, axis=config.norm_axis, keepdims=True)
             centered = x - mean
             variance = xp.mean(centered ** 2, axis=config.norm_axis, keepdims=True)

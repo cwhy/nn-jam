@@ -2,8 +2,7 @@ from abc import abstractmethod
 from typing import NamedTuple, List, Protocol
 
 import jax.numpy as xp
-import numpy.typing as npt
-from jax import random, vmap
+from jax import random, vmap, Array
 
 import jax_make.params as p
 from jax_make.component_protocol import Component, sequential, merge_params, pipeline2processes, Input, \
@@ -84,7 +83,7 @@ class TransformerLayer(NamedTuple):
                                 ))
         }
 
-        def _fn(weights: ArrayTreeMapping, x: npt.NDArray, rng: RNGKey) -> npt.NDArray:
+        def _fn(weights: ArrayTreeMapping, x: Array, rng: RNGKey) -> Array:
             rng, key1, key2 = random.split(rng, 3)
             # noinspection PyTypeChecker
             # Because pycharm sucks
@@ -139,7 +138,7 @@ class TransformerEncoder(NamedTuple):
                 norm_axis=0))
             get_layer_name = lambda i: f"tfe_layer_{i}"
 
-        def _fn(weights: ArrayTreeMapping, x: npt.NDArray, rng) -> npt.NDArray:
+        def _fn(weights: ArrayTreeMapping, x: Array, rng) -> Array:
             rng, key = random.split(rng)
             w_norm = p.get_mapping(weights, 'norm')
             x = sequential(components, [get_layer_name(i) for i in range(configs.n_tfe_layers)])(weights, x, key)
@@ -215,7 +214,7 @@ class Transformer(NamedTuple):
         }
 
         # (int)[T] -> [dim_model, T]
-        def _fn(weights: ArrayTreeMapping, x: npt.NDArray, rng) -> npt.NDArray:
+        def _fn(weights: ArrayTreeMapping, x: Array, rng) -> Array:
             w_embedding, w_pos_encoding, w_encoder = p.get_mapping(weights, 'embedding'), \
                 p.get_mapping(weights, 'positional_encoding'), \
                 p.get_mapping(weights, 'encoder')

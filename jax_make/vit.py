@@ -3,9 +3,8 @@ from typing import Tuple, List, NamedTuple, Protocol
 
 import einops
 import numpy as np
-from jax import numpy as xp, random, vmap, nn
+from jax import numpy as xp, random, vmap, nn, Array
 from jax.nn import logsumexp
-from numpy import typing as npt
 
 import jax_make.params as p
 from jax_make.component_protocol import Component, merge_params, pipeline2processes, make_ports, Input, \
@@ -135,14 +134,14 @@ class Vit(NamedTuple):
         T = configs.n_patches_side ** 2 * configs.hwc[-1]
 
         # [D, D, 1] -> [D]
-        def mask_with_default(x: npt.NDArray, m: npt.NDArray, d: npt.NDArray) -> npt.NDArray:
+        def mask_with_default(x: Array, m: Array, d: Array) -> Array:
             ds = xp.repeat(d, T)
             ds *= 1 - m
             x *= m
             return ds + x
 
         # [H, W, C] -> [dim_model, T]
-        def _fn(weights: ArrayTreeMapping, x: npt.NDArray, rng) -> npt.NDArray:
+        def _fn(weights: ArrayTreeMapping, x: Array, rng) -> Array:
             w = VitComponentWeights.from_mapping(weights)
             rng, key = random.split(rng)
             x = components['patching'].pipeline(w.patching, x, key)
@@ -293,19 +292,19 @@ class VitReconstruct(NamedTuple):
         T = configs.n_patches_side ** 2 * ch
 
         # [D, D, 1] -> [D]
-        def mask_x_with_default(x: npt.NDArray, m: npt.NDArray, d: npt.NDArray) -> npt.NDArray:
+        def mask_x_with_default(x: Array, m: Array, d: Array) -> Array:
             ds = xp.repeat(d, T)
             ds *= 1 - m
             x *= m
             return ds + x
 
         # [D, D, 1] -> [D]
-        def mask_y_with_default(x: npt.NDArray, m: npt.NDArray, d: npt.NDArray) -> npt.NDArray:
+        def mask_y_with_default(x: Array, m: Array, d: Array) -> Array:
             d *= 1 - m
             x *= m
             return d + x
 
-        def _pre_process_x(w_patching: ArrayTreeMapping, x: npt.NDArray, key) -> npt.NDArray:
+        def _pre_process_x(w_patching: ArrayTreeMapping, x: Array, key) -> Array:
             if configs.hwc[-1] == 0:
                 x = xp.expand_dims(x, -1)
             x = components['patching'].pipeline(w_patching, x, key)
@@ -391,7 +390,7 @@ class VitReconstruct(NamedTuple):
             return {'rec_loss': rec_loss, 'x_rec_img': x_rec_img}
 
         # [H, W, C] -> [dim_model]
-        def _x2y(weights: ArrayTreeMapping, x: npt.NDArray, rng) -> npt.NDArray:
+        def _x2y(weights: ArrayTreeMapping, x: Array, rng) -> Array:
             w = VitReconstructComponentWeights.from_mapping(weights)
             rng, key = random.split(rng)
             x = _pre_process_x(w.patching, x, key)

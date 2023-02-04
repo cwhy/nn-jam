@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import NamedTuple, List, Protocol
 
 from jax import random, vmap
-from numpy.typing import NDArray
+from jax import Array as NDArray
 
 from jax_make.components.norms import LayerNorm
 from jax_make.utils.activations import Activation, get_activation
@@ -66,7 +66,7 @@ class Mlp(NamedTuple):
                 components[f'dropout_{i}'] = Dropout.make(config)
 
         # n_in -> n_out
-        def _fn(weights: ArrayTree, x: NDArray, rng: RNGKey) -> NDArray:
+        def _fn(weights: p.ArrayTreeMapping, x: NDArray, rng: RNGKey) -> NDArray:
             activation = get_activation(config.activation)
             n_layers = len(config.n_hidden)
             keys = random.split(rng, n_layers)

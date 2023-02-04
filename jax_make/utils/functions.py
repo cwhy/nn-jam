@@ -1,22 +1,21 @@
 from typing import Callable
 
-import numpy.typing as npt
 import jax.numpy as xp
-from jax import nn
+from jax import nn, Array
 from jax.scipy.special import logsumexp
 
 
-def softmax(inputs: npt.NDArray) -> npt.NDArray:
+def softmax(inputs: Array) -> Array:
     # wait for good jax typing
     # noinspection PyArgumentList
     un_normalized = xp.exp(inputs - inputs.max(axis=1, keepdims=True))
     return un_normalized / xp.sum(un_normalized, axis=1, keepdims=True)
 
 
-def get_cosine_similarity_loss(eps: float) -> Callable[[npt.NDArray, npt.NDArray], npt.NDArray]:
+def get_cosine_similarity_loss(eps: float) -> Callable[[Array, Array], Array]:
     # x: [D], y: [D] -> []
     # smaller is better
-    def _fn(x: npt.NDArray, y: npt.NDArray) -> npt.NDArray:
+    def _fn(x: Array, y: Array) -> Array:
         y /= xp.maximum(xp.linalg.norm(y), xp.sqrt(eps))
         x /= xp.maximum(xp.linalg.norm(x), xp.sqrt(eps))
         return -xp.mean(x * y)
@@ -24,15 +23,15 @@ def get_cosine_similarity_loss(eps: float) -> Callable[[npt.NDArray, npt.NDArray
     return _fn
 
 
-def l2loss(x: npt.NDArray, y: npt.NDArray) -> npt.NDArray:
+def l2loss(x: Array, y: Array) -> Array:
     return xp.mean(xp.square(x - y))
 
 
-def l1loss(x: npt.NDArray, y: npt.NDArray) -> npt.NDArray:
+def l1loss(x: Array, y: Array) -> Array:
     return xp.mean(xp.abs(x - y))
 
 
-def softmax_cross_entropy(logits: npt.NDArray, target: npt.NDArray) -> npt.NDArray:
+def softmax_cross_entropy(logits: Array, target: Array) -> Array:
     """
     softmax_cross_entropy.
 
@@ -51,7 +50,7 @@ def softmax_cross_entropy(logits: npt.NDArray, target: npt.NDArray) -> npt.NDArr
 
 
 # [], [] -> []
-def sigmoid_cross_entropy_loss(logits: npt.NDArray, targets: npt.NDArray) -> npt.NDArray:
+def sigmoid_cross_entropy_loss(logits: Array, targets: Array) -> Array:
     # Optax implementation:
     # log_p = nn.log_sigmoid(logits)
     # log(1 - sigmoid(x)) = log_sigmoid(-x), the latter more numerically stable

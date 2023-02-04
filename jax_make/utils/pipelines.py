@@ -1,8 +1,8 @@
-import numpy.typing as npt
+import jax
 
 from jax_make.params import ArrayTreeMapping, get_arr
 
-Arr = npt.NDArray
+Arr = jax.Array
 
 
 # w:ab, b:b, a -> b

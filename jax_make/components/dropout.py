@@ -2,7 +2,7 @@ from typing import NamedTuple, Protocol
 
 import jax.numpy as xp
 from jax import random
-from numpy.typing import NDArray
+from jax import Array as NDArray
 
 from jax_make.component_protocol import Component, X
 from jax_make.params import ArrayTree, RNGKey, ArrayTreeMapping

@@ -4,12 +4,11 @@ from math import prod
 from typing import NamedTuple, Protocol, Tuple, Literal
 
 import jax.numpy as xp
-import numpy.typing as npt
-from jax import vmap, jit, tree_map
+from jax import vmap, Array
 
-from jax_make.component_protocol import Component, X, FixedProcess, make_ports, pipeline_ports
-from jax_make.params import WeightParams, ArrayTree, ArrayTreeMapping
 import jax_make.params as p
+from jax_make.component_protocol import Component
+from jax_make.params import WeightParams, ArrayTreeMapping
 
 PositionalEncodeStrategies = Literal['dot', 'sum', 'naive_sum']
 
@@ -61,7 +60,7 @@ class PositionalEncoding(NamedTuple):
             }
 
             # [input_channels, *input_shape] -> [output_channels, prod(input_shape)]
-            def _fn(weights: ArrayTreeMapping, x: npt.NDArray) -> npt.NDArray:
+            def _fn(weights: ArrayTreeMapping, x: Array) -> Array:
                 x *= dot_product_encode(weights, len(config.input_shape))
                 # [output_channels, *input_shape]
 
@@ -78,7 +77,7 @@ class PositionalEncoding(NamedTuple):
             }
 
             # [input_channels, *input_shape] -> [output_channels, prod(input_shape)]
-            def _fn(weights: ArrayTreeMapping, x: npt.NDArray) -> npt.NDArray:
+            def _fn(weights: ArrayTreeMapping, x: Array) -> Array:
 
                 x += sum_encode(weights, config.input_shape)
                 # [output_channels, *input_shape]
@@ -95,7 +94,7 @@ class PositionalEncoding(NamedTuple):
             }
 
             # [input_channels, *input_shape] -> [output_channels, prod(input_shape)]
-            def _fn(weights: ArrayTreeMapping, x: npt.NDArray) -> npt.NDArray:
+            def _fn(weights: ArrayTreeMapping, x: Array) -> Array:
                 x = x.reshape(config.output_channels, prod(config.input_shape))
                 # [output_channels, *input_shape]
 
@@ -111,8 +110,8 @@ class PositionalEncoding(NamedTuple):
 
 
 # {} -> [output_channels, *input_shape]
-def dot_product_encode(weights: ArrayTreeMapping, input_n_dims: int) -> npt.NDArray:
-    def _t_outer(a: npt.NDArray, b: npt.NDArray) -> npt.NDArray:
+def dot_product_encode(weights: ArrayTreeMapping, input_n_dims: int) -> Array:
+    def _t_outer(a: Array, b: Array) -> Array:
         return a[..., None] @ b[None, :]
 
     pos_encode = reduce(vmap(_t_outer, (0, 0), 0),
@@ -121,7 +120,7 @@ def dot_product_encode(weights: ArrayTreeMapping, input_n_dims: int) -> npt.NDAr
 
 
 # {} -> [output_channels, *input_shape]
-def sum_encode(weights: ArrayTreeMapping, input_shape: Tuple[int, ...]) -> npt.NDArray:
+def sum_encode(weights: ArrayTreeMapping, input_shape: Tuple[int, ...]) -> Array:
     return reduce(xp.add,
                   (p.get_arr(weights, f'encoding_dim_{i}').reshape(
                       [-1] + [n if ii == i else 1 for ii, n in enumerate(input_shape)])
@@ -136,7 +135,7 @@ def sum_encode(weights: ArrayTreeMapping, input_shape: Tuple[int, ...]) -> npt.N
 
 
 # {} -> [output_channels, *input_shape]
-def dot_product_encode2(weights: ArrayTreeMapping, input_shape: Tuple[int, ...]) -> npt.NDArray:
+def dot_product_encode2(weights: ArrayTreeMapping, input_shape: Tuple[int, ...]) -> Array:
     return reduce(xp.multiply,
                   (p.get_arr(weights, f'encoding_dim_{i}').reshape(
                       [-1] + [n if ii == i else 1 for ii, n in enumerate(input_shape)])

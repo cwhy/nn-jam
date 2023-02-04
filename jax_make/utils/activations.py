@@ -1,9 +1,9 @@
 from typing import Literal, Callable
-import numpy.typing as npt
 import jax.nn
+from jax import Array
 
 Activation = Literal['relu', 'tanh', 'gelu']
-ActivationFn = Callable[[npt.NDArray], npt.NDArray]
+ActivationFn = Callable[[Array], Array]
 
 
 def get_activation(a: Activation) -> ActivationFn:

@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import NamedTuple, Protocol
 
-from numpy.typing import NDArray
+from jax import Array as NDArray
 
 import jax_make.params as p
 from jax_make.component_protocol import Component

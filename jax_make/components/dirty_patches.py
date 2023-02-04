@@ -4,13 +4,13 @@ from typing import NamedTuple, Protocol, List
 import jax
 import jax.numpy as xp
 from einops import rearrange
+from jax import Array as NDArray
 from jax import vmap
-from numpy.typing import NDArray
 
+import jax_make.params as p
 from jax_make.component_protocol import Component, merge_params, pipeline2processes, make_ports, Input, Output
 from jax_make.components.mlp import Mlp
-from jax_make.params import ArrayTree, RNGKey, ArrayTreeMapping
-import jax_make.params as p
+from jax_make.params import RNGKey, ArrayTreeMapping
 from jax_make.utils.activations import Activation
 
 

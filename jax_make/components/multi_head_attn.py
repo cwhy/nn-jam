@@ -3,15 +3,15 @@ from math import sqrt
 from typing import NamedTuple, Protocol
 
 import jax.numpy as xp
-import numpy.typing as npt
+from jax import Array
 from jax import vmap
 
-from jax_make.component_protocol import Component, merge_params, pipeline2processes, make_ports, Input, Output, \
-    fixed_pipeline2processes
-from jax_make.utils.pipelines import linear
-from jax_make.params import ArrayTree, WeightParams, ArrayTreeMapping
 import jax_make.params as p
+from jax_make.component_protocol import Component, merge_params, make_ports, Input, Output, \
+    fixed_pipeline2processes
+from jax_make.params import WeightParams, ArrayTreeMapping
 from jax_make.utils.functions import softmax
+from jax_make.utils.pipelines import linear
 
 masked_mha_port = make_ports((Input, 'mask'), (Output, 'attn'))
 
@@ -52,25 +52,25 @@ class SelfMultiHeadAttn(NamedTuple):
 
         }
 
-        def _dot_attention(q: npt.NDArray, k: npt.NDArray, v: npt.NDArray) -> npt.NDArray:
+        def _dot_attention(q: Array, k: Array, v: Array) -> Array:
             x = softmax(xp.einsum('mt,ms->ts', q, k) / sqrt(config.dim_model))
             return xp.einsum('ts,mt->ms', x, v)
 
-        def _dot_attention_mask(q: npt.NDArray, k: npt.NDArray, mask: npt.NDArray) -> npt.NDArray:
+        def _dot_attention_mask(q: Array, k: Array, mask: Array) -> Array:
             scores = xp.einsum('mt,ms,t->ts', q, k, mask)
             return softmax(scores / sqrt(config.dim_model))
 
         # [C] -> [3*K] -> [3,H,W]
-        def _separate(weights: ArrayTreeMapping, x: npt.NDArray) -> npt.NDArray:
+        def _separate(weights: ArrayTreeMapping, x: Array) -> Array:
             W = config.dim_model // config.n_heads
             return components['kqv'].fixed_pipeline(weights, x).reshape((3, config.n_heads, W))
 
         # [HW] -> [K] -> [K]
-        def _combine(weights: ArrayTreeMapping, x: npt.NDArray) -> npt.NDArray:
+        def _combine(weights: ArrayTreeMapping, x: Array) -> Array:
             return components["out"].fixed_pipeline(weights, x.ravel())
 
         # [CT] -> [KT]
-        def _fn(weights: ArrayTreeMapping, x: npt.NDArray) -> npt.NDArray:
+        def _fn(weights: ArrayTreeMapping, x: Array) -> Array:
             # Split into heads ([C] -> [3*K] -> [3,H,W]) * T
             q, k, v = vmap(_separate, (None, 1), -1)(p.get_mapping(weights, "kqv"), x)
 

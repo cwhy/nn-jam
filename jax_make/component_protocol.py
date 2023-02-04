@@ -6,10 +6,10 @@ from typing import List, Literal, Optional, Mapping, FrozenSet, Set, NamedTuple,
     Tuple, Protocol
 
 from jax import random
-from numpy.typing import NDArray
 
 import jax_make.params as p
 from jax_make.params import RNGKey, ArrayTreeMapping, ArrayParamMapping
+from jax import Array as NDArray
 
 Input: Literal['Input'] = 'Input'
 Output: Literal['Output'] = 'Output'
@@ -28,6 +28,9 @@ class Process(Protocol):
     def __call__(self, weights: ArrayTreeMapping,
                  inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping: ...
 
+class RandomProcess(Protocol):
+    def __call__(self, weights: ArrayTreeMapping,
+                 inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping: ...
 
 class Pipeline(Protocol):
     def __call__(self, weights: ArrayTreeMapping,
@@ -63,23 +66,35 @@ def make_ports(inputs: str | Tuple[str, ...], outputs: str | Tuple[str, ...]) ->
 
 pipeline_ports: ProcessPorts = make_ports(Input, Output)
 
+def random_process2process(process: RandomProcess) -> Process:
+    def _fn(weights: ArrayTreeMapping,
+            inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
+        if rng is None:
+            raise Exception("Trying to run a random process without rng")
+        else:
+            return process(weights, inputs, rng)
+
+    return _fn
 
 def pipeline2processes(pipeline: Pipeline) -> Dict[ProcessPorts, Process]:
     def _fn(weights: ArrayTreeMapping,
-            inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+            inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
         try:
             input_array = p.get_arr(inputs, Input)
         except AssertionError as e:
             raise Exception(f"Failed in converted process from pipeline:", e)
-        mp: ArrayTreeMapping = {Output: pipeline(weights, input_array, rng)}
-        return mp
+        if rng is None:
+            raise Exception("Trying to run pipeline without rng")
+        else:
+            mp: ArrayTreeMapping = {Output: pipeline(weights, input_array, rng)}
+            return mp
 
     return {pipeline_ports: _fn}
 
 
 def fixed_pipeline2processes(pipeline: FixedPipeline) -> Dict[ProcessPorts, Process]:
     def _fn(weights: ArrayTreeMapping,
-            inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+            inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
         return {Output: pipeline(weights, p.get_arr(inputs, Input))}
 
     return {pipeline_ports: _fn}
@@ -150,7 +165,7 @@ class Component:
                            params: ArrayParamMapping,
                            process: FixedProcess) -> Component:
         def _fn(weights: ArrayTreeMapping,
-                inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+                inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
             return process(weights, inputs)
 
         return cls(params, {ProcessPorts(frozenset(ports_in), frozenset(ports_out)): _fn}, is_fixed=True)
@@ -161,7 +176,7 @@ class Component:
                             pipeline: FixedPipeline) -> Component:
 
         def _fn(weights: ArrayTreeMapping,
-                inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping:
+                inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
             return {Output: pipeline(weights, p.get_arr(inputs, Input))}
 
         return cls(params, {pipeline_ports: _fn}, is_fixed=True)
