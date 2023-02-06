@@ -1,7 +1,7 @@
 # %% imports
 import os
 from functools import partial
-from typing import Dict
+from typing import Dict, Callable, Tuple
 
 import jax
 import jax.numpy as xp
@@ -13,7 +13,7 @@ from jax_make.components.embedding import Embeddings
 from jax_make.params import make_weights, ArrayTreeMapping
 from jax_make.utils.functions import softmax_cross_entropy_with_integer_labels
 from scripts.nanogpt.my_nlp_dataset import load_jax_cached
-from scripts.nanogpt.utils import infinite_jax_keys, flatten_token, batch_fy
+from scripts.nanogpt.utils import infinite_jax_keys, flatten_token, batch_fy, jax_calc_updates
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "0"
 
@@ -56,20 +56,23 @@ class BigramLanguageModel:
         self.init_weights = make_weights(self.embeddings.weight_params)
         self.weights_: ArrayTreeMapping = self.init_weights
         self.optimiser = optax.adamw(learning_rate, vocab_size)
-        self.opt_state = self.optimiser.init(self.init_weights)
+        self.opt_state_ = self.optimiser.init(self.init_weights)
         self.guess_loss = -xp.log(1 / (vocab_size + 1))
         self.forward1 = self.embeddings.fixed_pipeline
         self.forward = batch_fy(self.forward1)
-        self.grad = jax.jit(jax.grad(self.loss_fn))
+        self.loss_fn = self.make_loss_fn()
 
     @partial(jax.jit, static_argnums=(0,))
     def loss(self, batch: Dict[str, Array]) -> Array:
         return self.loss_fn(self.weights_, batch)
 
-    def loss_fn(self, weight: Array, batch: Dict[str, Array]) -> Array:
-        logits = flatten_token(self.forward(weight, batch['inputs']))
-        targets = flatten_token(batch['targets'])
-        return softmax_cross_entropy_with_integer_labels(logits, targets).mean()
+    def make_loss_fn(self) -> Callable[[ArrayTreeMapping, Dict[str, Array]], Array]:
+        def _loss_fn(weight: ArrayTreeMapping, batch: Dict[str, Array]) -> Array:
+            logits = flatten_token(self.forward(weight, batch['inputs']))
+            targets = flatten_token(batch['targets'])
+            return softmax_cross_entropy_with_integer_labels(logits, targets).mean()
+
+        return _loss_fn
 
     def generate(self, idx: int, max_new_tokens: int) -> list[int]:
         new_tokens = [idx]
@@ -82,9 +85,9 @@ class BigramLanguageModel:
         return new_tokens
 
     def train1_(self, batch: Dict[str, Array]):
-        grads = self.grad(self.weights_, batch)
-        updates, self.opt_state = self.optimiser.update(grads, self.opt_state, self.weights_)
-        self.weights_ = optax.apply_updates(self.weights_, updates)
+        new_weights, self.opt_state_ = jax_calc_updates(self.optimiser, self.loss_fn, self.weights_, batch,
+                                                        self.opt_state_)
+        self.weights_ = new_weights
 
 
 def estimate_loss(model: BigramLanguageModel) -> None:
@@ -97,6 +100,25 @@ def estimate_loss(model: BigramLanguageModel) -> None:
 
 
 model_ = BigramLanguageModel(learning_rate_, vocab_size_)
+# test1
+# loss = model_.loss(get_batch(train_data, next(key_gen)))
+#
+# print(loss, model_.guess_loss)
+
+
+# test2
+# generated = decode(model_.generate(0, 100))
+# print(generated)
+
+# test3
+batch_ = get_batch(train_data, next(key_gen))
+loss = model_.loss(batch_)
+print(f"before step, batch loss {loss}")
+model_.train1_(batch_)
+loss = model_.loss(batch_)
+print(f"after step, batch loss {loss}")
+
+# %%
 
 keys = jax.random.split(next(key_gen), max_iters)
 for step in range(max_iters):
@@ -112,3 +134,5 @@ for step in range(max_iters):
         estimate_loss(model_)
         generated = model_.generate(encode(",")[0], max_new_tokens=100)
         print(decode(generated))
+
+# TODO fix the bug of not updating
