@@ -8,7 +8,7 @@ from jax_make.components.norms import LayerNorm
 from jax_make.utils.activations import Activation, get_activation
 from jax_make.components.dropout import Dropout
 from jax_make.component_protocol import Component, merge_params
-from jax_make.utils.pipelines import linear
+from jax_make.utils.elementary_components import linear, linear_component
 from jax_make.params import WeightParams, ArrayTree, RNGKey
 import jax_make.params as p
 
@@ -51,14 +51,8 @@ class Mlp(NamedTuple):
     def make(config: MlpConfigs) -> Component:
         u_ins = [config.n_in] + config.n_hidden
         u_outs = config.n_hidden + [config.n_out]
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         components = {
-            f"layer_{i}": Component.from_fixed_pipeline(
-                {"w": WeightParams(shape=(_in, _out)),
-                 "b": WeightParams(shape=(_out,), init=0)},
-                linear
-            )
+            f"layer_{i}": linear_component(_in, _out)
             for i, (_in, _out) in enumerate(zip(u_ins, u_outs))
         }
         if config.dropout_keep_rate != 1:
@@ -111,14 +105,8 @@ class MlpLayerNorm(NamedTuple):
     def make(config: MlpLayerNormConfigs) -> Component:
         u_ins = [config.n_in] + config.n_hidden
         u_outs = config.n_hidden + [config.n_out]
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         components_layers = {
-            f"layer_{i}_linear": Component.from_fixed_pipeline(
-                {"w": WeightParams(shape=(_in, _out)),
-                 "b": WeightParams(shape=(_out,), init=0)},
-                linear
-            )
+            f"layer_{i}_linear": linear_component(_in, _out)
             for i, (_in, _out) in enumerate(zip(u_ins, u_outs))
         }
 
@@ -136,7 +124,7 @@ class MlpLayerNorm(NamedTuple):
 
         # dim_norm, n_in -> dim_norm, n_out
         # or n_in, dim_norm -> n_out, dim_norm
-        def _fn(weights: ArrayTree, x: NDArray, rng: RNGKey) -> NDArray:
+        def _fn(weights: p.ArrayTreeMapping, x: NDArray, rng: RNGKey) -> NDArray:
             dn = config.norm_axis
             activation = get_activation(config.activation)
             n_layers = len(config.n_hidden)
@@ -160,3 +148,5 @@ class MlpLayerNorm(NamedTuple):
             return x
 
         return Component.from_pipeline(merge_params(components), _fn)
+
+

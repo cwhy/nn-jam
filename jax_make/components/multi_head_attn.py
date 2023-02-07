@@ -11,7 +11,7 @@ from jax_make.component_protocol import Component, merge_params, make_ports, Inp
     fixed_pipeline2processes
 from jax_make.params import WeightParams, ArrayTreeMapping
 from jax_make.utils.functions import softmax
-from jax_make.utils.pipelines import linear
+from jax_make.utils.elementary_components import linear
 
 masked_mha_port = make_ports((Input, 'mask'), (Output, 'attn'))
 
