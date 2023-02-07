@@ -14,6 +14,7 @@ from jax_make.component_protocol import FixedPipeline
 from jax_make.components.embedding import Embeddings
 from jax_make.params import make_weights, ArrayTreeMapping, get_arr
 from jax_make.utils.functions import softmax_cross_entropy_with_integer_labels
+from scripts.nanogpt.utils import flatten_token, batch_fy, infinite_jax_keys
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "0"
 
@@ -97,13 +98,6 @@ block_size = 8
 batch_size = 32
 
 
-def infinite_jax_keys(seed: int):
-    init_key = jax.random.PRNGKey(seed)
-    while True:
-        init_key, key = jax.random.split(init_key)
-        yield key
-
-
 key_gen = infinite_jax_keys(0)
 
 
@@ -128,24 +122,15 @@ xb, yb = results['inputs'], results['targets']
 
 # %% bigram model
 
-embeddings = Embeddings.make(Embeddings(dict_size=vocab_size, dim_model=vocab_size, dict_init_scale=0.01))
+embeddings = Embeddings.make(Embeddings(dict_size=vocab_size, dim_model=vocab_size, dict_init_scale=0.1))
 
 # def model(x: Array):
-init_weights = make_weights(embeddings.weight_params)
+init_weights = make_weights(next(key_gen), embeddings.weight_params)
 logits = embeddings.fixed_pipeline(init_weights, xb[0])
 print(logits.shape)
 
 
 # %%
-def batch_fy(fixed_pipeline: FixedPipeline) -> FixedPipeline:
-    return jax.vmap(fixed_pipeline, in_axes=(None, 0), out_axes=0)
-
-
-# combine first two dimensions of a numpy array
-def flatten_token(array: Array) -> Array:
-    return jnp.concatenate(array)
-
-
 logits = flatten_token(batch_fy(embeddings.fixed_pipeline)(init_weights, xb))
 targets = flatten_token(yb)
 loss = softmax_cross_entropy_with_integer_labels(logits, targets).mean()
@@ -182,8 +167,7 @@ print(generated)
 weights = init_weights
 
 # %% train 1 step
-key = next(key_gen)
-batch = get_batch(train_data, key)
+batch = get_batch(train_data, next(key_gen))
 print(loss_fn(weights, batch))
 
 grads = jax.grad(loss_fn)(weights, batch)
@@ -193,15 +177,17 @@ updates, opt_state = optimiser.update(grads, opt_state, weights)
 weights = optax.apply_updates(weights, updates)
 
 print(loss_fn(weights, batch))
+# %% opt_state
+print(opt_state)
 
 # %% train many step
 
 weights = init_weights
-optimiser = optax.adamw(1e-4)
+optimiser = optax.adamw(1e-3)
 opt_state = optimiser.init(weights)
 # %% train many step continued
 grad_static = jax.jit(jax.grad(loss_fn))
-n_steps = 20000
+n_steps = 10000
 keys = jax.random.split(next(key_gen), n_steps)
 
 for step in range(n_steps):
@@ -220,4 +206,3 @@ for step in range(n_steps):
 
 print(weights)
 
-# %% debug weights

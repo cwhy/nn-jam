@@ -4,7 +4,7 @@ from pathlib import Path
 from pprint import pprint
 
 import jax.numpy as xp
-from jax import tree_map, vmap, jit
+from jax import tree_map, vmap, jit, random
 from jax._src.random import PRNGKey
 
 from jax_make.params import make_weights
@@ -45,9 +45,10 @@ tf = Vit.make(config)
 print(tf.processes)
 print(next(iter(tf.processes.values())))
 print(type(next(iter(tf.processes.values()))))
-weights = make_weights(tf.weight_params)
-pprint(tree_map(lambda _x: _x.shape, weights))
 rng = PRNGKey(0)
+key, rng = random.split(rng)
+weights = make_weights(key, tf.weight_params)
+pprint(tree_map(lambda _x: _x.shape, weights))
 print(type(inputs))
 # result = vmap(tf.pipeline, (None, 0, None), 0)(weights, inputs, rng)
 result = vmap(jit(tf.pipeline), (None, 0, None), 0)(weights, inputs, rng)

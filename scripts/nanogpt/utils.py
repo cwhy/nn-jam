@@ -25,12 +25,13 @@ def batch_fy(fixed_pipeline: FixedPipeline) -> FixedPipeline:
     return jax.vmap(fixed_pipeline, in_axes=(None, 0), out_axes=0)
 
 
-@partial(jax.jit, static_argnums=(0,1))
+@partial(jax.jit, static_argnums=(0, 1))
 def jax_calc_updates(
         optimizer: optax.GradientTransformation,
-        loss_fn: Callable[[ArrayTreeMapping, Array], Array],
+        loss_fn: Callable[[ArrayTreeMapping, Dict[str, Array]], Array],
         weights: ArrayTreeMapping,
-        batch: Dict[str, Array], opt_state: optax.OptState
+        batch: Dict[str, Array],
+        opt_state: optax.OptState
 ) -> Tuple[ArrayTreeMapping, optax.OptState]:
     grads = jax.grad(loss_fn)(weights, batch)
     updates, opt_state = optimizer.update(grads, opt_state, weights)

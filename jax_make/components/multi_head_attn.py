@@ -38,8 +38,6 @@ class SelfMultiHeadAttn(NamedTuple):
     @staticmethod
     def make(config: SelfMultiHeadAttnConfigs) -> Component:
         # TODO check if need bias
-        # noinspection PyTypeChecker
-        # Because pycharm sucks
         components = {
             "kqv": Component.from_fixed_pipeline(
                 {"w": WeightParams(shape=(config.dim_input, config.dim_model * 3)),
