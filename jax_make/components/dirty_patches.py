@@ -8,7 +8,7 @@ from jax import Array as NDArray
 from jax import vmap
 
 import jax_make.params as p
-from jax_make.component_protocol import Component, merge_params, pipeline2processes, make_ports, Input, Output
+from jax_make.component_protocol import Component, merge_component_params, pipeline2processes, make_ports, Input, Output
 from jax_make.components.mlp import Mlp
 from jax_make.params import RNGKey, ArrayTreeMapping
 from jax_make.utils.activations import Activation
@@ -115,4 +115,4 @@ class DirtyPatches(NamedTuple):
 
         processes = pipeline2processes(_fn)
         processes[make_ports(Input, ("patches", Output))] = _fn_both
-        return Component(merge_params(components), processes)
+        return Component(merge_component_params(components), processes)

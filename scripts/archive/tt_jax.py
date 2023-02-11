@@ -5,7 +5,7 @@ from jax import jit, make_jaxpr, vmap, tree_map
 from jax._src.random import PRNGKey
 
 from jax_make.components.dropout import Dropout
-from jax_make.components.positional_encoding import PositionalEncoding
+from jax_make.components.tensor_positional_encoding import TensorPositionalEncoding
 from jax_make.params import make_weights
 from jax_make.components.multi_head_attn import SelfMultiHeadAttn
 
@@ -32,7 +32,7 @@ print(dropout.weight_params)
 # noinspection PyTypeChecker
 
 
-pos_encode = PositionalEncoding.make(PositionalEncoding(
+pos_encode = TensorPositionalEncoding.make(TensorPositionalEncoding(
     input_shape=(2, 3, 5, 7),
     input_channels=4,
     output_channels=4,

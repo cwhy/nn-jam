@@ -5,9 +5,9 @@ from jax import tree_flatten, tree_map, jit, vmap, random
 from jax.random import PRNGKey
 
 from jax_make.params import make_weights
-from jax_make.transformer import Transformer, TransformerEncoder
+from jax_make.transformer import TensorTransformer, TransformerEncoder
 
-config = Transformer(
+config = TensorTransformer(
     n_tfe_layers=3,
     n_seq=7,
     n_heads=4,
@@ -36,7 +36,7 @@ print(result.shape)
 
 x_raw = random.randint(key, (N, T), 0, config.dict_size)
 # noinspection PyTypeChecker
-tf = Transformer.make(config)
+tf = TensorTransformer.make(config)
 # noinspection PyTypeChecker
 weights = make_weights(tf.weight_params)
 pprint(tree_map(lambda _x: _x.shape, weights))

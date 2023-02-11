@@ -7,7 +7,7 @@ from jax import Array as NDArray
 from jax_make.components.norms import LayerNorm
 from jax_make.utils.activations import Activation, get_activation
 from jax_make.components.dropout import Dropout
-from jax_make.component_protocol import Component, merge_params
+from jax_make.component_protocol import Component, merge_component_params
 from jax_make.utils.elementary_components import linear, linear_component
 from jax_make.params import WeightParams, ArrayTree, RNGKey
 import jax_make.params as p
@@ -76,7 +76,7 @@ class Mlp(NamedTuple):
             x = components[output_layer].fixed_pipeline(output_weights, x)
             return x
 
-        return Component.from_pipeline(merge_params(components), _fn)
+        return Component.from_pipeline(merge_component_params(components), _fn)
 
 
 class MlpLayerNormConfigs(Protocol):
@@ -147,6 +147,6 @@ class MlpLayerNorm(NamedTuple):
             x = vmap(components[output_layer].fixed_pipeline, (None, dn), dn)(output_weights, x)
             return x
 
-        return Component.from_pipeline(merge_params(components), _fn)
+        return Component.from_pipeline(merge_component_params(components), _fn)
 
 

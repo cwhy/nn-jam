@@ -1,37 +1,42 @@
 # %% imports
 from __future__ import annotations
 import os
-from typing import Dict, Callable
+from typing import Dict, Callable, Optional
 
 import jax
 import jax.numpy as xp
 import optax
 from jax import Array
 
-from jax_make.component_protocol import merge_component_params
+from jax_make.component_protocol import merge_component_params, Input, Output, FixedPipeline
 from jax_make.components.embedding import Embeddings
 from jax_make.params import make_weights, ArrayTreeMapping, RNGKey, get_mapping, get_arr
 from jax_make.utils.functions import softmax_cross_entropy_with_integer_labels
 from jax_make.utils.elementary_components import linear, linear_component
+from jax_make.components.multi_head_attn import SelfMultiHeadAttn, masked_mha_port
+from scripts.nanogpt.attention import attention_component, causal_attention
 from scripts.nanogpt.my_nlp_dataset import load_jax_cached
 from scripts.nanogpt.utils import infinite_jax_keys, flatten_token, batch_fy, jax_calc_updates
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = "0"
 
-block_size = 8
+block_size = 16
 batch_size = 32
 max_iters = 20000
-eval_interval = 300
+eval_interval = 500
 learning_rate_ = 1e-3
 eval_iters = 200
 seed = 0
 key_gen = infinite_jax_keys(seed)
 init_scale_ = 0.01
-n_embd = 32
+n_embd_ = 64
 
-# dataset = "english"
-dataset = "play"
+dataset = "english"
+# dataset = "play"
 encoded_jax, encode, decode, vocab_size_ = load_jax_cached(dataset=dataset)
+
+
+print(encode("hii there"))
+print(decode(encode("hii there")))
 
 n = int(len(encoded_jax) * 0.9)
 train_data = encoded_jax[:n]
@@ -53,8 +58,13 @@ def get_batch(data: Array, rng_key: RNGKey) -> Dict[str, Array]:
     return {'inputs': inputs, 'targets': targets_}
 
 
-class BigramLanguageModel:
-    def __init__(self, rng_key: RNGKey, learning_rate: float, vocab_size: int, init_scale: float):
+# %%
+class SALanguageModel:
+    def __init__(self, rng_key: RNGKey,
+                 learning_rate: float,
+                 vocab_size: int,
+                 init_scale: float,
+                 n_embd: int):
         self.vocab_size = vocab_size
 
         self.token_embeddings = Embeddings.make(
@@ -63,9 +73,13 @@ class BigramLanguageModel:
         self.position_embedding = Embeddings.make(Embeddings(dict_size=block_size,
                                                              dim_model=n_embd,
                                                              dict_init_scale=init_scale))
+        self.sa_head = attention_component(n_embd, n_embd, causal_attention)
+        # self.sa_head = SelfMultiHeadAttn.make(SelfMultiHeadAttn(4, n_embd, n_embd))
         self.weight_params = merge_component_params({'token_embeddings': self.token_embeddings,
+                                                     'sa_head': self.sa_head,
                                                      'lm_head': self.lm_head,
                                                      'position_embedding': self.position_embedding})
+        self.mask = xp.tril(xp.ones((block_size, block_size)))
 
         self.init_weights = make_weights(rng_key, self.weight_params)
         self.weights_: ArrayTreeMapping = self.init_weights
@@ -73,23 +87,34 @@ class BigramLanguageModel:
         self.opt_state_ = self.optimiser.init(self.init_weights)
 
         self.guess_loss = -xp.log(1 / (vocab_size + 1))
-        self.forward = batch_fy(self.forward1)
         self.loss_fn = self.make_loss_fn()
 
-    def forward1(self, weights: ArrayTreeMapping, x: Array) -> Array:
-        token_embed = self.token_embeddings.fixed_pipeline(
-            get_mapping(weights, 'token_embeddings'), x)
-        position_embed = self.position_embedding.fixed_pipeline(
-            get_mapping(weights, 'position_embedding'), x)
-        embed = token_embed + position_embed
-        return self.lm_head.fixed_pipeline(get_mapping(weights, 'lm_head'), embed)
+    def get_forward1(self, mask: Optional[Array]) -> FixedPipeline:
+        @jax.jit
+        def forward1(weights: ArrayTreeMapping, x: Array) -> Array:
+            token_embed = self.token_embeddings.fixed_pipeline(
+                get_mapping(weights, 'token_embeddings'), x)
+            position_embed = self.position_embedding.fixed_pipeline(
+                get_mapping(weights, 'position_embedding'), x)
+            embed = token_embed + position_embed
+
+            sa_out = self.sa_head.fixed_pipeline(get_mapping(weights, 'sa_head'), embed)
+            # if mask is not None:
+            #     process_out = self.sa_head.processes[masked_mha_port](
+            #         get_mapping(weights, 'sa_head'), {Input: embed.T, 'mask': mask}, None)
+            #     sa_out = get_arr(process_out, Output).T
+            # else:
+            #     sa_out = self.sa_head.fixed_pipeline(get_mapping(weights, 'sa_head'), embed.T).T
+            return self.lm_head.fixed_pipeline(get_mapping(weights, 'lm_head'), sa_out)
+
+        return forward1
 
     def loss(self, batch: Dict[str, Array]) -> Array:
         return jax.jit(self.loss_fn)(self.weights_, batch)
 
     def make_loss_fn(self) -> Callable[[ArrayTreeMapping, Dict[str, Array]], Array]:
         def _loss_fn(weight: ArrayTreeMapping, batch: Dict[str, Array]) -> Array:
-            logits = flatten_token(self.forward(weight, batch['inputs']))
+            logits = flatten_token(batch_fy(self.get_forward1(self.mask))(weight, batch['inputs']))
             targets = flatten_token(batch['targets'])
             return softmax_cross_entropy_with_integer_labels(logits, targets).mean()
 
@@ -97,11 +122,13 @@ class BigramLanguageModel:
 
     def generate(self, idx: int, max_new_tokens: int) -> list[int]:
         new_tokens = [idx]
-        idx_next = idx
-        for _ in range(max_new_tokens):
-            logits = self.forward1(self.weights_, xp.array([idx_next]))
+        keys = jax.random.split(key_gen, max_new_tokens)
+        for rng_key in keys:
+            x = xp.array(new_tokens[-block_size:])
+            mask = xp.tril(xp.ones((x.size, x.size)))
+            logits = self.get_forward1(mask)(self.weights_, x)[-1]
             probs = jax.nn.softmax(logits).flatten()
-            idx_next = jax.random.choice(key=next(key_gen), a=xp.arange(0, self.vocab_size), p=probs, shape=()).item()
+            idx_next = jax.random.choice(key=rng_key, a=xp.arange(0, self.vocab_size), p=probs, shape=()).item()
             new_tokens.append(idx_next)
         return new_tokens
 
@@ -112,7 +139,7 @@ class BigramLanguageModel:
                                                           self.opt_state_)
 
 
-def estimate_loss(model: BigramLanguageModel) -> None:
+def estimate_loss(model: SALanguageModel) -> None:
     for split in 'train', 'val':
         total_eval_loss = 0
         for key in jax.random.split(next(key_gen), eval_iters):
@@ -137,10 +164,11 @@ def estimate_loss(model: BigramLanguageModel) -> None:
 # print(f"after step, batch loss {loss}")
 
 # %%
-model_ = BigramLanguageModel(next(key_gen), learning_rate_, vocab_size_, init_scale_)
-keys = jax.random.split(next(key_gen), max_iters)
+model_ = SALanguageModel(next(key_gen), learning_rate_, vocab_size_, init_scale_, n_embd_)
+# %%
+keys_ = jax.random.split(next(key_gen), max_iters)
 for step in range(max_iters):
-    batch_ = get_batch(train_data, keys[step])
+    batch_ = get_batch(train_data, keys_[step])
     if step % eval_interval == 0:
         loss = model_.loss(batch_)
         print(f"===step {step} is an eval step===")
@@ -150,6 +178,6 @@ for step in range(max_iters):
         loss = model_.loss(batch_)
         print(f"after step {step}, batch loss {loss}")
         estimate_loss(model_)
-        generated = model_.generate(encode(",")[0], max_new_tokens=100)
+        generated = model_.generate(0, max_new_tokens=200)
         print(decode(generated))
 

@@ -7,13 +7,13 @@ from jax import numpy as xp, random, vmap, nn, Array
 from jax.nn import logsumexp
 
 import jax_make.params as p
-from jax_make.component_protocol import Component, merge_params, pipeline2processes, make_ports, Input, \
+from jax_make.component_protocol import Component, merge_component_params, pipeline2processes, make_ports, Input, \
     Output
 from jax_make.components.dirty_patches import DirtyPatches
 from jax_make.components.embedding import Embeddings
 from jax_make.components.mlp import Mlp
 from jax_make.components.norms import LayerNorm
-from jax_make.components.positional_encoding import PositionalEncoding
+from jax_make.components.tensor_positional_encoding import TensorPositionalEncoding
 from jax_make.params import ArrayTreeMapping
 from jax_make.transformer import TransformerEncoderConfigs, TransformerEncoder
 from jax_make.utils.activations import Activation
@@ -108,7 +108,7 @@ class Vit(NamedTuple):
                 mlp_activation=configs.mlp_activation,
                 dropout_keep_rate=configs.dropout_keep_rate
             )),
-            'positional_encoding': PositionalEncoding.make(PositionalEncoding(
+            'positional_encoding': TensorPositionalEncoding.make(TensorPositionalEncoding(
                 input_shape=(configs.n_patches_side,
                              configs.n_patches_side,
                              configs.hwc[-1]),
@@ -118,7 +118,7 @@ class Vit(NamedTuple):
                 positional_encode_strategy='dot',
                 init_scale=0.001,
             )),
-            'positional_encoding_y': PositionalEncoding.make(PositionalEncoding(
+            'positional_encoding_y': TensorPositionalEncoding.make(TensorPositionalEncoding(
                 input_shape=(1,),
                 input_channels=configs.dim_model,
                 output_channels=configs.dim_model,
@@ -177,7 +177,7 @@ class Vit(NamedTuple):
             # [dim_model, dim_out + (h, w, C)]
             return yx
 
-        return Component.from_pipeline(merge_params(components), _fn)
+        return Component.from_pipeline(merge_component_params(components), _fn)
 
 
 class VitReconstructComponentWeights(NamedTuple):
@@ -263,7 +263,7 @@ class VitReconstruct(NamedTuple):
                     dropout_keep_rate=configs.dropout_keep_rate
                     )
             ),
-            'positional_encoding': PositionalEncoding.make(PositionalEncoding(
+            'positional_encoding': TensorPositionalEncoding.make(TensorPositionalEncoding(
                 input_shape=(configs.n_patches_side,
                              configs.n_patches_side,
                              ch),
@@ -273,7 +273,7 @@ class VitReconstruct(NamedTuple):
                 positional_encode_strategy='naive_sum',
                 init_scale=configs.pos_init_scale,
             )),
-            'positional_encoding_y': PositionalEncoding.make(PositionalEncoding(
+            'positional_encoding_y': TensorPositionalEncoding.make(TensorPositionalEncoding(
                 input_shape=(1,),
                 input_channels=configs.dim_model,
                 output_channels=configs.dim_model,
@@ -414,4 +414,4 @@ class VitReconstruct(NamedTuple):
 
         processes = pipeline2processes(_x2y)
         processes[make_ports((Input, Output), ('rec_loss', 'x_rec_img'))] = _fn
-        return Component(merge_params(components), processes)
+        return Component(merge_component_params(components), processes)

@@ -8,7 +8,7 @@ from optax._src.alias import adamw
 from optax._src.base import OptState
 
 from jax_make.params import RNGKey
-from jax_make.transformer import Transformer
+from jax_make.transformer import TensorTransformer
 from mcts_python.config import lr, max_batch_size
 
 
@@ -30,8 +30,8 @@ class JaxMcts:
             dict_size=dict_size,
             dim_input=
         )
-        net_train = Transformer.make()
-        net_test = Transformer.make()
+        net_train = TensorTransformer.make()
+        net_test = TensorTransformer.make()
 
         def update_adam(params, batch, _state: Tuple[RNGKey, OptState]):
             rng, _opt_state = _state

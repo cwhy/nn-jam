@@ -6,7 +6,7 @@ import jax.numpy as xp
 import optax
 from jax import Array
 
-from jax_make.component_protocol import FixedPipeline
+from jax_make.component_protocol import FixedPipeline, FixedProcess
 from jax_make.params import ArrayTreeMapping
 
 

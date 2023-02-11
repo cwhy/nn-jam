@@ -28,9 +28,11 @@ class Process(Protocol):
     def __call__(self, weights: ArrayTreeMapping,
                  inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping: ...
 
+
 class RandomProcess(Protocol):
     def __call__(self, weights: ArrayTreeMapping,
                  inputs: ArrayTreeMapping, rng: RNGKey) -> ArrayTreeMapping: ...
+
 
 class Pipeline(Protocol):
     def __call__(self, weights: ArrayTreeMapping,
@@ -50,9 +52,12 @@ class NonFixedComponent(Exception):
     ...
 
 
+PPorts = FrozenSet[str]
+
+
 class ProcessPorts(NamedTuple):
-    inputs: FrozenSet[str]
-    outputs: FrozenSet[str]
+    inputs: PPorts
+    outputs: PPorts
 
 
 def make_ports(inputs: str | Tuple[str, ...], outputs: str | Tuple[str, ...]) -> ProcessPorts:
@@ -66,6 +71,7 @@ def make_ports(inputs: str | Tuple[str, ...], outputs: str | Tuple[str, ...]) ->
 
 pipeline_ports: ProcessPorts = make_ports(Input, Output)
 
+
 def random_process2process(process: RandomProcess) -> Process:
     def _fn(weights: ArrayTreeMapping,
             inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
@@ -76,6 +82,33 @@ def random_process2process(process: RandomProcess) -> Process:
 
     return _fn
 
+
+def fixed_pipeline2process(pipeline: FixedPipeline, input_port: str, output_port: str) -> Process:
+    def _fn(weights: ArrayTreeMapping,
+            inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
+        input_array = p.get_arr(inputs, input_port)
+        mp: ArrayTreeMapping = {output_port: pipeline(weights, input_array)}
+        return mp
+
+    return _fn
+
+
+def pipeline2process(pipeline: Pipeline, input_port: str, output_port: str) -> Process:
+    def _fn(weights: ArrayTreeMapping,
+            inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
+        try:
+            input_array = p.get_arr(inputs, input_port)
+        except AssertionError as e:
+            raise Exception(f"Failed in converted process from pipeline:", e)
+        if rng is None:
+            raise Exception("Trying to run non-fixed process without rng")
+        else:
+            mp: ArrayTreeMapping = {output_port: pipeline(weights, input_array, rng)}
+            return mp
+
+    return _fn
+
+
 def pipeline2processes(pipeline: Pipeline) -> Dict[ProcessPorts, Process]:
     def _fn(weights: ArrayTreeMapping,
             inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
@@ -84,7 +117,7 @@ def pipeline2processes(pipeline: Pipeline) -> Dict[ProcessPorts, Process]:
         except AssertionError as e:
             raise Exception(f"Failed in converted process from pipeline:", e)
         if rng is None:
-            raise Exception("Trying to run pipeline without rng")
+            raise Exception("Trying to run non-fixed process without rng")
         else:
             mp: ArrayTreeMapping = {Output: pipeline(weights, input_array, rng)}
             return mp
@@ -109,10 +142,10 @@ def fixed_pipeline2processes(pipeline: FixedPipeline) -> Dict[ProcessPorts, Proc
 class Component:
     weight_params: ArrayParamMapping
     processes: Dict[ProcessPorts, Process]
-    is_fixed: bool = False
+    default_pipeline_is_fixed: bool = False
 
     def assert_fixed_(self):
-        if not self.is_fixed:
+        if not self.default_pipeline_is_fixed:
             raise NonFixedComponent("The component need to be fixed(non-random) to retrieve fixed process or pipelines")
 
     def get_pipeline_process(self) -> Process:
@@ -142,16 +175,6 @@ class Component:
 
         return _fn
 
-    def get_fixed_process(self, process_ports: ProcessPorts) -> FixedProcess:
-        self.assert_fixed_()
-
-        def _fn(weights: ArrayTreeMapping,
-                inputs: ArrayTreeMapping) -> ArrayTreeMapping:
-            process = self.processes[process_ports]
-            return process(weights, inputs, None)
-
-        return _fn
-
     @classmethod
     def from_pipeline(cls,
                       params: ArrayParamMapping,
@@ -168,7 +191,8 @@ class Component:
                 inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
             return process(weights, inputs)
 
-        return cls(params, {ProcessPorts(frozenset(ports_in), frozenset(ports_out)): _fn}, is_fixed=True)
+        return cls(params, {ProcessPorts(frozenset(ports_in), frozenset(ports_out)): _fn},
+                   default_pipeline_is_fixed=True)
 
     @classmethod
     def from_fixed_pipeline(cls,
@@ -179,10 +203,10 @@ class Component:
                 inputs: ArrayTreeMapping, rng: Optional[RNGKey]) -> ArrayTreeMapping:
             return {Output: pipeline(weights, p.get_arr(inputs, Input))}
 
-        return cls(params, {pipeline_ports: _fn}, is_fixed=True)
+        return cls(params, {pipeline_ports: _fn}, default_pipeline_is_fixed=True)
 
 
-def merge_params(
+def merge_component_params(
         components: Mapping[str, Component]
 ) -> ArrayParamMapping:
     return {k: v.weight_params for k, v in components.items()}
@@ -204,5 +228,13 @@ def sequential(components: Mapping[str, Component],
         for comp_name, key in zip(sequence, keys):
             x = pipelines[comp_name](p.get_mapping(weights, comp_name), x, key)
         return x
+
+    return _fn
+
+
+def connect_pipelines(a: Pipeline, b: Pipeline) -> Pipeline:
+    def _fn(weights: ArrayTreeMapping,
+            x: NDArray, rng: RNGKey) -> NDArray:
+        return b(weights, a(weights, x, rng), rng)
 
     return _fn

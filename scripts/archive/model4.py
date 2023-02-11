@@ -16,7 +16,7 @@ from pynng import Pair0
 from variable_protocols.bak.protocols import Variable
 from variable_protocols.bak.variables import one_hot, var_tensor, gaussian, dim, var_scalar
 
-from jax_make.components.positional_encoding import dot_product_encode
+from jax_make.components.tensor_positional_encoding import dot_product_encode
 from jax_make.params import ArrayTree, RNGKey, make_weights
 from jax_make.vit import Vit
 from stage.protocol import Stage

@@ -5,7 +5,7 @@ from jax import numpy as xp, random, vmap, nn
 from jax.nn import logsumexp
 
 import jax_make.params as p
-from jax_make.component_protocol import Component, merge_params, random_process2process
+from jax_make.component_protocol import Component, merge_component_params, random_process2process
 from jax_make.component_protocol import make_ports, Input, Output
 from jax_make.components.embedding import Embeddings
 from jax_make.components.multi_head_attn import masked_mha_port
@@ -151,7 +151,7 @@ class AnyNet(NamedTuple):
                 shape=(2, configs.dim_model),
                 init="embedding",
                 scale=configs.init_embed_scale),
-            **merge_params(components),
+            **merge_component_params(components),
         }
         processes = {
             loss_ports: random_process2process(_loss),

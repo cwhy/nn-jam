@@ -7,7 +7,7 @@ from jax import Array
 from jax import vmap
 
 import jax_make.params as p
-from jax_make.component_protocol import Component, merge_params, make_ports, Input, Output, \
+from jax_make.component_protocol import Component, merge_component_params, make_ports, Input, Output, \
     fixed_pipeline2processes
 from jax_make.params import WeightParams, ArrayTreeMapping
 from jax_make.utils.functions import softmax
@@ -55,7 +55,8 @@ class SelfMultiHeadAttn(NamedTuple):
             return xp.einsum('ts,mt->ms', x, v)
 
         def _dot_attention_mask(q: Array, k: Array, mask: Array) -> Array:
-            scores = xp.einsum('mt,ms,t->ts', q, k, mask)
+            scores = xp.einsum('mt,ms->ts', q, k)
+            scores = xp.where(mask == 0, -xp.inf, scores)
             return softmax(scores / sqrt(config.dim_model))
 
         # [C] -> [3*K] -> [3,H,W]
@@ -81,12 +82,12 @@ class SelfMultiHeadAttn(NamedTuple):
 
         # [CT] -> [KT]
         def _fn_mask(weights: ArrayTreeMapping, inputs: ArrayTreeMapping, rng=None) -> ArrayTreeMapping:
-            x, mask = p.get_arr(weights, Input), p.get_arr(weights, 'mask')
+            x, mask = p.get_arr(inputs, Input), p.get_arr(inputs, 'mask')
             # Split into heads ([C] -> [3*K] -> [3,H,W]) * T
             # W: latent dims
             q, k, v = vmap(_separate, (None, 1), -1)(p.get_mapping(weights, "kqv"), x)
 
-            # attention H * (3*[W,T] -> [T,T]) first T is masked
+            # attention H * ([W,T] [W,T] [T,T] -> [T,T]) first T is masked
             attn = vmap(_dot_attention_mask, (0, 0, None))(q, k, mask)
 
             # [H, T, T] [H, W, T] -> [H, W, T]
@@ -98,4 +99,4 @@ class SelfMultiHeadAttn(NamedTuple):
 
         processes = fixed_pipeline2processes(_fn)
         processes[masked_mha_port] = _fn_mask
-        return Component(merge_params(components), processes)
+        return Component(merge_component_params(components), processes, default_pipeline_is_fixed=True)
