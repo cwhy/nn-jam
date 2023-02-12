@@ -41,6 +41,7 @@ class Linear:
 
     @staticmethod
     def f(x: Array, w: Array, b: Array) -> Array:
+        pass
 
 
 class Mlp:
@@ -80,17 +81,18 @@ class SelfAttention(NamedTuple):
         return Attention.f(to_q @ x, to_k @ x, to_v @ x)
 
 
-class LinearComponent(NamedTuple):
-    w: LinearWeights
-    f: LinearProtocol
-
-
-class MlpComponents(NamedTuple):
-    layers: list[LinearComponent]
-
-
-def mlp(w: MlpWeights, x: LinearInputs, c: MlpComponents) -> Array:
-    x_ = x.x
-    for l in c.layers:
-        x_ = l.f(x_)
-    return x_
+# class LinearComponent(NamedTuple):
+#     w: LinearWeights
+#     f: LinearProtocol
+#
+#
+# class MlpComponents(NamedTuple):
+#     layers: list[LinearComponent]
+#
+#
+# def mlp(w: MlpWeights, x: LinearInputs, c: MlpComponents) -> Array:
+#     x_ = x.x
+#     for l in c.layers:
+#         x_ = l.f(x_)
+#     return x_
+#
