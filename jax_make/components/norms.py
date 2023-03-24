@@ -21,6 +21,7 @@ class LayerNormConfigs(Protocol):
         ...
 
 
+# TODO: definition is wrong: keep dims, norm layer for every other dims
 class LayerNorm(NamedTuple):
     norm_axis: Union[Tuple[int, ...], int]
     eps: float

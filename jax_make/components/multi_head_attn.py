@@ -30,6 +30,7 @@ class SelfMultiHeadAttnConfigs(Protocol):
     def dim_input(self) -> int: ...  # x
 
 
+# TODO: scaling is wrong
 class SelfMultiHeadAttn(NamedTuple):
     n_heads: int  # H
     dim_model: int  # k
